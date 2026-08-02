@@ -11,7 +11,9 @@ import {
 import {
   applyHarnessConfiguration,
   proposeHarnessConfigurations,
+  type Harness,
 } from "./harnesses.js";
+import { selectOptions } from "./select-options.js";
 import type { InstallationCommandIo } from "./cli.js";
 import { getEffectiveConfiguration } from "../configuration/index.js";
 
@@ -19,18 +21,22 @@ export async function runInteractiveSetup(
   optionsMap: ReadonlyMap<string, string | true>,
   io: InstallationCommandIo,
   readlineInterface?: readline.Interface,
+  input?: NodeJS.ReadableStream,
 ): Promise<number> {
+  const inputStream = (input ?? process.stdin) as NodeJS.ReadableStream & {
+    isTTY?: boolean;
+  };
   const isNonInteractive =
     optionsMap.has("non-interactive") ||
     optionsMap.has("yes") ||
-    !process.stdin.isTTY;
+    inputStream.isTTY !== true;
 
   let rl: readline.Interface | undefined = readlineInterface;
   const shouldCloseRl = rl === undefined && !isNonInteractive;
 
   if (shouldCloseRl) {
     rl = readline.createInterface({
-      input: process.stdin,
+      input: inputStream,
       output: process.stderr,
     });
   }
@@ -155,44 +161,38 @@ export async function runInteractiveSetup(
       allowedModels.unshift(defaultModel);
     }
 
-    // 5. Target Harness
-    let target = stringOpt(optionsMap, "target");
-    if (target === undefined && !isNonInteractive && rl) {
-      const promptText = `Target harness (claude-code / codex / antigravity / all / cancel) [all]: `;
-      const answer = (await rl.question(promptText)).trim().toLowerCase();
-      if (
-        answer === "claude-code" ||
-        answer === "codex" ||
-        answer === "antigravity" ||
-        answer === "all" ||
-        answer === "both" ||
-        answer === "cancel"
-      ) {
-        target = answer;
-      } else if (answer === "") {
-        target = "all";
-      } else {
+    // 5. Target Harness(es)
+    let targets: readonly Harness[];
+    const targetFlag = stringOpt(optionsMap, "target");
+    if (targetFlag !== undefined) {
+      if (!isHarnessSelection(targetFlag)) {
         io.write("Invalid harness choice. Aborting setup.\n");
         return 65;
       }
-    } else if (target === undefined) {
-      target = "all";
-    }
-
-    if (target === "cancel") {
-      io.write("Setup cancelled.\n");
-      return 0;
-    }
-
-    if (
-      target !== "claude-code" &&
-      target !== "codex" &&
-      target !== "antigravity" &&
-      target !== "all" &&
-      target !== "both"
-    ) {
-      io.write(`Invalid target harness: ${target}\n`);
-      return 65;
+      targets = harnessesFromSelection(targetFlag);
+      if (targets.length === 0) {
+        io.write("Setup cancelled.\n");
+        return 0;
+      }
+    } else if (!isNonInteractive && rl) {
+      const selection = await selectOptions({
+        prompt: "Select target harnesses (space to toggle, enter to confirm):",
+        options: [
+          { label: "Claude Code", value: "claude-code" },
+          { label: "Codex", value: "codex" },
+          { label: "Antigravity", value: "antigravity" },
+        ],
+        initial: ["claude-code", "codex"],
+        write: io.write,
+        input: inputStream,
+      });
+      if (selection.cancelled || selection.values.length === 0) {
+        io.write("Setup cancelled.\n");
+        return 0;
+      }
+      targets = selection.values as readonly Harness[];
+    } else {
+      targets = ["claude-code", "codex", "antigravity"];
     }
 
     // Build environment object for runtime setup
@@ -236,7 +236,7 @@ export async function runInteractiveSetup(
 
     // Propose Harness Configurations
     const harnessProposals = await proposeHarnessConfigurations({
-      selection: target,
+      selection: targets,
       projectRoot: projRoot,
       homeDirectory: homeDir,
       environment: effectiveEnv,
@@ -334,15 +334,15 @@ export async function runInteractiveSetup(
 
     io.write("\n--- Setup Complete! ---\n");
     io.write("You can now start your harness:\n");
-    if (target === "claude-code" || target === "all" || target === "both") {
+    if (targets.includes("claude-code")) {
       io.write(
         "  - For Claude Code: run 'claude' in this repository directory.\n",
       );
     }
-    if (target === "codex" || target === "all" || target === "both") {
+    if (targets.includes("codex")) {
       io.write("  - For Codex: run 'codex' from any shell.\n");
     }
-    if (target === "antigravity" || target === "all" || target === "both") {
+    if (targets.includes("antigravity")) {
       io.write(
         "  - For Antigravity: server registered in ~/.gemini/config/mcp_config.json.\n",
       );
@@ -370,4 +370,28 @@ function stringOpt(
 ): string | undefined {
   const value = options.get(name);
   return typeof value === "string" ? value : undefined;
+}
+
+function isHarnessSelection(value: string): boolean {
+  return (
+    value === "claude-code" ||
+    value === "codex" ||
+    value === "antigravity" ||
+    value === "all" ||
+    value === "both" ||
+    value === "cancel"
+  );
+}
+
+function harnessesFromSelection(selection: string): readonly Harness[] {
+  if (selection === "cancel") {
+    return [];
+  }
+  if (selection === "all") {
+    return ["claude-code", "codex", "antigravity"];
+  }
+  if (selection === "both") {
+    return ["claude-code", "codex"];
+  }
+  return [selection as Harness];
 }

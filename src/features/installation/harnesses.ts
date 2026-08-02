@@ -52,7 +52,7 @@ export interface HarnessConfirmation {
 }
 
 export interface ProposeHarnessConfigurationsInput {
-  readonly selection: HarnessSelection;
+  readonly selection: readonly Harness[] | HarnessSelection;
   readonly projectRoot?: string;
   readonly homeDirectory?: string;
   readonly command?: string;
@@ -82,17 +82,8 @@ interface ProposedFile {
 export async function proposeHarnessConfigurations(
   input: ProposeHarnessConfigurationsInput,
 ): Promise<readonly HarnessConfigurationProposal[]> {
-  if (input.selection === "cancel") {
-    return [];
-  }
-
   const command = normalizeCommand(input.command);
-  const harnesses: readonly Harness[] =
-    input.selection === "all"
-      ? ["claude-code", "codex", "antigravity"]
-      : input.selection === "both"
-        ? ["claude-code", "codex"]
-        : [input.selection];
+  const harnesses = expandSelection(input.selection);
   const environment = input.environment ?? process.env;
 
   return Promise.all(
@@ -109,6 +100,24 @@ export async function proposeHarnessConfigurations(
       );
     }),
   );
+}
+
+function expandSelection(
+  selection: readonly Harness[] | HarnessSelection,
+): readonly Harness[] {
+  if (typeof selection !== "string") {
+    return selection;
+  }
+  if (selection === "cancel") {
+    return [];
+  }
+  if (selection === "all") {
+    return ["claude-code", "codex", "antigravity"];
+  }
+  if (selection === "both") {
+    return ["claude-code", "codex"];
+  }
+  return [selection];
 }
 
 export async function applyHarnessConfiguration(

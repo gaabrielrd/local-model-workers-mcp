@@ -31,3 +31,14 @@ export {
   type InstallationCommandIo,
 } from "./cli.js";
 export { runInteractiveSetup } from "./interactive.js";
+export {
+  createCheckboxState,
+  moveCheckboxCursor,
+  selectOptions,
+  selectedCheckboxValues,
+  toggleCheckboxOption,
+  type CheckboxState,
+  type SelectableOption,
+  type SelectOptionsInput,
+  type SelectOptionsResult,
+} from "./select-options.js";

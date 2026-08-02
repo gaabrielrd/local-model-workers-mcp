@@ -55,7 +55,7 @@ local-model-workers-mcp setup
 local-model-workers-mcp init
 ```
 
-This assistant interactively prompts for the LM Studio Base URL, allowed models, default model, optional Bearer token, and target harness (`claude-code`, `codex`, `antigravity`, or `all`). It updates global preferences, writes harness configuration files, runs an immediate health check (`check_health`) against LM Studio, and presents first-call instructions. Non-interactive or automated execution is supported via flags (`--target all --yes`, `--dry-run`, etc.).
+This assistant interactively prompts for the LM Studio Base URL, allowed models, default model, optional Bearer token, and target harnesses. The harness prompt is a checkbox list (`claude-code`, `codex`, `antigravity`): use the arrow keys to move, `Space` to toggle a harness on or off, `Enter` to confirm, and `Ctrl+C` to cancel. It updates global preferences, writes harness configuration files, runs an immediate health check (`check_health`) against LM Studio, and presents first-call instructions. Non-interactive or automated execution is supported via flags (`--target all --yes`, `--dry-run`, etc.).
 
 ## Text-only configuration assistant
 

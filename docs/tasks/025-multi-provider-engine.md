@@ -1,5 +1,5 @@
 <Task 025: Multi-provider engine support>
-**Status:** Not started
+**Status:** In progress (UX increment done: interactive harness selection component in `src/features/installation/select-options.ts`, integrated into `setup`/`init`; multi-provider engine still pending)
 **Depends on:** Tasks 007, 023
 **PRD coverage:** New capability CAP-14
 

@@ -72,6 +72,30 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
   );
 });
 
+void test("accepts an explicit harness array selection", async (t) => {
+  const fixture = await createFixture(t);
+  const proposals = await proposeHarnessConfigurations({
+    selection: ["codex", "antigravity"],
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(
+    proposals.map((proposal) => [proposal.harness, proposal.state]),
+    [
+      ["codex", "fresh"],
+      ["antigravity", "fresh"],
+    ],
+  );
+  assert.deepEqual(
+    await proposeHarnessConfigurations({
+      selection: [],
+      projectRoot: fixture.project,
+      homeDirectory: fixture.home,
+    }),
+    [],
+  );
+});
+
 void test("configures antigravity harness in ~/.gemini/config/mcp_config.json", async (t) => {
   const fixture = await createFixture(t);
   const [proposal] = await proposeHarnessConfigurations({
