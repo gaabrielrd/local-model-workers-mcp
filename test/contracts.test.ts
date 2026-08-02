@@ -33,12 +33,13 @@ const identity = {
   config_revision: "revision-7",
 } as const;
 
-void test("only the six approved tool names exist", () => {
+void test("only approved tool names exist", () => {
   assert.deepEqual(Object.values(TOOL_NAMES).sort(), [
     "check_health",
     "explore_repository",
     "get_config",
     "propose_tests",
+    "search_semantic",
     "update_config",
     "validate_config",
   ]);

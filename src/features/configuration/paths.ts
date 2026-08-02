@@ -27,7 +27,7 @@ export function resolveGlobalPreferencesPath(
   }
 
   if (input.platform === "darwin") {
-    return path.join(
+    return path.posix.join(
       input.homeDirectory,
       "Library",
       "Application Support",
@@ -37,8 +37,8 @@ export function resolveGlobalPreferencesPath(
   }
 
   const xdgConfigHome = nonEmpty(input.environment.XDG_CONFIG_HOME);
-  const base = xdgConfigHome ?? path.join(input.homeDirectory, ".config");
-  return path.join(
+  const base = xdgConfigHome ?? path.posix.join(input.homeDirectory, ".config");
+  return path.posix.join(
     base,
     CONFIGURATION_DIRECTORY_NAME,
     GLOBAL_PREFERENCES_FILENAME,

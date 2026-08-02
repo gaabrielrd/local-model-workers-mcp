@@ -1,0 +1,216 @@
+import { createHash } from "node:crypto";
+
+import type { ModelInferencePort } from "../model-inference/index.js";
+import type { RepositoryReadCapability } from "../repository-exploration/index.js";
+
+import { chunkText } from "./chunking.js";
+import type {
+  SemanticSearchInput,
+  SemanticSearchResult,
+  SemanticSearchResultItem,
+  VectorIndex,
+} from "./contracts.js";
+
+const DEFAULT_TOP_K = 10;
+const MAX_EXCERPT_LINES = 50;
+
+export interface ExecuteSemanticSearchOptions {
+  readonly input: SemanticSearchInput;
+  readonly inference: ModelInferencePort;
+  readonly vectorIndex: VectorIndex;
+  readonly repositoryRead: RepositoryReadCapability;
+  readonly embeddingModel: string;
+  readonly timeout_ms?: number | undefined;
+  readonly signal?: AbortSignal | undefined;
+  readonly onProgress?: ((message: string) => void) | undefined;
+}
+
+export async function executeSemanticSearch(
+  options: ExecuteSemanticSearchOptions,
+): Promise<SemanticSearchResult> {
+  const {
+    input,
+    inference,
+    vectorIndex,
+    repositoryRead,
+    embeddingModel,
+    timeout_ms = 30_000,
+    signal,
+    onProgress,
+  } = options;
+
+  const topK = input.top_k ?? DEFAULT_TOP_K;
+
+  // Reindex if requested or index is empty
+  if (input.reindex === true || vectorIndex.size() === 0) {
+    onProgress?.("Indexing repository files for semantic search...");
+    await reindexRepository({
+      repositoryRead,
+      inference,
+      vectorIndex,
+      embeddingModel,
+      timeout_ms,
+      signal,
+      onProgress,
+    });
+  }
+
+  // Generate query embedding
+  onProgress?.("Generating query embedding...");
+  const queryResult = await inference.embedText({
+    model: embeddingModel,
+    input: input.query,
+    timeout_ms,
+    signal,
+  });
+
+  const queryVector = queryResult.embeddings[0];
+  if (queryVector === undefined) {
+    return { results: [] };
+  }
+
+  // Vector search
+  const matches = await vectorIndex.search(queryVector, topK);
+  if (matches.length === 0) {
+    return { results: [] };
+  }
+
+  // Staleness check on sample of top results
+  let staleCount = 0;
+  const items: SemanticSearchResultItem[] = [];
+
+  for (const match of matches) {
+    let snippetText: string;
+    let lineStart = 1;
+    let lineEnd = 1;
+
+    try {
+      // Read snippet for excerpt extraction
+      const snippet = await repositoryRead.readSnippet({
+        path: match.path,
+        start_line: 1,
+        line_count: MAX_EXCERPT_LINES,
+      });
+
+      snippetText = snippet.content;
+      lineStart = snippet.start_line;
+      lineEnd = snippet.end_line;
+
+      // Staleness check
+      const currentHash = createHash("sha256")
+        .update(snippetText)
+        .digest("hex");
+      const isStale = await vectorIndex.isStale(match.path, currentHash);
+      if (isStale) {
+        staleCount += 1;
+      }
+    } catch {
+      staleCount += 1;
+      snippetText = "[Unable to read file content]";
+    }
+
+    items.push({
+      path: match.path,
+      score: Math.round(match.score * 1_000) / 1_000,
+      excerpt: snippetText,
+      line_start: lineStart,
+      line_end: lineEnd,
+    });
+  }
+
+  const staleRatio = staleCount / matches.length;
+  const staleWarning = staleRatio > 0.2;
+
+  return {
+    results: items,
+    ...(staleWarning ? { stale_warning: true } : {}),
+  };
+}
+
+export interface ReindexOptions {
+  readonly repositoryRead: RepositoryReadCapability;
+  readonly inference: ModelInferencePort;
+  readonly vectorIndex: VectorIndex;
+  readonly embeddingModel: string;
+  readonly timeout_ms: number;
+  readonly signal?: AbortSignal | undefined;
+  readonly onProgress?: ((message: string) => void) | undefined;
+}
+
+export async function reindexRepository(
+  options: ReindexOptions,
+): Promise<void> {
+  const {
+    repositoryRead,
+    inference,
+    vectorIndex,
+    embeddingModel,
+    timeout_ms,
+    signal,
+    onProgress,
+  } = options;
+
+  await vectorIndex.clear();
+
+  // Root directory listing
+  const listing = await repositoryRead.listDirectory({});
+  const filesToIndex: string[] = [];
+
+  for (const entry of listing.entries) {
+    if (entry.kind === "file") {
+      filesToIndex.push(entry.path);
+    }
+  }
+
+  let processed = 0;
+  for (const relativePath of filesToIndex) {
+    signal?.throwIfAborted();
+    processed += 1;
+    onProgress?.(
+      `Indexing file ${processed}/${filesToIndex.length}: ${relativePath}`,
+    );
+
+    try {
+      const snippet = await repositoryRead.readSnippet({
+        path: relativePath,
+        start_line: 1,
+        line_count: 200,
+      });
+
+      const content = snippet.content;
+      if (content.trim().length === 0) {
+        continue;
+      }
+
+      const contentHash = createHash("sha256").update(content).digest("hex");
+      const chunks = chunkText(content);
+      if (chunks.length === 0) {
+        continue;
+      }
+
+      const chunkTexts = chunks.map((c) => c.text);
+      const embedResult = await inference.embedText({
+        model: embeddingModel,
+        input: chunkTexts,
+        timeout_ms,
+        signal,
+      });
+
+      for (let i = 0; i < chunks.length; i += 1) {
+        const chunk = chunks[i]!;
+        const embedding = embedResult.embeddings[i];
+        if (embedding !== undefined) {
+          await vectorIndex.indexFile(relativePath, contentHash, embedding, {
+            chunkOffset: chunk.chunkOffset,
+            chunkLength: chunk.chunkLength,
+          });
+        }
+      }
+    } catch {
+      // Content filtering or read error — skip file
+      continue;
+    }
+  }
+
+  await vectorIndex.save();
+}

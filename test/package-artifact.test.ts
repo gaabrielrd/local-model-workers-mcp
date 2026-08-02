@@ -15,8 +15,9 @@ void test("the package candidate contains only runtime artifacts and documentati
     path.join(os.tmpdir(), "lmw-npm-cache-"),
   );
   t.after(async () => rm(cacheDirectory, { recursive: true, force: true }));
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
   const { stdout } = await execFileAsync(
-    "npm",
+    npmCommand,
     ["pack", "--dry-run", "--json", "--ignore-scripts"],
     {
       cwd: projectRoot,

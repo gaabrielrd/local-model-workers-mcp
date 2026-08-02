@@ -161,7 +161,7 @@ export function resolveOperationalLogDirectory(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): string {
   if (platform === "darwin") {
-    return path.join(
+    return path.posix.join(
       homeDirectory,
       "Library",
       "Logs",
@@ -179,8 +179,9 @@ export function resolveOperationalLogDirectory(
     );
   }
   const stateHome =
-    environment.XDG_STATE_HOME ?? path.join(homeDirectory, ".local", "state");
-  return path.join(
+    environment.XDG_STATE_HOME ??
+    path.posix.join(homeDirectory, ".local", "state");
+  return path.posix.join(
     stateHome,
     "local-model-workers-mcp",
     OPERATIONAL_LOG_DIRECTORY_NAME,

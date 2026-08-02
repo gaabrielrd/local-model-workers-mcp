@@ -493,6 +493,7 @@ function configuration(
       "lm_studio.authentication": "protected",
       "lm_studio.allowed_models": "protected",
       "lm_studio.default_model": "global",
+      "lm_studio.embedding_model": "built_in",
       "limits.max_concurrency": "built_in",
       "limits.queue_timeout_ms": "built_in",
       "limits.processing_timeout_ms": "built_in",

@@ -57,6 +57,7 @@ export const PreferencesSchema = z
   .object({
     schema_version: z.literal(CONFIGURATION_SCHEMA_VERSION),
     default_model: z.string().trim().min(1).max(256).optional(),
+    embedding_model: z.string().trim().min(1).max(256).optional(),
     limits: LimitsSchema.optional(),
   })
   .strict();
@@ -126,6 +127,7 @@ export interface EffectiveConfiguration {
     readonly token_configured: boolean;
     readonly allowed_models: readonly string[];
     readonly default_model: string;
+    readonly embedding_model?: string | undefined;
   };
   readonly limits: EffectiveLimits;
   readonly administrative_maxima: typeof ADMINISTRATIVE_MAXIMA;
@@ -144,6 +146,7 @@ export type ConfigurationField =
   | "lm_studio.authentication"
   | "lm_studio.allowed_models"
   | "lm_studio.default_model"
+  | "lm_studio.embedding_model"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -229,11 +232,27 @@ export async function getEffectiveConfiguration(
     BUILT_IN_LIMITS.context_budget_bytes,
   );
 
+  const embeddingModel = selectOptionalValue(
+    projectPreferences?.embedding_model,
+    globalPreferences?.embedding_model,
+    undefined,
+  );
+  if (
+    embeddingModel.value !== undefined &&
+    !protectedSettings.allowedModels.includes("*") &&
+    !protectedSettings.allowedModels.includes(embeddingModel.value)
+  ) {
+    throw invalidConfiguration(
+      "The configured embedding model is not allowed by protected policy.",
+    );
+  }
+
   const origins: Record<ConfigurationField, ConfigurationOrigin> = {
     "lm_studio.base_url": "protected",
     "lm_studio.authentication": "protected",
     "lm_studio.allowed_models": "protected",
     "lm_studio.default_model": defaultModel.origin,
+    "lm_studio.embedding_model": embeddingModel.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -259,6 +278,9 @@ export async function getEffectiveConfiguration(
       token_configured: protectedSettings.tokenConfigured,
       allowed_models: protectedSettings.allowedModels,
       default_model: defaultModel.value,
+      ...(embeddingModel.value !== undefined
+        ? { embedding_model: embeddingModel.value }
+        : {}),
     },
     limits: {
       max_concurrency: concurrency.value,

@@ -26,7 +26,10 @@ import {
   resolveOperationalLogDirectory,
   type OperationalEventRecorder,
 } from "../operational-logging/index.js";
-import { exploreRepository } from "../repository-exploration/index.js";
+import {
+  createRepositoryReadCapability,
+  exploreRepository,
+} from "../repository-exploration/index.js";
 import {
   createFileSystemCapacityCoordinator,
   resolveCapacityStateDirectory,
@@ -34,6 +37,12 @@ import {
   type TaskProgressEvent,
 } from "../task-execution/index.js";
 import { proposeTests } from "../test-proposal/index.js";
+import {
+  executeSemanticSearch,
+  InMemoryVectorIndex,
+  SemanticSearchInputSchema,
+  type VectorIndex,
+} from "../semantic-search/index.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -197,6 +206,39 @@ export function createMcpServer(
       }),
   );
 
+  const sharedVectorIndex: VectorIndex = new InMemoryVectorIndex();
+
+  server.registerTool(
+    TOOL_NAMES.searchSemantic,
+    {
+      title: "Search semantic",
+      description:
+        "Perform nearest-neighbor vector similarity search over repository embeddings.",
+      inputSchema: SemanticSearchInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request, context) =>
+      safeToolCall(async () => {
+        const parsedInput = SemanticSearchInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsedInput.repository_root,
+        );
+        const embeddingModel =
+          dependencies.configuration.lm_studio.embedding_model ??
+          dependencies.configuration.lm_studio.default_model;
+
+        return await executeSemanticSearch({
+          input: parsedInput,
+          inference: dependencies.inference,
+          vectorIndex: sharedVectorIndex,
+          repositoryRead: dependencies.repositoryRead,
+          embeddingModel,
+          signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+        });
+      }),
+  );
+
   server.registerTool(
     TOOL_NAMES.checkHealth,
     {
@@ -339,7 +381,10 @@ async function taskDependencies(
       }),
       capacity: configuration.limits.max_concurrency,
     });
-  return { configuration, inference, coordinator };
+  const repositoryRead = await createRepositoryReadCapability({
+    repositoryRoot: projectRoot,
+  });
+  return { configuration, inference, coordinator, repositoryRead };
 }
 
 function progressReporter(

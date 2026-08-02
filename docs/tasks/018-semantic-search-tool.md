@@ -1,5 +1,5 @@
 <Task 018: Semantic search MCP tool>
-**Status:** Not started
+**Status:** Completed
 **Depends on:** Tasks 013, 016, 017
 **PRD coverage:** New capability CAP-07
 

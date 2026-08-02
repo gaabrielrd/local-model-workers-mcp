@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export interface VectorChunk {
   readonly chunkOffset?: number | undefined;
   readonly chunkLength?: number | undefined;
@@ -16,8 +18,32 @@ export interface VectorSearchResult extends VectorChunk {
 }
 
 export interface VectorIndexOptions {
-  readonly maxEntries?: number;
-  readonly persistencePath?: string;
+  readonly maxEntries?: number | undefined;
+  readonly persistencePath?: string | undefined;
+}
+
+export const SemanticSearchInputSchema = z
+  .object({
+    query: z.string().trim().min(1).max(2000),
+    repository_root: z.string().min(1),
+    top_k: z.number().int().min(1).max(50).optional(),
+    reindex: z.boolean().optional(),
+  })
+  .strict();
+
+export type SemanticSearchInput = z.infer<typeof SemanticSearchInputSchema>;
+
+export interface SemanticSearchResultItem {
+  readonly path: string;
+  readonly score: number;
+  readonly excerpt: string;
+  readonly line_start: number;
+  readonly line_end: number;
+}
+
+export interface SemanticSearchResult {
+  readonly results: readonly SemanticSearchResultItem[];
+  readonly stale_warning?: boolean | undefined;
 }
 
 export interface VectorIndex {

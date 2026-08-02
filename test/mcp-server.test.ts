@@ -54,7 +54,7 @@ void test("creates an MCP runtime without the optional Bearer token", async (t) 
   assert.equal(runtime.bearerToken, undefined);
 });
 
-void test("serves exactly six schema-validated tools over protocol-clean stdio", async (t) => {
+void test("serves all schema-validated tools over protocol-clean stdio", async (t) => {
   const baseUrl = await fakeLmStudio(t);
   const fixture = await applicationFixture(t, baseUrl);
   const transport = new StdioClientTransport({

@@ -46,7 +46,7 @@ export interface StructuredInferenceRequest<Output> {
   readonly output_schema: z.ZodType<Output>;
   readonly max_tokens: number;
   readonly timeout_ms: number;
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
 }
 
 export interface InferenceUsage {
@@ -70,7 +70,7 @@ export interface EmbeddingRequest {
   readonly model: string;
   readonly input: string | readonly string[];
   readonly timeout_ms: number;
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
 }
 
 export interface EmbeddingUsage {
@@ -86,7 +86,7 @@ export interface EmbeddingResult {
 
 export interface RequestOptions {
   readonly timeout_ms: number;
-  readonly signal?: AbortSignal;
+  readonly signal?: AbortSignal | undefined;
 }
 
 export interface ModelInferencePort {
