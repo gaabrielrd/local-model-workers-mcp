@@ -1,6 +1,7 @@
 # Task 002: Define core contracts and uniform responses
 
-**Status:** Pending  
+**Status:** Completed
+**Completed:** 2026-08-02
 **Depends on:** Task 001  
 **PRD coverage:** RF-02 contract names, RF-27; CA-41, CA-42
 
@@ -69,3 +70,17 @@ or external request is implemented.
   or tool registration is added.
 - `npm run validate` passes.
 
+## Completion evidence
+
+- Strict Zod schemas and constructors cover all five terminal states, task
+  identity, evidence, limitations, diagnostics, progress stages, and the error
+  catalog.
+- Exactly six tool-name constants exist and are partitioned into task and
+  non-task tools without registering MCP handlers.
+- Tests reject partial/diagnostic completed responses, unknown fields, invalid
+  evidence ranges, unknown states/codes, unsafe diagnostic fields, and cascading
+  redaction.
+- The boundary validator covers static imports, exports, dynamic imports, and
+  shared-to-feature dependencies with negative fixtures.
+- `npm run validate` passes 29 tests plus formatting, linting, boundary checks,
+  type checking, and the production build.

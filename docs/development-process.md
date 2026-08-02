@@ -5,10 +5,9 @@
 
 ## Current phase
 
-The repository contains an approved PRD and design documentation, but no source
-package or test suite. Until scaffolding is added, commands such as
-`npm run validate` are requirements for the future package rather than runnable
-commands.
+The repository contains an approved PRD, design documentation, implementation
+plan, and a validated TypeScript/Node.js foundation. Product features are added
+one numbered task at a time from [the V1 plan](tasks/README.md).
 
 ## Before changing the project
 
@@ -43,8 +42,7 @@ Work on one product capability at a time:
 
 ## Required package scripts
 
-When the Node package is scaffolded, `package.json` must provide
-`npm run validate`. It must cover, directly or through composed scripts:
+`package.json` provides `npm run validate`, which covers:
 
 - formatting or formatting verification;
 - linting;
@@ -52,8 +50,9 @@ When the Node package is scaffolded, `package.json` must provide
 - automated tests;
 - production build.
 
-The actual script names and tool choices must be documented only after they
-exist. A task is not complete while any validation stage is failing.
+The component scripts are `format:check`, `lint`, `check:boundaries`,
+`typecheck`, `test`, and `build`; `test` invokes `build` through its `pretest`
+hook. A task is not complete while any validation stage is failing.
 
 ## Dependencies
 
@@ -91,4 +90,3 @@ A change is complete only when:
 - architecture boundaries and security invariants are preserved;
 - documentation reflects the resulting behavior;
 - the final diff contains only the intended scope.
-

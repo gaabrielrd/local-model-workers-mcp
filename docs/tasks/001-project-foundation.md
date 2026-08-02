@@ -1,6 +1,7 @@
 # Task 001: Establish the project foundation
 
-**Status:** Pending  
+**Status:** Completed
+**Completed:** 2026-08-02
 **Depends on:** None  
 **PRD coverage:** Quality constraints and platform/distribution prerequisites
 
@@ -69,3 +70,13 @@ concurrency, logging, or installer mutation is implemented here.
 - No product behavior is presented as implemented.
 - README no longer claims that `package.json` is absent.
 
+## Completion evidence
+
+- `npm ci` reproduced all exact development dependencies from
+  `package-lock.json`.
+- `npm run validate` passed formatting, linting, type checking, 10 tests, and
+  the production build.
+- Controlled violations proved that formatting, linting, type checking, tests,
+  and build each fail when expected.
+- The packed CLI entry point retained executable mode and normal startup wrote
+  no bytes to stdout.

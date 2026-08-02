@@ -7,6 +7,8 @@ technical context and consequences of implementing that scope.
 ## Index
 
 - [ADR-0001: Keep repository authority in the local MCP server](0001-local-security-boundary.md)
+- [ADR-0002: Use a pinned TypeScript and Node.js toolchain](0002-typescript-node-toolchain.md)
+- [ADR-0003: Use a strict discriminated task response contract](0003-uniform-task-response-contract.md)
 
 ## Status values
 
@@ -17,4 +19,3 @@ technical context and consequences of implementing that scope.
 
 New ADRs use a four-digit sequence, a short kebab-case title, and the sections
 Context, Decision, Consequences, and Alternatives considered.
-

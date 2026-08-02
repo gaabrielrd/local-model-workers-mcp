@@ -1,6 +1,6 @@
 # Local Model Workers MCP
 
-Local Model Workers MCP is a planned local MCP server that lets Claude Code and
+Local Model Workers MCP is a local MCP server under development that will let Claude Code and
 Codex delegate repository exploration and test proposals to a model served by
 LM Studio on another machine in a private local network.
 
@@ -11,9 +11,11 @@ patch, or runs a project command.
 
 ## Project status
 
-The product requirements are approved, but implementation has not started.
-There is currently no installable package, executable server, configuration
-file, environment-variable contract, or runnable validation command.
+The product requirements and implementation plan are approved. The project
+foundation is implemented: the repository has a pinned TypeScript/Node.js
+toolchain, a buildable CLI entry point, automated tests, and a CI validation
+workflow. Product tools, the MCP server, configuration files, and the
+environment-variable contract are not implemented yet.
 
 The intended V1 exposes exactly six MCP tools:
 
@@ -50,15 +52,32 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 - [Configuration model](docs/configuration.md)
 - [Security model](docs/security.md)
 - [External integrations](docs/integrations.md)
+- [Core contracts](docs/contracts.md)
 - [Architecture decisions](docs/decisions/README.md)
 - [V1 implementation plan](docs/tasks/README.md)
 
 ## Development
 
-The repository has not been scaffolded yet, so setup and validation commands
-are intentionally not documented as executable instructions. Once the package
-exists, it must provide `npm run validate` and keep this README and the
-development documentation synchronized with the actual scripts.
+Use Node.js 24.18.0 and npm 11.16.0. With `nvm`, the repository baseline can be
+selected from `.nvmrc`.
+
+```sh
+nvm use
+npm ci
+npm run validate
+```
+
+`npm run validate` checks formatting, linting, static types, tests, and the
+production build. The current minimal CLI can also be built and inspected:
+
+```sh
+npm run build
+node dist/cli/index.js --version
+```
+
+The version is written to stderr so stdout remains reserved for the future MCP
+`stdio` protocol. Running the CLI without arguments currently exits cleanly and
+does not start a server.
 
 Do not create a local `.env` from guessed variable names. The supported names,
 validation rules, and a redacted `.env.example` must be added together when the

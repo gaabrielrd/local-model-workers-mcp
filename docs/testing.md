@@ -1,6 +1,6 @@
 # Testing strategy
 
-**Status:** Target strategy; no test suite exists yet  
+**Status:** Target product strategy; foundation test suite implemented
 **Last reviewed:** 2026-08-02
 
 ## Goals
@@ -110,7 +110,15 @@ CA-33 through CA-45. Include both expected attacks and malformed inputs:
 
 ## Validation command
 
-Once the project is scaffolded, the complete suite must run through
-`npm run validate` together with formatting, linting, type checking, and build.
-At present there is no `package.json`, so this command is not yet runnable.
+The current foundation suite runs through `npm run validate` together with
+formatting, linting, type checking, and the production build. It verifies that
+package/runtime versions remain aligned, the compiled CLI exists, normal startup
+does not write to stdout, version output uses stderr, and unknown options fail
+without protocol output. Later tasks extend the same command with product,
+security, MCP, and cross-process coverage described above.
 
+The core-contract suite additionally verifies all terminal variants, required
+task identity, strict success/diagnostic separation, evidence line ranges,
+English technical names with Portuguese human text, known-secret redaction, and
+feature import boundaries. Negative boundary fixtures prove that internal
+cross-feature imports and shared-to-feature dependencies fail validation.

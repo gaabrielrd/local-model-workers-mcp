@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Target architecture; implementation has not started  
+**Status:** Target product architecture; project foundation implemented
 **Last reviewed:** 2026-08-02
 
 ## Purpose
@@ -140,9 +140,15 @@ language of the request.
 Partial output is diagnostic only and must never be represented as completed.
 Secrets are redacted from success and error paths.
 
+The implemented transport-neutral schemas, error catalog, language handling,
+and omission rules for non-task tools are documented in
+[contracts.md](contracts.md). MCP and LM Studio wire types remain outside these
+contracts.
+
 ## Known limitations
 
-- No implementation or package exists yet.
+- Only the TypeScript/Node.js foundation and minimal CLI exist; no product
+  feature or MCP tool is implemented yet.
 - Configuration filenames, environment-variable names, schemas, and storage
   locations have not been selected.
 - The LM Studio endpoint contract and supported API version have not been
@@ -150,4 +156,3 @@ Secrets are redacted from success and error paths.
 - The cross-process concurrency mechanism has not been selected.
 - Linux and Windows receive basic automated coverage only in V1; complete
   harness validation is limited to macOS.
-
