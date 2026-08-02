@@ -138,6 +138,7 @@ failures attributable.
 | 018 | [Semantic search tool](018-semantic-search-tool.md) | `search_semantic` MCP tool | 013, 016-017 |
 | 019 | [Code graph](019-code-graph.md) | AST-based symbol extraction and `query_code_graph` tool | 005-006 |
 | 020 | [Module summarization](020-module-summarization.md) | `summarize_module` MCP tool | 007, 019 |
+| 026 | [Harness prompt steering](026-harness-prompt-steering.md) | Pre-message hooks and system prompt instructions | 014, 018-019 |
 
 ### Phase 3 — Repetitive write offloading (V2.0)
 

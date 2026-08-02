@@ -27,6 +27,7 @@ Reduce input tokens consumed by frontier models when understanding repositories.
 - **Semantic search tool** (`search_semantic`): natural language repository search
 - **Code graph** (`query_code_graph`): AST-based symbol extraction via tree-sitter
 - **Module summarization** (`summarize_module`): cached, structured file summaries
+- **Harness prompt steering**: pre-message hooks and system prompt instructions directing harnesses to proactively use MCP capabilities
 
 ## Phase 3 — V2.0: Repetitive write offloading
 

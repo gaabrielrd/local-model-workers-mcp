@@ -1,5 +1,5 @@
 <Task 019: Code graph extraction>
-**Status:** Not started
+**Status:** Completed
 **Depends on:** Tasks 005, 006
 **PRD coverage:** New capability CAP-08
 

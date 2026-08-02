@@ -39,6 +39,7 @@ void test("only approved tool names exist", () => {
     "explore_repository",
     "get_config",
     "propose_tests",
+    "query_code_graph",
     "search_semantic",
     "update_config",
     "validate_config",

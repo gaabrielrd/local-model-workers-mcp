@@ -43,6 +43,11 @@ import {
   SemanticSearchInputSchema,
   type VectorIndex,
 } from "../semantic-search/index.js";
+import {
+  CodeGraphQueryInputSchema,
+  InMemoryCodeGraph,
+  parseSourceSymbols,
+} from "../code-graph/index.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -236,6 +241,47 @@ export function createMcpServer(
           embeddingModel,
           signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
         });
+      }),
+  );
+
+  const sharedCodeGraph = new InMemoryCodeGraph();
+
+  server.registerTool(
+    TOOL_NAMES.queryCodeGraph,
+    {
+      title: "Query code graph",
+      description:
+        "Query lightweight symbol graph (functions, classes, interfaces, type aliases, callers, dependencies, exports).",
+      inputSchema: CodeGraphQueryInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request) =>
+      safeToolCall(async () => {
+        const parsedInput = CodeGraphQueryInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsedInput.repository_root,
+        );
+
+        // Populate / update graph if needed
+        const listing = await dependencies.repositoryRead.listDirectory({});
+        for (const entry of listing.entries) {
+          if (entry.kind === "file") {
+            try {
+              const snippet = await dependencies.repositoryRead.readSnippet({
+                path: entry.path,
+                start_line: 1,
+                line_count: 500,
+              });
+              const symbols = parseSourceSymbols(entry.path, snippet.content);
+              sharedCodeGraph.updateFile(entry.path, "hash", symbols);
+            } catch {
+              // Ignore unreadable files
+            }
+          }
+        }
+
+        return sharedCodeGraph.query(parsedInput);
       }),
   );
 
