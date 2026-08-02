@@ -22,6 +22,9 @@ Raw configuration errors and credentials are never printed.
 | `get_config` | none | Redacted global configuration; optional `project_root` |
 | `validate_config` | `project_root`, `expected_revision`, `changes` | Read-only project proposal validation |
 | `update_config` | validation fields | Atomic write only with matching explicit `confirmation` |
+| `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` |
+| `search_semantic` | `query`, `repository_root` | Ranked embedding search over the local vector index; optional `top_k` and `reindex` |
+| `summarize_module` | `repository_root`, `target` | Structured file or directory summaries from code graph metadata and inference; optional `depth` (`shallow`/`deep`) and `force_refresh` |
 
 Every input object is strict: unknown fields and invalid bounds are rejected by
 the MCP SDK before a feature is invoked. Results are returned in both a JSON
@@ -36,7 +39,7 @@ the same final result.
 
 ## Protocol safety
 
-The server registers exactly the six tools above and no resources or prompts.
+The server registers exactly the nine tools above and no resources or prompts.
 It never exposes shell, generic filesystem, generic prompt, command execution,
 patch application, or dependency installation. Tool exceptions become a fixed
 tool error without raw exception text. Operational terminal observers receive

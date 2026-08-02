@@ -58,6 +58,7 @@ export const PreferencesSchema = z
     schema_version: z.literal(CONFIGURATION_SCHEMA_VERSION),
     default_model: z.string().trim().min(1).max(256).optional(),
     embedding_model: z.string().trim().min(1).max(256).optional(),
+    steering_prompt: z.string().trim().min(1).max(2_000).optional(),
     limits: LimitsSchema.optional(),
   })
   .strict();
@@ -129,6 +130,7 @@ export interface EffectiveConfiguration {
     readonly default_model: string;
     readonly embedding_model?: string | undefined;
   };
+  readonly steering_prompt?: string | undefined;
   readonly limits: EffectiveLimits;
   readonly administrative_maxima: typeof ADMINISTRATIVE_MAXIMA;
   readonly fixed_limits: typeof FIXED_LIMITS;
@@ -147,6 +149,7 @@ export type ConfigurationField =
   | "lm_studio.allowed_models"
   | "lm_studio.default_model"
   | "lm_studio.embedding_model"
+  | "steering_prompt"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -247,12 +250,19 @@ export async function getEffectiveConfiguration(
     );
   }
 
+  const steeringPrompt = selectOptionalValue(
+    projectPreferences?.steering_prompt,
+    globalPreferences?.steering_prompt,
+    undefined,
+  );
+
   const origins: Record<ConfigurationField, ConfigurationOrigin> = {
     "lm_studio.base_url": "protected",
     "lm_studio.authentication": "protected",
     "lm_studio.allowed_models": "protected",
     "lm_studio.default_model": defaultModel.origin,
     "lm_studio.embedding_model": embeddingModel.origin,
+    steering_prompt: steeringPrompt.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -282,6 +292,9 @@ export async function getEffectiveConfiguration(
         ? { embedding_model: embeddingModel.value }
         : {}),
     },
+    ...(steeringPrompt.value === undefined
+      ? {}
+      : { steering_prompt: steeringPrompt.value }),
     limits: {
       max_concurrency: concurrency.value,
       queue_timeout_ms: queueTimeout.value,

@@ -1,5 +1,5 @@
 <Task 020: Module summarization tool>
-**Status:** Not started
+**Status:** Completed
 **Depends on:** Tasks 007, 019
 **PRD coverage:** New capability CAP-09
 

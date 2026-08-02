@@ -48,6 +48,11 @@ import {
   InMemoryCodeGraph,
   parseSourceSymbols,
 } from "../code-graph/index.js";
+import {
+  InMemorySummarizationCache,
+  SummarizationInputSchema,
+  summarizeModule,
+} from "../module-summary/index.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -282,6 +287,37 @@ export function createMcpServer(
         }
 
         return sharedCodeGraph.query(parsedInput);
+      }),
+  );
+
+  const sharedSummarizationCache = new InMemorySummarizationCache();
+
+  server.registerTool(
+    TOOL_NAMES.summarizeModule,
+    {
+      title: "Summarize module",
+      description:
+        "Generate structured file or directory summaries from code-graph metadata and local inference.",
+      inputSchema: SummarizationInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request, context) =>
+      safeToolCall(async () => {
+        const parsedInput = SummarizationInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsedInput.repository_root,
+        );
+        const model = dependencies.configuration.lm_studio.default_model;
+
+        return await summarizeModule({
+          input: parsedInput,
+          inference: dependencies.inference,
+          repositoryRead: dependencies.repositoryRead,
+          model,
+          cache: sharedSummarizationCache,
+          signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+        });
       }),
   );
 

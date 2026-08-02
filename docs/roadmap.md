@@ -18,7 +18,7 @@ Bounded repository exploration and test proposals delegated to LM Studio.
 - Interactive setup for Claude Code, Codex, and Antigravity
 - CI/CD with automated GitHub releases
 
-## Phase 2 — V1.5: Read offloading and semantic analysis
+## Phase 2 — V1.5: Read offloading and semantic analysis (Completed)
 
 Reduce input tokens consumed by frontier models when understanding repositories.
 
@@ -27,7 +27,9 @@ Reduce input tokens consumed by frontier models when understanding repositories.
 - **Semantic search tool** (`search_semantic`): natural language repository search
 - **Code graph** (`query_code_graph`): AST-based symbol extraction via tree-sitter
 - **Module summarization** (`summarize_module`): cached, structured file summaries
-- **Harness prompt steering**: pre-message hooks and system prompt instructions directing harnesses to proactively use MCP capabilities
+- **Harness prompt steering**: managed instruction files (`AGENTS.md`,
+  `.codex/instructions.md`, `.gemini/instructions.md`) directing harnesses to
+  proactively use MCP capabilities, with optional `steering_prompt` directives
 
 ## Phase 3 — V2.0: Repetitive write offloading
 

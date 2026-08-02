@@ -143,6 +143,7 @@ try {
       "propose_tests",
       "query_code_graph",
       "search_semantic",
+      "summarize_module",
       "update_config",
       "validate_config",
     ]);

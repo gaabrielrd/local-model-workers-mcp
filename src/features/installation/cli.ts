@@ -1,7 +1,10 @@
 import os from "node:os";
 import process from "node:process";
 
-import { CONFIGURATION_SCHEMA_VERSION } from "../configuration/index.js";
+import {
+  CONFIGURATION_SCHEMA_VERSION,
+  getEffectiveConfiguration,
+} from "../configuration/index.js";
 import {
   applyGlobalPreferences,
   proposeGlobalPreferences,
@@ -75,13 +78,21 @@ async function configureHarness(
     );
   }
   const executableCommand = stringOption(options, "command");
+  const projectRoot =
+    stringOption(options, "project-root") ?? io.cwd ?? process.cwd();
+  const homeDirectory =
+    stringOption(options, "home") ?? io.homeDirectory ?? os.homedir();
+  const steeringPrompt = await readSteeringPrompt(
+    projectRoot,
+    homeDirectory,
+    io,
+  );
   const proposals = await proposeHarnessConfigurations({
     selection,
-    projectRoot:
-      stringOption(options, "project-root") ?? io.cwd ?? process.cwd(),
-    homeDirectory:
-      stringOption(options, "home") ?? io.homeDirectory ?? os.homedir(),
+    projectRoot,
+    homeDirectory,
     ...(executableCommand === undefined ? {} : { command: executableCommand }),
+    ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
   });
   if (proposals.length === 0) {
     io.write("Configuration cancelled; no files changed.\n");
@@ -135,6 +146,7 @@ async function configureGlobal(
   ] as const;
   assertAllowedOptions(options, [
     "default-model",
+    "steering-prompt",
     ...limitNames,
     "home",
     "dry-run",
@@ -149,8 +161,15 @@ async function configureGlobal(
       ]),
   );
   const defaultModel = stringOption(options, "default-model");
-  if (defaultModel === undefined && Object.keys(limits).length === 0) {
-    throw new Error("At least --default-model or one limit is required.");
+  const steeringPrompt = stringOption(options, "steering-prompt");
+  if (
+    defaultModel === undefined &&
+    steeringPrompt === undefined &&
+    Object.keys(limits).length === 0
+  ) {
+    throw new Error(
+      "At least --default-model, --steering-prompt, or one limit is required.",
+    );
   }
   const homeDirectory =
     stringOption(options, "home") ?? io.homeDirectory ?? os.homedir();
@@ -158,6 +177,9 @@ async function configureGlobal(
     preferences: {
       schema_version: CONFIGURATION_SCHEMA_VERSION,
       ...(defaultModel === undefined ? {} : { default_model: defaultModel }),
+      ...(steeringPrompt === undefined
+        ? {}
+        : { steering_prompt: steeringPrompt }),
       ...(Object.keys(limits).length === 0 ? {} : { limits }),
     },
     environment: io.environment ?? process.env,
@@ -205,6 +227,24 @@ function printHarnessProposal(
   write(`${proposal.harness}: ${proposal.state} -> ${proposal.target_path}\n`);
   for (const line of proposal.preview) {
     write(`  ${line}\n`);
+  }
+}
+
+async function readSteeringPrompt(
+  projectRoot: string,
+  homeDirectory: string,
+  io: InstallationCommandIo,
+): Promise<string | undefined> {
+  try {
+    const effective = await getEffectiveConfiguration({
+      projectRoot,
+      homeDirectory,
+      environment: io.environment ?? process.env,
+      platform: io.platform ?? process.platform,
+    });
+    return effective.steering_prompt;
+  } catch {
+    return undefined;
   }
 }
 

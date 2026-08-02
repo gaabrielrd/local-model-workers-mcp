@@ -177,6 +177,13 @@ function mergePreferences(
     ...(requested.default_model === undefined
       ? {}
       : { default_model: requested.default_model }),
+    ...(current?.steering_prompt === undefined &&
+    requested.steering_prompt === undefined
+      ? {}
+      : {
+          steering_prompt:
+            requested.steering_prompt ?? current?.steering_prompt,
+        }),
     ...(current?.limits === undefined && requested.limits === undefined
       ? {}
       : { limits: { ...current?.limits, ...requested.limits } }),

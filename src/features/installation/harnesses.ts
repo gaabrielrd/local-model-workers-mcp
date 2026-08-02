@@ -3,11 +3,15 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { writeConfigurationFileAtomically } from "../configuration/index.js";
+import {
+  STEERING_MARKER_END,
+  STEERING_MARKER_START,
+  buildSteeringInstructions,
+  type SteeringInstructions,
+} from "./steering.js";
 
 const MANAGED_SERVER_NAME = "local-model-workers";
 const DEFAULT_COMMAND = "local-model-workers-mcp";
-const CODEX_MARKER_START = "# local-model-workers-mcp:start";
-const CODEX_MARKER_END = "# local-model-workers-mcp:end";
 const FORWARDED_ENVIRONMENT_NAMES = [
   "LMW_LM_STUDIO_BASE_URL",
   "LMW_LM_STUDIO_BEARER_TOKEN",
@@ -29,6 +33,17 @@ export interface HarnessConfigurationProposal {
   readonly expected_revision: `sha256:${string}`;
   readonly preview: readonly string[];
   readonly command: string;
+  readonly steering: HarnessSteeringPlan;
+  readonly steeringPrompt?: string | undefined;
+}
+
+export interface HarnessSteeringPlan {
+  readonly target_path: string;
+  readonly state: InstallationState;
+  readonly applicable: boolean;
+  readonly expected_revision: `sha256:${string}`;
+  readonly preview: readonly string[];
+  readonly proposed_contents?: string | undefined;
 }
 
 export interface HarnessConfirmation {
@@ -42,6 +57,7 @@ export interface ProposeHarnessConfigurationsInput {
   readonly homeDirectory?: string;
   readonly command?: string;
   readonly environment?: Readonly<Record<string, string | undefined>>;
+  readonly steeringPrompt?: string;
 }
 
 export interface ApplyHarnessConfigurationInput {
@@ -82,7 +98,15 @@ export async function proposeHarnessConfigurations(
   return Promise.all(
     harnesses.map(async (harness) => {
       const targetPath = resolveTargetPath(harness, input);
-      return proposeOne(harness, targetPath, command, environment);
+      const steeringTargetPath = resolveSteeringTargetPath(harness, input);
+      return proposeOne(
+        harness,
+        targetPath,
+        steeringTargetPath,
+        command,
+        environment,
+        input.steeringPrompt,
+      );
     }),
   );
 }
@@ -93,7 +117,10 @@ export async function applyHarnessConfiguration(
   const current = await proposeOne(
     input.proposal.harness,
     input.proposal.target_path,
+    input.proposal.steering.target_path,
     input.proposal.command,
+    undefined,
+    input.proposal.steeringPrompt,
   );
   if (current.proposal_id !== input.proposal.proposal_id) {
     throw new Error("The harness configuration changed after the proposal.");
@@ -101,7 +128,7 @@ export async function applyHarnessConfiguration(
   if (!current.applicable) {
     throw new Error("The harness configuration cannot be updated safely.");
   }
-  if (current.state === "identical") {
+  if (current.state === "identical" && current.steering.state === "identical") {
     return {
       harness: current.harness,
       target_path: current.target_path,
@@ -131,6 +158,18 @@ export async function applyHarnessConfiguration(
     current.target_path,
     proposedFile.proposedContents,
   );
+
+  if (current.steering.proposed_contents === undefined) {
+    throw new Error("The harness configuration cannot be updated safely.");
+  }
+  await mkdir(path.dirname(current.steering.target_path), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeConfigurationFileAtomically(
+    current.steering.target_path,
+    current.steering.proposed_contents,
+  );
   return {
     harness: current.harness,
     target_path: current.target_path,
@@ -141,8 +180,10 @@ export async function applyHarnessConfiguration(
 async function proposeOne(
   harness: Harness,
   targetPath: string,
+  steeringTargetPath: string,
   command: string,
   environment?: Readonly<Record<string, string | undefined>>,
+  steeringPrompt?: string,
 ): Promise<HarnessConfigurationProposal> {
   const proposedFile = await inspectHarnessFile(
     harness,
@@ -150,29 +191,55 @@ async function proposeOne(
     command,
     environment,
   );
+  const steeringFile = await inspectSteeringFile(
+    steeringTargetPath,
+    buildSteeringInstructions(
+      steeringPrompt === undefined ? {} : { custom_directives: steeringPrompt },
+    ),
+  );
   const expectedRevision = revision(proposedFile.currentContents);
   const proposedRevision = revision(proposedFile.proposedContents);
+  const steeringExpectedRevision = revision(steeringFile.currentContents);
+  const steeringProposedRevision = revision(steeringFile.proposedContents);
   const proposalId = hash(
     JSON.stringify({
       harness,
       targetPath,
+      steeringTargetPath,
       command,
+      steeringPrompt,
       expectedRevision,
       proposedRevision,
+      steeringExpectedRevision,
+      steeringProposedRevision,
     }),
   );
+  const applicable = proposedFile.applicable && steeringFile.applicable;
 
   return Object.freeze({
     harness,
     target_path: targetPath,
     state: proposedFile.state,
-    applicable: proposedFile.applicable,
+    applicable,
     requires_confirmation:
-      proposedFile.applicable && proposedFile.state !== "identical",
+      applicable &&
+      (proposedFile.state !== "identical" ||
+        steeringFile.state !== "identical"),
     proposal_id: proposalId,
     expected_revision: expectedRevision,
-    preview: Object.freeze([...proposedFile.preview]),
+    preview: Object.freeze([...proposedFile.preview, ...steeringFile.preview]),
     command,
+    ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
+    steering: Object.freeze({
+      target_path: steeringTargetPath,
+      state: steeringFile.state,
+      applicable: steeringFile.applicable,
+      expected_revision: steeringExpectedRevision,
+      preview: Object.freeze([...steeringFile.preview]),
+      ...(steeringFile.proposedContents === undefined
+        ? {}
+        : { proposed_contents: steeringFile.proposedContents }),
+    }),
   });
 }
 
@@ -357,11 +424,76 @@ function inspectCodexConfiguration(
   };
 }
 
+async function inspectSteeringFile(
+  targetPath: string,
+  instructions: SteeringInstructions,
+): Promise<ProposedFile> {
+  const currentContents = await readOptionalFile(targetPath);
+  const preview = [
+    `instructions: ${JSON.stringify(path.basename(targetPath))}`,
+    ...instructions.preview,
+  ];
+  if (currentContents === undefined) {
+    return {
+      state: "fresh",
+      applicable: true,
+      currentContents,
+      proposedContents: `${instructions.block}\n`,
+      preview,
+    };
+  }
+  const markerRanges = findMarkedRanges(currentContents);
+  if (markerRanges === undefined) {
+    return malformed(currentContents, preview);
+  }
+  if (markerRanges.length === 1) {
+    const range = markerRanges[0];
+    if (range === undefined) {
+      return malformed(currentContents, preview);
+    }
+    const existing = currentContents.slice(range.start, range.end).trim();
+    if (existing === instructions.block) {
+      return {
+        state: "identical",
+        applicable: true,
+        currentContents,
+        proposedContents: currentContents,
+        preview,
+      };
+    }
+    return {
+      state: "conflicting",
+      applicable: true,
+      currentContents,
+      proposedContents: replaceRange(
+        currentContents,
+        range,
+        instructions.block,
+      ),
+      preview: ["replace existing managed instructions block", ...preview],
+    };
+  }
+
+  const separator =
+    currentContents.length === 0 || currentContents.endsWith("\n\n")
+      ? ""
+      : currentContents.endsWith("\n")
+        ? "\n"
+        : "\n\n";
+  return {
+    state: "compatible",
+    applicable: true,
+    currentContents,
+    proposedContents: `${currentContents}${separator}${instructions.block}\n`,
+    preview,
+  };
+}
+
 function findMarkedRanges(
   contents: string,
 ): readonly { readonly start: number; readonly end: number }[] | undefined {
-  const starts = allIndexes(contents, CODEX_MARKER_START);
-  const ends = allIndexes(contents, CODEX_MARKER_END);
+  const starts = allIndexes(contents, STEERING_MARKER_START);
+  const ends = allIndexes(contents, STEERING_MARKER_END);
   if (starts.length !== ends.length || starts.length > 1) {
     return undefined;
   }
@@ -373,10 +505,12 @@ function findMarkedRanges(
   if (start === undefined || endMarker === undefined || endMarker < start) {
     return undefined;
   }
-  const lineEnd = contents.indexOf("\n", endMarker + CODEX_MARKER_END.length);
+  const lineEnd = contents.indexOf(
+    "\n",
+    endMarker + STEERING_MARKER_END.length,
+  );
   return [{ start, end: lineEnd === -1 ? contents.length : lineEnd }];
 }
-
 function findUnmarkedCodexRanges(
   contents: string,
 ): readonly { readonly start: number; readonly end: number }[] | undefined {
@@ -395,12 +529,12 @@ function findUnmarkedCodexRanges(
 
 function codexManagedBlock(command: string): string {
   return [
-    CODEX_MARKER_START,
+    STEERING_MARKER_START,
     `[mcp_servers.${MANAGED_SERVER_NAME}]`,
     `command = ${JSON.stringify(command)}`,
     "args = []",
     `env_vars = ${JSON.stringify(FORWARDED_ENVIRONMENT_NAMES)}`,
-    CODEX_MARKER_END,
+    STEERING_MARKER_END,
   ].join("\n");
 }
 
@@ -445,6 +579,35 @@ function resolveTargetPath(
     );
   }
   return path.resolve(input.homeDirectory, ".codex", "config.toml");
+}
+
+function resolveSteeringTargetPath(
+  harness: Harness,
+  input: ProposeHarnessConfigurationsInput,
+): string {
+  if (harness === "claude-code") {
+    if (
+      input.projectRoot === undefined ||
+      input.projectRoot.trim().length === 0
+    ) {
+      throw new Error(
+        "A project root is required for Claude Code configuration.",
+      );
+    }
+    return path.resolve(input.projectRoot, "AGENTS.md");
+  }
+  if (
+    input.homeDirectory === undefined ||
+    input.homeDirectory.trim().length === 0
+  ) {
+    throw new Error(
+      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : "Codex"} configuration.`,
+    );
+  }
+  if (harness === "antigravity") {
+    return path.resolve(input.homeDirectory, ".gemini", "instructions.md");
+  }
+  return path.resolve(input.homeDirectory, ".codex", "instructions.md");
 }
 
 function normalizeCommand(command: string | undefined): string {

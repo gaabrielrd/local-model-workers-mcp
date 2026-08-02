@@ -74,6 +74,21 @@ local-model-workers-mcp configure-harness --target cancel
 
 Claude Code uses the project-scoped `.mcp.json` `mcpServers` format. Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`.
 
+Every harness also receives a prompt steering instruction file that directs the
+agent to offload repository work to the local MCP tools (`explore_repository`,
+`search_semantic`, `query_code_graph`, `summarize_module`, and `propose_tests`):
+
+- Claude Code: `AGENTS.md` in the project root.
+- Codex: `~/.codex/instructions.md`.
+- Antigravity: `~/.gemini/instructions.md`.
+
+The managed instruction block is delimited by `# local-model-workers-mcp:start`
+and `# local-model-workers-mcp:end`. Existing user text outside those markers is
+strictly preserved; a stale managed block is replaced in place. Unbalanced
+markers fail closed and require manual repair. A custom `steering_prompt` from
+global or project preferences is appended as a custom directive inside the
+managed block.
+
 Existing unrelated Claude JSON properties, MCP servers, and Codex TOML text are
 preserved. A differing managed entry is classified as a conflict. Invalid JSON,
 unbalanced managed markers, or duplicate managed Codex tables fail closed and
@@ -88,12 +103,14 @@ with the local command:
 ```sh
 local-model-workers-mcp configure-global \
   --default-model qwen/qwen3.5-9b \
+  --steering-prompt "Prefer semantic search for descriptive queries." \
   --max-concurrency 2 \
   --processing-timeout-ms 600000 \
   --dry-run
 
 local-model-workers-mcp configure-global \
   --default-model qwen/qwen3.5-9b \
+  --steering-prompt "Prefer semantic search for descriptive queries." \
   --max-concurrency 2 \
   --processing-timeout-ms 600000 \
   --yes

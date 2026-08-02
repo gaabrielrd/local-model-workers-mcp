@@ -1,8 +1,9 @@
 # Local Model Workers MCP
 
-Local Model Workers MCP is a local MCP server that lets Claude Code and Codex
-delegate repository exploration and test proposals to a model served by LM
-Studio on another machine in a private local network.
+Local Model Workers MCP is a local MCP server that lets Claude Code, Codex, and
+Antigravity delegate repository exploration, semantic search, code queries, and
+test proposals to a model served by LM Studio on another machine in a private
+local network.
 
 The local server remains the security boundary: it selects repository context,
 enforces path and content restrictions, validates remote output, and returns a
@@ -11,8 +12,9 @@ patch, or runs a project command.
 
 ## Project status
 
-The approved V1 scope is feature-complete as release candidate `1.0.0-rc.1`.
-The implementation includes:
+The approved V1 scope is feature-complete as release candidate `1.0.0-rc.1`,
+and the V1.5 read-offloading phase is implemented on top of it. The
+implementation includes:
 
 - layered, revision-controlled configuration with atomic writes;
 - canonical read-only repository access and fail-closed outbound filtering;
@@ -22,28 +24,32 @@ The implementation includes:
 - isolated task lifecycles with cross-process FIFO capacity;
 - bounded repository exploration and validated test-only patch proposals;
 - metadata-only operational logging with seven-day retention;
-- confirmed Claude Code and Codex harness configuration;
+- confirmed Claude Code, Codex, and Antigravity harness configuration;
+- managed prompt-steering instruction files that direct harnesses to the MCP
+  tools, with an optional custom `steering_prompt` preference;
 - a protocol-clean MCP v2 server over `stdio`.
 
 Local qualification is green as of 2026-08-02:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 163 automated tests;
+  typechecking, build, and all 221 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
-  isolated prefix, starts the packaged MCP server, and verifies all six tools;
+  isolated prefix, starts the packaged MCP server, and verifies all nine tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
   using `authentication: none` / `not_configured`;
 - Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and
   vision probes; Nomic Embed returned 768-dimensional embeddings;
 - the production dependency audit reports no known vulnerabilities.
 
-Publication is not approved yet. The remaining release gates are complete
-six-tool scenarios through real Claude Code and Codex sessions, plus successful
-remote Linux and Windows portability jobs. See
-[release qualification](docs/release-qualification.md) for evidence and the
-remaining procedure.
+The package is private and is not published to the public npm registry. It is
+distributed as an installable tarball attached to the
+[latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
+The remaining release gates are complete nine-tool scenarios through real
+Claude Code and Codex sessions, plus successful remote Linux and Windows
+portability jobs. See [release qualification](docs/release-qualification.md)
+for evidence and the remaining procedure.
 
-The server exposes exactly six MCP tools:
+The server exposes exactly nine MCP tools:
 
 - `explore_repository`
 - `propose_tests`
@@ -51,6 +57,9 @@ The server exposes exactly six MCP tools:
 - `get_config`
 - `validate_config`
 - `update_config`
+- `query_code_graph`
+- `search_semantic`
+- `summarize_module`
 
 See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 
@@ -74,10 +83,30 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 
 ### 1. Installation
 
-Install globally using `npm`:
+The package is not on the public npm registry. Install (or update) it from the
+latest GitHub Release using the attached tarball:
 
 ```sh
-npm install --global local-model-workers-mcp
+# Resolve the asset URL of the latest release and install it globally
+TARBALL_URL="$(curl -fsSL https://api.github.com/repos/gaabrielrd/local-model-workers-mcp/releases/latest \
+  | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).assets[0].browser_download_url")"
+npm install --global "$TARBALL_URL"
+```
+
+Or, for the current release specifically:
+
+```sh
+npm install --global \
+  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.0.0-rc.1/local-model-workers-mcp-1.0.0-rc.1.tgz
+```
+
+To update, repeat the same command after a new release is published. There is no
+automatic updater; reinstalling the newer tarball replaces the previous install.
+
+Verify the install:
+
+```sh
+local-model-workers-mcp --version
 ```
 
 ### 2. Single-Command Interactive Setup
@@ -140,7 +169,7 @@ export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'
 - [External integrations](docs/integrations.md)
 - [Core contracts](docs/contracts.md)
 - [Architecture decisions](docs/decisions/README.md)
-- [V1 implementation plan](docs/tasks/README.md)
+- [Implementation plan](docs/tasks/README.md)
 
 ## Development
 

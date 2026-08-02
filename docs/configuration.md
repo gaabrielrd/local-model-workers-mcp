@@ -43,6 +43,7 @@ maxima reject the entire configuration.
 {
   "schema_version": 1,
   "default_model": "publisher/model-id",
+  "steering_prompt": "Prefer semantic search for descriptive queries.",
   "limits": {
     "max_concurrency": 2,
     "queue_timeout_ms": 300000,
@@ -54,8 +55,10 @@ maxima reject the entire configuration.
 ```
 
 `default_model` is optional in each individual file, but the resolved value is
-required and must be present in `LMW_ALLOWED_MODELS`. `limits` and each child
-field are optional. A file must always include `schema_version: 1`.
+required and must be present in `LMW_ALLOWED_MODELS`. `steering_prompt` is an
+optional custom directive appended to the harness prompt steering instructions;
+it is limited to 2,000 characters. `limits` and each child field are optional. A
+file must always include `schema_version: 1`.
 
 ### Global location
 
@@ -127,12 +130,12 @@ The transport-neutral `validateConfig` and `updateConfig` use cases are
 implemented and registered as the `validate_config` and `update_config` MCP
 tools.
 
-A proposal is a non-empty partial object containing only `default_model` and/or
-the editable children of `limits`. A value changes the project override. `null`
-removes that override so resolution falls back to global preferences or a
-built-in default. Protected fields, `schema_version`, global settings, unknown
-fields, empty proposals, no-ops, wrong types, and values outside maxima are
-rejected.
+A proposal is a non-empty partial object containing only `default_model`,
+`steering_prompt`, and/or the editable children of `limits`. A value changes the
+project override. `null` removes that override so resolution falls back to
+global preferences or a built-in default. Protected fields, `schema_version`,
+global settings, unknown fields, empty proposals, no-ops, wrong types, and
+values outside maxima are rejected.
 
 Validation requires the current `expected_revision`, performs no write, and
 returns either structured errors or:
@@ -190,12 +193,12 @@ release-level portability coverage in Task 015.
 
 Global preferences are changed only by the local
 `local-model-workers-mcp configure-global` command. It accepts
-`--default-model` and the documented limit fields in kebab case, displays the
-complete proposed secret-free preference document, and requires `--yes` before
-writing. `--dry-run` performs validation and discovery without a write. The
-command applies this same strict schema and model allowlist; it cannot persist
-protected fields. See [installation.md](installation.md) for examples and
-recovery behavior.
+`--default-model`, `--steering-prompt`, and the documented limit fields in kebab
+case, displays the complete proposed secret-free preference document, and
+requires `--yes` before writing. `--dry-run` performs validation and discovery
+without a write. The command applies this same strict schema and model
+allowlist; it cannot persist protected fields. See [installation.md](installation.md)
+for examples and recovery behavior.
 
 Project `.mcp-agent-ignore` handling is implemented by the outbound repository
 content boundary and cannot re-enable Git-ignored or mandatory-sensitive paths.

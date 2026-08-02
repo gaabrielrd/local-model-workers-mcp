@@ -1,5 +1,5 @@
 <Task 026: Harness prompt steering & pre-message hooks>
-**Status:** Not started
+**Status:** Completed
 **Depends on:** Tasks 014, 018, 019
 **PRD coverage:** Harness MCP Offloading Steering
 

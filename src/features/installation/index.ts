@@ -13,9 +13,18 @@ export {
   type HarnessConfigurationResult,
   type HarnessConfirmation,
   type HarnessSelection,
+  type HarnessSteeringPlan,
   type InstallationState,
   type ProposeHarnessConfigurationsInput,
 } from "./harnesses.js";
+export {
+  HarnessSteeringConfigSchema,
+  STEERING_MARKER_END,
+  STEERING_MARKER_START,
+  buildSteeringInstructions,
+  type HarnessSteeringConfig,
+  type SteeringInstructions,
+} from "./steering.js";
 export {
   isInstallationCommand,
   runInstallationCommand,

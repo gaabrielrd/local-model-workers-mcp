@@ -67,6 +67,7 @@ const MutableLimitsSchema = z
 const ProjectChangesSchema = z
   .object({
     default_model: z.string().trim().min(1).max(256).nullable().optional(),
+    steering_prompt: z.string().trim().min(1).max(2_000).nullable().optional(),
     limits: MutableLimitsSchema.optional(),
   })
   .strict()
@@ -98,8 +99,8 @@ export interface ConfigurationValidationIssue {
 
 export interface ConfigurationChange {
   readonly field: MutableConfigurationField;
-  readonly old_value: string | number;
-  readonly new_value: string | number;
+  readonly old_value: string | number | undefined;
+  readonly new_value: string | number | undefined;
   readonly old_origin: ConfigurationOrigin;
   readonly new_origin: ConfigurationOrigin;
 }
@@ -162,6 +163,7 @@ export interface AtomicWriteOperations {
 
 type MutableConfigurationField =
   | "lm_studio.default_model"
+  | "steering_prompt"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -175,6 +177,7 @@ interface PreparedProposal extends ValidConfigurationProposal {
 
 const mutableFields: readonly MutableConfigurationField[] = [
   "lm_studio.default_model",
+  "steering_prompt",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
   "limits.processing_timeout_ms",
@@ -421,12 +424,16 @@ function applyChanges(
   const candidate: {
     schema_version: typeof CONFIGURATION_SCHEMA_VERSION;
     default_model?: string;
+    steering_prompt?: string;
     limits?: Record<string, number>;
   } = {
     schema_version: CONFIGURATION_SCHEMA_VERSION,
     ...(current.default_model === undefined
       ? {}
       : { default_model: current.default_model }),
+    ...(current.steering_prompt === undefined
+      ? {}
+      : { steering_prompt: current.steering_prompt }),
     ...(Object.keys(currentLimits).length === 0
       ? {}
       : { limits: currentLimits }),
@@ -437,6 +444,14 @@ function applyChanges(
       delete candidate.default_model;
     } else if (changes.default_model !== undefined) {
       candidate.default_model = changes.default_model;
+    }
+  }
+
+  if ("steering_prompt" in changes) {
+    if (changes.steering_prompt === null) {
+      delete candidate.steering_prompt;
+    } else if (changes.steering_prompt !== undefined) {
+      candidate.steering_prompt = changes.steering_prompt;
     }
   }
 
@@ -538,10 +553,12 @@ function compareConfigurations(
 function effectiveValue(
   configuration: EffectiveConfiguration,
   field: MutableConfigurationField,
-): string | number {
+): string | number | undefined {
   switch (field) {
     case "lm_studio.default_model":
       return configuration.lm_studio.default_model;
+    case "steering_prompt":
+      return configuration.steering_prompt;
     case "limits.max_concurrency":
       return configuration.limits.max_concurrency;
     case "limits.queue_timeout_ms":

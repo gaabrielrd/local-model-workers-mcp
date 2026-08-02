@@ -84,7 +84,11 @@ The initial feature boundaries are expected to be:
   cancellation, and retry policy;
 - `health`: configuration and LM Studio diagnostics without repository access;
 - `model-inference`: the service boundary around the LM Studio HTTP API;
-- `operational-logging`: metadata-only records and seven-day retention.
+- `operational-logging`: metadata-only records and seven-day retention;
+- `code-graph`: structural symbol extraction and queryable in-memory index;
+- `semantic-search`: embedding service and local vector index with persistence;
+- `module-summary`: structured file and directory summaries cached by content
+  hash, combining code-graph metadata with structured inference.
 
 The current `repository-exploration` public API contains exploration input
 validation, the three-method repository read capability, and the outbound
@@ -191,8 +195,9 @@ contracts.
 
 ## Known limitations
 
-- The V1 six-tool server, bounded use cases, logging, configuration, installation
-  adapters, and release candidate are implemented.
+- The V1 six-tool server was extended with the code-graph, semantic-search, and
+  module-summarization tools; bounded use cases, logging, configuration,
+  installation adapters, and the release candidate are implemented.
 - Project configuration writes are serialized within one MCP process; task
   capacity is coordinated across processes through application-owned state.
 - Linux and Windows receive basic automated coverage only in V1; complete

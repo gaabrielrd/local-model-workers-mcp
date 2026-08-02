@@ -5,6 +5,7 @@ export const TOOL_NAMES = Object.freeze({
   proposeTests: "propose_tests",
   queryCodeGraph: "query_code_graph",
   searchSemantic: "search_semantic",
+  summarizeModule: "summarize_module",
   updateConfig: "update_config",
   validateConfig: "validate_config",
 } as const);
@@ -16,6 +17,7 @@ export const TASK_TOOL_NAMES = Object.freeze([
   TOOL_NAMES.proposeTests,
   TOOL_NAMES.queryCodeGraph,
   TOOL_NAMES.searchSemantic,
+  TOOL_NAMES.summarizeModule,
 ] as const);
 
 export type TaskToolName = (typeof TASK_TOOL_NAMES)[number];
