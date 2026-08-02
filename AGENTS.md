@@ -1,10 +1,26 @@
 # Instruções do projeto
 
 Projeto: **Local Model Workers MCP** — servidor MCP local (Node.js/TypeScript)
-que delega exploração de repositório, busca semântica, consultas de código e
-geração de testes a um modelo servido por LM Studio numa rede privada
-confiável. O servidor local permanece a fronteira de segurança: o modelo remoto
-nunca escreve no repositório, aplica patch nem executa comandos.
+que delega exploração de repositório, busca semântica, consultas de código,
+geração de testes, correção de lint e geração de documentação a um modelo
+servido por LM Studio numa rede privada confiável. O servidor local permanece a
+fronteira de segurança: o modelo remoto nunca escreve no repositório do
+desenvolvedor nem aplica patch nele; patches de escrita retornam como diff
+unificado não aplicado, e comandos de teste só rodam em cópias temporárias
+isoladas (auto-validate) até passarem ou o limite ser atingido.
+
+O setup interativo (`setup`/`init`) escolhe os harnesses por um seletor de
+checkboxes (setas + `Space` para alternar, `Enter` confirma, `Ctrl+C` cancela),
+com fallback não interativo via flags como `--target all --yes`.
+
+## Estado atual (main)
+
+- Release 1.1.0 publicado (escopos V1, V1.5 e V2.0); `main` inclui o loop de
+  auto-validação (Task 024) e o incremento de UX de seleção da Task 025
+  (engine multi-provider ainda pendente).
+- Existem exatamente 12 ferramentas MCP (veja `docs/mcp-tools.md`).
+- `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
+  e testes (290 no total).
 
 ## Leia primeiro
 
