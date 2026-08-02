@@ -15,7 +15,11 @@ import {
 } from "./harnesses.js";
 import { selectOptions } from "./select-options.js";
 import type { InstallationCommandIo } from "./cli.js";
-import { getEffectiveConfiguration } from "../configuration/index.js";
+import {
+  FEATURE_GROUPS,
+  getEffectiveConfiguration,
+  type FeatureGroup,
+} from "../configuration/index.js";
 
 export async function runInteractiveSetup(
   optionsMap: ReadonlyMap<string, string | true>,
@@ -161,6 +165,41 @@ export async function runInteractiveSetup(
       allowedModels.unshift(defaultModel);
     }
 
+    // 4. MCP feature groups
+    let enabledFeatures: readonly FeatureGroup[];
+    const featuresFlag = stringOpt(optionsMap, "features");
+    if (featuresFlag !== undefined) {
+      const parsedFeatures = parseFeatureSelection(featuresFlag);
+      if (parsedFeatures === undefined) {
+        io.write("Invalid feature selection. Aborting setup.\n");
+        return 65;
+      }
+      enabledFeatures = parsedFeatures;
+    } else if (!isNonInteractive && rl) {
+      const selection = await selectOptions({
+        prompt: "Select MCP features (space to toggle, enter to confirm):",
+        options: [
+          {
+            label: "Repository exploration and code search",
+            value: "exploration",
+          },
+          { label: "Test generation and auto-validation", value: "tests" },
+          { label: "Documentation generation", value: "docs" },
+          { label: "Lint fixes", value: "lint" },
+        ],
+        initial: FEATURE_GROUPS,
+        write: io.write,
+        input: inputStream,
+      });
+      if (selection.cancelled || selection.values.length === 0) {
+        io.write("Setup cancelled.\n");
+        return 0;
+      }
+      enabledFeatures = selection.values as readonly FeatureGroup[];
+    } else {
+      enabledFeatures = FEATURE_GROUPS;
+    }
+
     // 5. Target Harness(es)
     let targets: readonly Harness[];
     const targetFlag = stringOpt(optionsMap, "target");
@@ -214,6 +253,7 @@ export async function runInteractiveSetup(
       preferences: {
         schema_version: 1,
         default_model: defaultModel,
+        enabled_features: enabledFeatures,
       },
       environment: effectiveEnv,
       platform: io.platform ?? process.platform,
@@ -348,6 +388,7 @@ export async function runInteractiveSetup(
       );
     }
     io.write("\nMake sure your shell exports the environment variables:\n");
+    io.write(`  Enabled MCP features: ${enabledFeatures.join(", ")}\n`);
     io.write(`  export LMW_LM_STUDIO_BASE_URL='${baseUrl}'\n`);
     io.write(
       `  export LMW_ALLOWED_MODELS='${JSON.stringify(allowedModels)}'\n`,
@@ -394,4 +435,26 @@ function harnessesFromSelection(selection: string): readonly Harness[] {
     return ["claude-code", "codex"];
   }
   return [selection as Harness];
+}
+
+function parseFeatureSelection(
+  value: string,
+): readonly FeatureGroup[] | undefined {
+  if (value.trim() === "all") {
+    return FEATURE_GROUPS;
+  }
+  const selected = value
+    .split(",")
+    .map((feature) => feature.trim())
+    .filter((feature) => feature.length > 0);
+  if (
+    selected.length === 0 ||
+    new Set(selected).size !== selected.length ||
+    !selected.every((feature) =>
+      FEATURE_GROUPS.includes(feature as FeatureGroup),
+    )
+  ) {
+    return undefined;
+  }
+  return selected as readonly FeatureGroup[];
 }

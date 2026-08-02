@@ -30,6 +30,22 @@ export const MODEL_TASK_TYPES = [
 
 export type ModelTaskType = (typeof MODEL_TASK_TYPES)[number];
 
+export const FEATURE_GROUPS = ["exploration", "tests", "docs", "lint"] as const;
+
+export type FeatureGroup = (typeof FEATURE_GROUPS)[number];
+
+const EnabledFeaturesSchema = z
+  .array(z.enum(FEATURE_GROUPS))
+  .min(1)
+  .superRefine((features, context) => {
+    if (new Set(features).size !== features.length) {
+      context.addIssue({
+        code: "custom",
+        message: "Enabled feature groups must be unique.",
+      });
+    }
+  });
+
 const LimitsSchema = z
   .object({
     max_concurrency: z
@@ -84,9 +100,14 @@ export const PreferencesSchema = z
     embedding_model: z.string().trim().min(1).max(256).optional(),
     model_routing: ModelRoutingSchema.optional(),
     steering_prompt: z.string().trim().min(1).max(2_000).optional(),
+    enabled_features: EnabledFeaturesSchema.optional(),
     limits: LimitsSchema.optional(),
   })
   .strict();
+
+export const ProjectPreferencesSchema = PreferencesSchema.omit({
+  enabled_features: true,
+});
 
 const AllowedModelsSchema = z
   .array(z.string().trim().min(1).max(256))
@@ -101,6 +122,7 @@ const AllowedModelsSchema = z
   });
 
 export type Preferences = z.infer<typeof PreferencesSchema>;
+export type ProjectPreferences = z.infer<typeof ProjectPreferencesSchema>;
 
 export interface EffectiveLimits {
   readonly max_concurrency: number;
@@ -158,6 +180,7 @@ export interface EffectiveConfiguration {
       Readonly<Partial<Record<ModelTaskType, string>>> | undefined;
   };
   readonly steering_prompt?: string | undefined;
+  readonly enabled_features?: readonly FeatureGroup[];
   readonly limits: EffectiveLimits;
   readonly administrative_maxima: typeof ADMINISTRATIVE_MAXIMA;
   readonly fixed_limits: typeof FIXED_LIMITS;
@@ -290,6 +313,11 @@ export async function getEffectiveConfiguration(
     globalPreferences?.steering_prompt,
     undefined,
   );
+  const enabledFeatures = selectValue(
+    undefined,
+    globalPreferences?.enabled_features,
+    [...FEATURE_GROUPS],
+  );
 
   const origins: Record<ConfigurationField, ConfigurationOrigin> = {
     "lm_studio.base_url": "protected",
@@ -332,6 +360,7 @@ export async function getEffectiveConfiguration(
     ...(steeringPrompt.value === undefined
       ? {}
       : { steering_prompt: steeringPrompt.value }),
+    enabled_features: [...enabledFeatures.value],
     limits: {
       max_concurrency: concurrency.value,
       queue_timeout_ms: queueTimeout.value,
@@ -378,7 +407,7 @@ export function resolveModelForTask(
 async function readProjectPreferences(
   projectRoot: string,
   fileSystem: ConfigurationFileSystem,
-): Promise<Preferences | undefined> {
+): Promise<ProjectPreferences | undefined> {
   let canonicalRoot: string;
   try {
     canonicalRoot = await fileSystem.realpath(projectRoot);
@@ -443,7 +472,7 @@ async function readRequiredPreferences(
   preferencesPath: string,
   layer: "global" | "project",
   fileSystem: ConfigurationFileSystem,
-): Promise<Preferences> {
+): Promise<Preferences | ProjectPreferences> {
   let contents: string;
   try {
     contents = await fileSystem.readFile(preferencesPath, "utf8");
@@ -455,7 +484,9 @@ async function readRequiredPreferences(
   }
 
   try {
-    return PreferencesSchema.parse(JSON.parse(contents) as unknown);
+    const schema =
+      layer === "global" ? PreferencesSchema : ProjectPreferencesSchema;
+    return schema.parse(JSON.parse(contents) as unknown);
   } catch {
     throw invalidConfiguration(
       `The ${layer} preferences file is malformed or contains unsupported fields.`,

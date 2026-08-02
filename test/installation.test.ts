@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import test from "node:test";
 
 import {
@@ -17,6 +18,7 @@ import {
   applyHarnessConfiguration,
   proposeGlobalPreferences,
   proposeHarnessConfigurations,
+  runInteractiveSetup,
   runInstallationCommand,
 } from "../src/features/installation/index.js";
 
@@ -396,6 +398,128 @@ void test("interactive setup command creates harness and global preference files
   const text = output.join("");
   assert.match(text, /Setup Complete/);
   assert.match(text, /Health status/);
+});
+
+void test("setup persists an explicit MCP feature selection", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+
+  const exitCode = await runInstallationCommand(
+    ["setup", "--target", "both", "--features", "docs,tests", "--yes"],
+    io,
+  );
+
+  assert.equal(exitCode, 0);
+  const preferences = JSON.parse(
+    await readFile(
+      path.join(
+        fixture.home,
+        ".config",
+        "local-model-workers",
+        "preferences.json",
+      ),
+      "utf8",
+    ),
+  ) as { enabled_features?: string[] };
+  assert.deepEqual(preferences.enabled_features, ["docs", "tests"]);
+  assert.match(output.join(""), /Enabled MCP features: docs, tests/);
+});
+
+void test("interactive setup selects MCP features with keyboard controls", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const rawModes: boolean[] = [];
+  const input = new PassThrough() as PassThrough & {
+    isTTY: boolean;
+    setRawMode(mode: boolean): void;
+  };
+  input.isTTY = true;
+  input.setRawMode = (mode): void => {
+    rawModes.push(mode);
+  };
+  const readlineInterface = {
+    question: (prompt: string): Promise<string> =>
+      Promise.resolve(prompt.includes("Apply these changes") ? "yes" : ""),
+    close: (): void => undefined,
+  } as unknown as NonNullable<Parameters<typeof runInteractiveSetup>[2]>;
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+
+  const setup = runInteractiveSetup(
+    new Map([
+      ["target", "both"],
+      ["url", "http://127.0.0.1:1/v1"],
+    ]),
+    io,
+    readlineInterface,
+    input,
+  );
+  setImmediate(() => input.write(" \x1b[B \x1b[B\x1b[B \r"));
+
+  assert.equal(await setup, 0);
+  const preferences = JSON.parse(
+    await readFile(
+      path.join(
+        fixture.home,
+        ".config",
+        "local-model-workers",
+        "preferences.json",
+      ),
+      "utf8",
+    ),
+  ) as { enabled_features?: string[] };
+  assert.deepEqual(preferences.enabled_features, ["docs"]);
+  assert.deepEqual(rawModes, [true, false]);
+  assert.match(output.join(""), /Select MCP features/);
+});
+
+void test("setup rejects unknown MCP feature selections", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+
+  assert.equal(
+    await runInstallationCommand(
+      ["setup", "--target", "both", "--features", "docs,unknown", "--yes"],
+      io,
+    ),
+    65,
+  );
+  await assert.rejects(
+    access(
+      path.join(
+        fixture.home,
+        ".config",
+        "local-model-workers",
+        "preferences.json",
+      ),
+    ),
+  );
+  assert.match(output.join(""), /Invalid feature selection/);
 });
 
 void test("setup dry-run makes no changes to filesystem", async (t) => {

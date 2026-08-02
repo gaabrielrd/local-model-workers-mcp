@@ -35,9 +35,10 @@ environment, keeping credentials outside agent-editable JSON.
 
 ## Editable files
 
-Both files use the same strict, versioned JSON schema. Unknown keys, wrong
-types, unsupported versions, invalid JSON, and values outside administrative
-maxima reject the entire configuration.
+Both files use strict, versioned JSON schemas. Unknown keys, wrong types,
+unsupported versions, invalid JSON, and values outside administrative maxima
+reject the entire configuration. `enabled_features` is global-only because the
+tool list is fixed when the MCP process starts; project preferences reject it.
 
 ```json
 {
@@ -48,6 +49,7 @@ maxima reject the entire configuration.
     "embedding": "embedding/model-id"
   },
   "steering_prompt": "Prefer semantic search for descriptive queries.",
+  "enabled_features": ["exploration", "tests", "docs", "lint"],
   "limits": {
     "max_concurrency": 2,
     "queue_timeout_ms": 300000,
@@ -69,6 +71,11 @@ whole configuration. `steering_prompt` is an optional custom directive
 appended to the harness prompt steering instructions; it is limited to 2,000
 characters. `limits` and each child field are optional. A file must always
 include `schema_version: 1`.
+
+`enabled_features` accepts one or more unique values from `exploration`,
+`tests`, `docs`, and `lint`. When omitted, all four groups are enabled for
+backward compatibility. The field is editable only in global preferences and
+is exposed by `get_config`.
 
 ### Global location
 

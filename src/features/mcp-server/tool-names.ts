@@ -15,6 +15,18 @@ export const TOOL_NAMES = Object.freeze({
 
 export type ToolName = (typeof TOOL_NAMES)[keyof typeof TOOL_NAMES];
 
+export const FEATURE_TOOL_NAMES = Object.freeze({
+  exploration: Object.freeze([
+    TOOL_NAMES.exploreRepository,
+    TOOL_NAMES.queryCodeGraph,
+    TOOL_NAMES.searchSemantic,
+    TOOL_NAMES.summarizeModule,
+  ]),
+  tests: Object.freeze([TOOL_NAMES.proposeTests, TOOL_NAMES.autoValidateTests]),
+  docs: Object.freeze([TOOL_NAMES.generateDocsPatch]),
+  lint: Object.freeze([TOOL_NAMES.fixLintViolations]),
+} as const);
+
 export const TASK_TOOL_NAMES = Object.freeze([
   TOOL_NAMES.autoValidateTests,
   TOOL_NAMES.exploreRepository,

@@ -145,6 +145,12 @@ revision-checked, validated, and atomically replaced through a persistence
 adapter. Storage locations, fields, units, and mutation semantics are concrete;
 see [configuration.md](configuration.md).
 
+The global-only `enabled_features` preference is resolved at process startup.
+The MCP composition layer always registers health and configuration tools, then
+registers the `exploration`, `tests`, `docs`, and `lint` tool groups selected by
+the developer. An absent field enables all groups for compatibility; project
+preferences cannot change the process-wide advertised tool surface.
+
 ## Model inference and health
 
 `model-inference` owns all LM Studio wire shapes and exposes a transport-neutral

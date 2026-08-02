@@ -1,11 +1,21 @@
 <Task 025: Multi-provider engine support>
-**Status:** In progress (UX increment done: interactive harness selection component in `src/features/installation/select-options.ts`, integrated into `setup`/`init`; multi-provider engine still pending)
+**Status:** In progress (setup UX increments done: interactive harness and MCP
+feature-group selection integrated into `setup`/`init`; multi-provider engine
+still pending)
 **Depends on:** Tasks 007, 023
 **PRD coverage:** New capability CAP-14
 
 ## Objective
 
 Abstract the inference layer to support multiple local model providers beyond LM Studio, including Ollama, vLLM, and LocalAI, with automatic health-based failover.
+
+## Completed setup increment
+
+The initial setup can persist one or more global MCP feature groups:
+`exploration`, `tests`, `docs`, and `lint`. The server always exposes its four
+administrative tools and registers only the tools belonging to selected groups.
+Omitting the preference preserves the historical twelve-tool surface. This UX
+increment does not implement or change the provider engine requirements below.
 
 ## Requirements
 

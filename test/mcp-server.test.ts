@@ -16,6 +16,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { resolveGlobalPreferencesPath } from "../src/features/configuration/index.js";
 import {
   createMcpApplicationRuntime,
+  FEATURE_TOOL_NAMES,
   TOOL_NAMES,
 } from "../src/features/mcp-server/index.js";
 
@@ -220,7 +221,41 @@ void test("serves all schema-validated tools over protocol-clean stdio", async (
   assert.equal(stderr, "");
 });
 
-async function applicationFixture(t: test.TestContext, baseUrl: string) {
+void test("advertises only selected feature tools plus administrative tools", async (t) => {
+  const baseUrl = await fakeLmStudio(t);
+  const fixture = await applicationFixture(t, baseUrl, ["docs"]);
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [builtCli],
+    cwd: process.cwd(),
+    env: fixture.environment,
+    stderr: "pipe",
+  });
+  const client = new Client(
+    { name: "feature-selection-test", version: "1.0.0" },
+    { capabilities: {} },
+  );
+  await client.connect(transport);
+  t.after(() => client.close());
+
+  const tools = await client.listTools();
+  assert.deepEqual(
+    tools.tools.map((tool) => tool.name).sort(),
+    [
+      ...FEATURE_TOOL_NAMES.docs,
+      TOOL_NAMES.checkHealth,
+      TOOL_NAMES.getConfig,
+      TOOL_NAMES.updateConfig,
+      TOOL_NAMES.validateConfig,
+    ].sort(),
+  );
+});
+
+async function applicationFixture(
+  t: test.TestContext,
+  baseUrl: string,
+  enabledFeatures?: readonly string[],
+) {
   const home = await mkdtemp(path.join(os.tmpdir(), "mcp-app-"));
   const repository = path.join(home, "repository");
   await mkdir(repository);
@@ -245,7 +280,13 @@ async function applicationFixture(t: test.TestContext, baseUrl: string) {
   await mkdir(path.dirname(preferencesPath), { recursive: true });
   await writeFile(
     preferencesPath,
-    `${JSON.stringify({ schema_version: 1, default_model: MODEL })}\n`,
+    `${JSON.stringify({
+      schema_version: 1,
+      default_model: MODEL,
+      ...(enabledFeatures === undefined
+        ? {}
+        : { enabled_features: enabledFeatures }),
+    })}\n`,
   );
   return { environment, repository };
 }

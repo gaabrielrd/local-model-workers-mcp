@@ -13,7 +13,9 @@ export {
   ConfigurationError,
   getConfig,
   getEffectiveConfiguration,
+  FEATURE_GROUPS,
   PreferencesSchema,
+  ProjectPreferencesSchema,
   resolveModelForTask,
   type ConfigurationErrorCode,
   type ConfigurationField,
@@ -22,9 +24,11 @@ export {
   type EffectiveConfiguration,
   type EffectiveConfigurationView,
   type EffectiveLimits,
+  type FeatureGroup,
   type GetConfigurationInput,
   type ModelTaskType,
   type Preferences,
+  type ProjectPreferences,
 } from "./configuration.js";
 export {
   updateConfig,

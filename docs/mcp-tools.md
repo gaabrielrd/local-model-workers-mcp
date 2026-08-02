@@ -14,6 +14,19 @@ Raw configuration errors and credentials are never printed.
 
 ## Registered tools
 
+`check_health`, `get_config`, `validate_config`, and `update_config` are always
+registered. The remaining tools are grouped by the global `enabled_features`
+preference selected during setup:
+
+| Feature group | Tools |
+| --- | --- |
+| `exploration` | `explore_repository`, `query_code_graph`, `search_semantic`, `summarize_module` |
+| `tests` | `propose_tests`, `auto_validate_tests` |
+| `docs` | `generate_docs_patch` |
+| `lint` | `fix_lint_violations` |
+
+Omitting `enabled_features` registers every group for backward compatibility.
+
 | Tool | Required input | Behavior |
 | --- | --- | --- |
 | `explore_repository` | `goal`, `repository_root` | Bounded exploration; optional `priority_paths` and `language` |
@@ -42,7 +55,9 @@ the same final result.
 
 ## Protocol safety
 
-The server registers exactly the twelve tools above and no resources or prompts.
+With every feature enabled, the server registers exactly the twelve tools above
+and no resources or prompts. A reduced setup registers only the selected
+feature tools plus the four administrative tools.
 It never exposes shell, generic filesystem, generic prompt, command execution,
 patch application, or dependency installation. Tool exceptions become a fixed
 tool error without raw exception text. Operational terminal observers receive

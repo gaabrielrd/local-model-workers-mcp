@@ -138,6 +138,12 @@ override, existing snapshots remain unchanged, successful replacement changes
 the revision, and simulated write/rename failures preserve original bytes and
 clean the exact temporary file.
 
+Installation and MCP integration tests verify that setup persists only valid,
+non-empty feature selections, the absent preference keeps all feature groups
+enabled, project preferences cannot change the startup tool surface, and MCP
+discovery returns only selected feature tools plus the four administrative
+tools.
+
 The repository-access suite uses only temporary directories and injected
 filesystem fakes. It covers missing, file, and inaccessible roots; traversal,
 absolute and sibling-prefix escapes; in-root and escaping symlinks; a symlink

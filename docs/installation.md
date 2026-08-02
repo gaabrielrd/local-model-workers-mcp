@@ -55,7 +55,16 @@ local-model-workers-mcp setup
 local-model-workers-mcp init
 ```
 
-This assistant interactively prompts for the LM Studio Base URL, allowed models, default model, optional Bearer token, and target harnesses. The harness prompt is a checkbox list (`claude-code`, `codex`, `antigravity`): use the arrow keys to move, `Space` to toggle a harness on or off, `Enter` to confirm, and `Ctrl+C` to cancel. It updates global preferences, writes harness configuration files, runs an immediate health check (`check_health`) against LM Studio, and presents first-call instructions. Non-interactive or automated execution is supported via flags (`--target all --yes`, `--dry-run`, etc.).
+This assistant interactively prompts for the LM Studio Base URL, allowed models,
+default model, optional Bearer token, MCP feature groups, and target harnesses.
+Both feature and harness prompts are checkbox lists: use the arrow keys to move,
+`Space` to toggle, `Enter` to confirm, and `Ctrl+C` to cancel. The feature groups
+are `exploration`, `tests`, `docs`, and `lint`; all start enabled. Administrative
+health and configuration tools are always available. The assistant updates
+global preferences, writes harness configuration files, runs an immediate
+health check (`check_health`) against LM Studio, and presents first-call
+instructions. Non-interactive or automated execution is supported via flags
+such as `--features exploration,tests --target all --yes` and `--dry-run`.
 
 ## Text-only configuration assistant
 
@@ -65,6 +74,7 @@ never writes. Choose Claude Code, Codex, Antigravity, all, or cancellation:
 
 ```sh
 local-model-workers-mcp setup --dry-run
+local-model-workers-mcp setup --features docs,tests --target all --yes
 local-model-workers-mcp configure-harness --target claude-code --project-root "$PWD" --dry-run
 local-model-workers-mcp configure-harness --target codex --dry-run
 local-model-workers-mcp configure-harness --target antigravity --dry-run

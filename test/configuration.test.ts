@@ -8,6 +8,7 @@ import {
   ADMINISTRATIVE_MAXIMA,
   BUILT_IN_LIMITS,
   ConfigurationError,
+  FEATURE_GROUPS,
   getConfig,
   getEffectiveConfiguration,
   resolveGlobalPreferencesPath,
@@ -31,6 +32,7 @@ void test("loads built-in defaults and returns a redacted effective view", async
   const view = await getConfig(fixture.input());
 
   assert.deepEqual(snapshot.limits, BUILT_IN_LIMITS);
+  assert.deepEqual(snapshot.enabled_features, FEATURE_GROUPS);
   assert.equal(snapshot.lm_studio.base_url, "http://127.0.0.1:1234/v1");
   assert.deepEqual(snapshot.lm_studio.allowed_models, [
     "another/model",
@@ -42,6 +44,36 @@ void test("loads built-in defaults and returns a redacted effective view", async
   assert.equal(JSON.stringify(snapshot).includes("super-secret-token"), false);
   assert.equal(JSON.stringify(view).includes("super-secret-token"), false);
   assert.match(snapshot.revision, /^sha256:[a-f0-9]{64}$/);
+});
+
+void test("loads enabled MCP features from global preferences only", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    enabled_features: ["docs", "tests"],
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input());
+
+  assert.deepEqual(snapshot.enabled_features, ["docs", "tests"]);
+});
+
+void test("rejects enabled MCP features in project preferences", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+  });
+  await fixture.writeProject({
+    schema_version: 1,
+    enabled_features: ["docs"],
+  });
+
+  await assert.rejects(
+    getEffectiveConfiguration(fixture.input(true)),
+    /project preferences file is malformed or contains unsupported fields/,
+  );
 });
 
 void test("supports LM Studio without optional Bearer authentication", async (t) => {

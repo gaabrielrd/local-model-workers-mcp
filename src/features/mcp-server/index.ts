@@ -1,5 +1,6 @@
 export {
   NON_TASK_TOOL_NAMES,
+  FEATURE_TOOL_NAMES,
   TASK_TOOL_NAMES,
   TOOL_NAMES,
   type NonTaskToolName,

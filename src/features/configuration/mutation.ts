@@ -10,14 +10,14 @@ import {
 } from "./constants.js";
 import {
   ConfigurationError,
-  PreferencesSchema,
+  ProjectPreferencesSchema,
   getEffectiveConfiguration,
   isContainedPath,
   type ConfigurationFileSystem,
   type ConfigurationOrigin,
   type EffectiveConfiguration,
   type GetConfigurationInput,
-  type Preferences,
+  type ProjectPreferences,
 } from "./configuration.js";
 import { resolveProjectPreferencesPath } from "./paths.js";
 
@@ -443,9 +443,9 @@ async function prepareProposal(
 }
 
 function applyChanges(
-  current: Preferences,
+  current: ProjectPreferences,
   changes: ProjectChanges,
-): Preferences {
+): ProjectPreferences {
   const currentLimits = Object.fromEntries(
     Object.entries(current.limits ?? {}).filter(
       (entry): entry is [string, number] => typeof entry[1] === "number",
@@ -529,14 +529,14 @@ function applyChanges(
     }
   }
 
-  return PreferencesSchema.parse(candidate);
+  return ProjectPreferencesSchema.parse(candidate);
 }
 
 async function readCurrentPreferences(
   canonicalRoot: string,
   targetPath: string,
   fileSystem: ConfigurationFileSystem,
-): Promise<Preferences> {
+): Promise<ProjectPreferences> {
   let canonicalPath: string;
   try {
     canonicalPath = await fileSystem.realpath(targetPath);
@@ -556,7 +556,7 @@ async function readCurrentPreferences(
     );
   }
   try {
-    return PreferencesSchema.parse(
+    return ProjectPreferencesSchema.parse(
       JSON.parse(await fileSystem.readFile(canonicalPath, "utf8")) as unknown,
     );
   } catch {

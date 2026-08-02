@@ -28,6 +28,9 @@ The implementation includes:
 - confirmed Claude Code, Codex, and Antigravity harness configuration via an
   interactive checkbox selector (arrow keys, `Space` to toggle, `Enter` to
   confirm) in the `setup`/`init` assistant, with a `--target` flag for scripts;
+- selectable MCP feature groups during `setup`/`init` (`exploration`, `tests`,
+  `docs`, and `lint`), with all groups enabled by default and `--features` for
+  scripts;
 - managed prompt-steering instruction files that direct harnesses to the MCP
   tools, with an optional custom `steering_prompt` preference;
 - validated lint-fix patches and documentation patches returned as unapplied
@@ -42,7 +45,7 @@ The implementation includes:
 Local qualification is green as of 2026-08-02:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 290 automated tests;
+  typechecking, build, and all 296 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
   isolated prefix, starts the packaged MCP server, and verifies all twelve tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
@@ -137,12 +140,14 @@ The setup assistant will interactively prompt for:
 - **Allowed Models** *(Optional)*: Press Enter to automatically query LM Studio's `/v1/models` endpoint and auto-populate all available active models.
 - **Default Model**: Select your preferred default model.
 - **Bearer Token** *(Optional)*: Leave empty for local unauthenticated LM Studio instances.
+- **MCP Features**: Press `Space` to enable or disable `exploration`, `tests`, `docs`, and `lint`. Administrative configuration and health tools remain available.
 - **Target Harness(es)**: Press `Space` to toggle `claude-code`, `codex`, and/or `antigravity` on and off, arrow keys to move the cursor, `Enter` to confirm, and `Ctrl+C` to cancel. Use `--target` to skip the prompt in scripts.
 
 Non-interactive setup for scripts or CI pipelines is also supported:
 
 ```sh
-local-model-workers-mcp setup --target all --url "http://localhost:1234/v1" --yes
+local-model-workers-mcp setup --target all --features exploration,tests \
+  --url "http://localhost:1234/v1" --yes
 ```
 
 ### 3. First Use
