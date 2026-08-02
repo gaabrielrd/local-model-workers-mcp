@@ -24,6 +24,7 @@ import type {
 
 const ROOT = "/fixture/repository";
 const MODEL = "qwen/default";
+const ROUTED_MODEL = "gemma/routed";
 
 void test("rejects invalid requests and roots before model inference", async () => {
   let inferenceCalls = 0;
@@ -67,6 +68,37 @@ void test("rejects invalid requests and roots before model inference", async () 
   );
   assert.equal(capabilityCalls, 1);
   assert.equal(inferenceCalls, 0);
+});
+
+void test("routes exploration to a task-specific configured model", async () => {
+  const result = await run(
+    [
+      {
+        action: "finalize",
+        summary: "The module exports one constant.",
+        relevant_files: ["src/app.ts"],
+        evidence: [
+          {
+            path: "src/app.ts",
+            start_line: 1,
+            end_line: 1,
+            explanation: "This line defines the export.",
+          },
+        ],
+        risks: ["The value is hard-coded."],
+        next_steps: ["Add behavior around the exported value."],
+      },
+    ],
+    {
+      configuration: routedConfiguration(),
+      capability: capabilityWithContent(
+        "src/app.ts",
+        "export const value = 1;",
+      ),
+    },
+  );
+
+  assert.equal(result.model, ROUTED_MODEL);
 });
 
 void test("performs a bounded read and returns locally verified evidence", async () => {
@@ -462,6 +494,22 @@ function safeCollector(input: CreateOutboundContextCollectorInput) {
   });
 }
 
+function routedConfiguration(): EffectiveConfiguration {
+  const base = configuration();
+  return {
+    ...base,
+    lm_studio: {
+      ...base.lm_studio,
+      allowed_models: [MODEL, ROUTED_MODEL],
+      model_routing: { exploration: ROUTED_MODEL },
+    },
+    origins: {
+      ...base.origins,
+      "lm_studio.model_routing.exploration": "global",
+    },
+  };
+}
+
 function configuration(
   overrides: {
     readonly maxInteractions?: number;
@@ -494,6 +542,13 @@ function configuration(
       "lm_studio.allowed_models": "protected",
       "lm_studio.default_model": "global",
       "lm_studio.embedding_model": "built_in",
+      "lm_studio.model_routing.embedding": "built_in",
+      "lm_studio.model_routing.exploration": "built_in",
+      "lm_studio.model_routing.test_proposal": "built_in",
+      "lm_studio.model_routing.lint_fix": "built_in",
+      "lm_studio.model_routing.docs_generation": "built_in",
+      "lm_studio.model_routing.summarization": "built_in",
+      "lm_studio.model_routing.code_graph": "built_in",
       steering_prompt: "built_in",
       "limits.max_concurrency": "built_in",
       "limits.queue_timeout_ms": "built_in",

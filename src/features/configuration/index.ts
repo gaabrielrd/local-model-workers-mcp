@@ -14,6 +14,7 @@ export {
   getConfig,
   getEffectiveConfiguration,
   PreferencesSchema,
+  resolveModelForTask,
   type ConfigurationErrorCode,
   type ConfigurationField,
   type ConfigurationFileSystem,
@@ -22,6 +23,7 @@ export {
   type EffectiveConfigurationView,
   type EffectiveLimits,
   type GetConfigurationInput,
+  type ModelTaskType,
   type Preferences,
 } from "./configuration.js";
 export {

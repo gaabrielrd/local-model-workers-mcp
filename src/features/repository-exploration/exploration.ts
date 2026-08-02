@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import type { EffectiveConfiguration } from "../configuration/index.js";
+import {
+  resolveModelForTask,
+  type EffectiveConfiguration,
+} from "../configuration/index.js";
 import type { ModelInferencePort } from "../model-inference/index.js";
 import {
   createDiagnostic,
@@ -171,6 +174,7 @@ export async function exploreRepository(
     resultSchema: ExplorationResultSchema,
     inference: input.inference,
     language: input.language,
+    model: resolveModelForTask(input.configuration, "exploration"),
     ...(input.signal === undefined ? {} : { callerSignal: input.signal }),
     ...(input.onProgress === undefined ? {} : { onProgress: input.onProgress }),
     ...(input.createTaskId === undefined

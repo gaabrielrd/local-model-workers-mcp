@@ -15,6 +15,7 @@ import {
   CONFIGURATION_ENVIRONMENT_VARIABLES,
   getConfig,
   getEffectiveConfiguration,
+  resolveModelForTask,
   updateConfig,
   validateConfig,
   type EffectiveConfiguration,
@@ -244,9 +245,10 @@ export function createMcpServer(
           runtime,
           parsedInput.repository_root,
         );
-        const embeddingModel =
-          dependencies.configuration.lm_studio.embedding_model ??
-          dependencies.configuration.lm_studio.default_model;
+        const embeddingModel = resolveModelForTask(
+          dependencies.configuration,
+          "embedding",
+        );
 
         return await executeSemanticSearch({
           input: parsedInput,
@@ -318,7 +320,10 @@ export function createMcpServer(
           runtime,
           parsedInput.repository_root,
         );
-        const model = dependencies.configuration.lm_studio.default_model;
+        const model = resolveModelForTask(
+          dependencies.configuration,
+          "summarization",
+        );
 
         return await summarizeModule({
           input: parsedInput,
@@ -351,7 +356,7 @@ export function createMcpServer(
           input: parsedInput,
           inference: dependencies.inference,
           repositoryRead: dependencies.repositoryRead,
-          model: dependencies.configuration.lm_studio.default_model,
+          model: resolveModelForTask(dependencies.configuration, "lint_fix"),
           signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
         });
       }),
@@ -377,7 +382,10 @@ export function createMcpServer(
           input: parsedInput,
           inference: dependencies.inference,
           repositoryRead: dependencies.repositoryRead,
-          model: dependencies.configuration.lm_studio.default_model,
+          model: resolveModelForTask(
+            dependencies.configuration,
+            "docs_generation",
+          ),
           signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
         });
       }),

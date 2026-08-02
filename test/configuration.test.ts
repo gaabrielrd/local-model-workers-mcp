@@ -11,6 +11,7 @@ import {
   getConfig,
   getEffectiveConfiguration,
   resolveGlobalPreferencesPath,
+  resolveModelForTask,
 } from "../src/features/configuration/index.js";
 
 const protectedEnvironment = {
@@ -131,6 +132,135 @@ void test("allows project preferences to supply the required default model", asy
   assert.deepEqual(snapshot.limits, BUILT_IN_LIMITS);
 });
 
+void test("resolves model routing with project over global precedence and default fallback", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    model_routing: {
+      exploration: "another/model",
+      summarization: "another/model",
+      code_graph: "another/model",
+    },
+  });
+  await fixture.writeProject({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    model_routing: {
+      exploration: "qwen/test-model",
+      lint_fix: "qwen/test-model",
+    },
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input(true));
+
+  assert.deepEqual(snapshot.lm_studio.model_routing, {
+    exploration: "qwen/test-model",
+    summarization: "another/model",
+    code_graph: "another/model",
+    lint_fix: "qwen/test-model",
+  });
+  assert.equal(resolveModelForTask(snapshot, "exploration"), "qwen/test-model");
+  assert.equal(resolveModelForTask(snapshot, "summarization"), "another/model");
+  assert.equal(
+    resolveModelForTask(snapshot, "test_proposal"),
+    "qwen/test-model",
+  );
+  assert.equal(resolveModelForTask(snapshot, "embedding"), "qwen/test-model");
+  assert.equal(
+    snapshot.origins["lm_studio.model_routing.exploration"],
+    "project",
+  );
+  assert.equal(
+    snapshot.origins["lm_studio.model_routing.summarization"],
+    "global",
+  );
+  assert.equal(
+    snapshot.origins["lm_studio.model_routing.test_proposal"],
+    "built_in",
+  );
+});
+
+void test("folds the legacy embedding model into the embedding routing slot", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    embedding_model: "another/model",
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input());
+
+  assert.equal(snapshot.lm_studio.embedding_model, "another/model");
+  assert.equal(snapshot.lm_studio.model_routing?.embedding, "another/model");
+  assert.equal(resolveModelForTask(snapshot, "embedding"), "another/model");
+});
+
+void test("lets an explicit embedding routing entry override the legacy embedding model", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    embedding_model: "another/model",
+    model_routing: { embedding: "qwen/test-model" },
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input());
+
+  assert.equal(snapshot.lm_studio.model_routing?.embedding, "qwen/test-model");
+  assert.equal(resolveModelForTask(snapshot, "embedding"), "qwen/test-model");
+});
+
+void test("rejects routing entries that reference unauthorized models", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    model_routing: { exploration: "blocked/model" },
+  });
+
+  await assert.rejects(
+    getEffectiveConfiguration(fixture.input()),
+    isConfigurationError("invalid_configuration"),
+  );
+});
+
+void test("permits any routed model under a wildcard allowed-model policy", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "any/model",
+    model_routing: { exploration: "anything/else", lint_fix: "third/one" },
+  });
+  const environment = {
+    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
+  };
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+
+  assert.equal(snapshot.lm_studio.model_routing?.exploration, "anything/else");
+  assert.equal(snapshot.lm_studio.model_routing?.lint_fix, "third/one");
+});
+
+void test("exposes effective model routing in the redacted configuration view", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    model_routing: { exploration: "another/model" },
+  });
+
+  const view = await getConfig(fixture.input());
+
+  assert.deepEqual(view.lm_studio.model_routing, {
+    exploration: "another/model",
+  });
+  assert.equal(JSON.stringify(view).includes("mutation-secret-token"), false);
+});
+
 void test("rejects unknown, malformed, wrong-type, and out-of-range preferences", async (t) => {
   const invalidPreferences: readonly unknown[] = [
     { schema_version: 1, default_model: "qwen/test-model", unknown: true },
@@ -153,7 +283,12 @@ void test("rejects unknown, malformed, wrong-type, and out-of-range preferences"
     {
       schema_version: 1,
       default_model: "qwen/test-model",
-      limits: { queue_timeout_ms: "five minutes" },
+      unknown: true,
+    },
+    {
+      schema_version: 1,
+      default_model: "qwen/test-model",
+      model_routing: { unknown_task: "qwen/test-model" },
     },
   ];
 

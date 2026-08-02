@@ -184,6 +184,15 @@ function mergePreferences(
           steering_prompt:
             requested.steering_prompt ?? current?.steering_prompt,
         }),
+    ...(current?.model_routing === undefined &&
+    requested.model_routing === undefined
+      ? {}
+      : {
+          model_routing: {
+            ...current?.model_routing,
+            ...requested.model_routing,
+          },
+        }),
     ...(current?.limits === undefined && requested.limits === undefined
       ? {}
       : { limits: { ...current?.limits, ...requested.limits } }),

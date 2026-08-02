@@ -1,7 +1,35 @@
 <Task 023: Multi-model task routing>
-**Status:** Not started
+**Status:** Completed
 **Depends on:** Tasks 003, 004, 007
 **PRD coverage:** New capability CAP-12
+
+## Summary
+
+Implemented optional `model_routing` in the strict preferences schema (global,
+project, and built-in layers) mapping task types to model IDs from the
+protected allowlist. The effective configuration exposes the merged routing as
+`lm_studio.model_routing` with project > global > built-in precedence; each
+entry is validated against `allowed_models` at load time and unauthorized
+references are rejected. `resolveModelForTask(configuration, taskType)` is
+exported from the configuration API and returns the routed model or
+`default_model` when no entry is configured.
+
+Behavioral notes:
+
+- Task types: `embedding`, `exploration`, `test_proposal`, `lint_fix`,
+  `docs_generation`, `summarization`, `code_graph`.
+- The legacy `embedding_model` preference is folded into the `embedding`
+  routing slot (an explicit routing entry wins over it), preserving
+  `search_semantic` behavior.
+- `validate_config`/`update_config` can set and clear routing entries with
+  `null`; routing changes surface as effective field changes with origins.
+- Tools now resolve their model through `resolveModelForTask`:
+  `explore_repository`, `propose_tests`, `search_semantic`,
+  `summarize_module`, `fix_lint_violations`, and `generate_docs_patch`.
+- Non-scope remains: benchmark selection, load balancing, concurrent
+  multi-model inference, and monitoring.
+
+## Acceptance criteria
 
 ## Objective
 

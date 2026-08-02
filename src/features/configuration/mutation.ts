@@ -64,9 +64,25 @@ const MutableLimitsSchema = z
     message: "At least one limit change is required.",
   });
 
+const MutableModelRoutingSchema = z
+  .object({
+    embedding: z.string().trim().min(1).max(256).nullable().optional(),
+    exploration: z.string().trim().min(1).max(256).nullable().optional(),
+    test_proposal: z.string().trim().min(1).max(256).nullable().optional(),
+    lint_fix: z.string().trim().min(1).max(256).nullable().optional(),
+    docs_generation: z.string().trim().min(1).max(256).nullable().optional(),
+    summarization: z.string().trim().min(1).max(256).nullable().optional(),
+    code_graph: z.string().trim().min(1).max(256).nullable().optional(),
+  })
+  .strict()
+  .refine((routing) => Object.keys(routing).length > 0, {
+    message: "At least one routing change is required.",
+  });
+
 const ProjectChangesSchema = z
   .object({
     default_model: z.string().trim().min(1).max(256).nullable().optional(),
+    model_routing: MutableModelRoutingSchema.optional(),
     steering_prompt: z.string().trim().min(1).max(2_000).nullable().optional(),
     limits: MutableLimitsSchema.optional(),
   })
@@ -163,6 +179,13 @@ export interface AtomicWriteOperations {
 
 type MutableConfigurationField =
   | "lm_studio.default_model"
+  | "lm_studio.model_routing.embedding"
+  | "lm_studio.model_routing.exploration"
+  | "lm_studio.model_routing.test_proposal"
+  | "lm_studio.model_routing.lint_fix"
+  | "lm_studio.model_routing.docs_generation"
+  | "lm_studio.model_routing.summarization"
+  | "lm_studio.model_routing.code_graph"
   | "steering_prompt"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
@@ -177,6 +200,13 @@ interface PreparedProposal extends ValidConfigurationProposal {
 
 const mutableFields: readonly MutableConfigurationField[] = [
   "lm_studio.default_model",
+  "lm_studio.model_routing.embedding",
+  "lm_studio.model_routing.exploration",
+  "lm_studio.model_routing.test_proposal",
+  "lm_studio.model_routing.lint_fix",
+  "lm_studio.model_routing.docs_generation",
+  "lm_studio.model_routing.summarization",
+  "lm_studio.model_routing.code_graph",
   "steering_prompt",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
@@ -421,9 +451,18 @@ function applyChanges(
       (entry): entry is [string, number] => typeof entry[1] === "number",
     ),
   );
+  const currentRouting: Record<string, string> = {};
+  if (current.model_routing !== undefined) {
+    for (const [taskType, value] of Object.entries(current.model_routing)) {
+      if (value !== undefined) {
+        currentRouting[taskType] = value;
+      }
+    }
+  }
   const candidate: {
     schema_version: typeof CONFIGURATION_SCHEMA_VERSION;
     default_model?: string;
+    model_routing?: Record<string, string>;
     steering_prompt?: string;
     limits?: Record<string, number>;
   } = {
@@ -431,6 +470,9 @@ function applyChanges(
     ...(current.default_model === undefined
       ? {}
       : { default_model: current.default_model }),
+    ...(Object.keys(currentRouting).length === 0
+      ? {}
+      : { model_routing: currentRouting }),
     ...(current.steering_prompt === undefined
       ? {}
       : { steering_prompt: current.steering_prompt }),
@@ -444,6 +486,22 @@ function applyChanges(
       delete candidate.default_model;
     } else if (changes.default_model !== undefined) {
       candidate.default_model = changes.default_model;
+    }
+  }
+
+  if (changes.model_routing !== undefined) {
+    const nextRouting: Record<string, string> = { ...candidate.model_routing };
+    for (const [taskType, value] of Object.entries(changes.model_routing)) {
+      if (value === null) {
+        delete nextRouting[taskType];
+      } else if (value !== undefined) {
+        nextRouting[taskType] = value;
+      }
+    }
+    if (Object.keys(nextRouting).length === 0) {
+      delete candidate.model_routing;
+    } else {
+      candidate.model_routing = nextRouting;
     }
   }
 
@@ -557,6 +615,20 @@ function effectiveValue(
   switch (field) {
     case "lm_studio.default_model":
       return configuration.lm_studio.default_model;
+    case "lm_studio.model_routing.embedding":
+      return configuration.lm_studio.model_routing?.embedding;
+    case "lm_studio.model_routing.exploration":
+      return configuration.lm_studio.model_routing?.exploration;
+    case "lm_studio.model_routing.test_proposal":
+      return configuration.lm_studio.model_routing?.test_proposal;
+    case "lm_studio.model_routing.lint_fix":
+      return configuration.lm_studio.model_routing?.lint_fix;
+    case "lm_studio.model_routing.docs_generation":
+      return configuration.lm_studio.model_routing?.docs_generation;
+    case "lm_studio.model_routing.summarization":
+      return configuration.lm_studio.model_routing?.summarization;
+    case "lm_studio.model_routing.code_graph":
+      return configuration.lm_studio.model_routing?.code_graph;
     case "steering_prompt":
       return configuration.steering_prompt;
     case "limits.max_concurrency":

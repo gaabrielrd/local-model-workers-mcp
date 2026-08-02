@@ -43,6 +43,10 @@ maxima reject the entire configuration.
 {
   "schema_version": 1,
   "default_model": "publisher/model-id",
+  "model_routing": {
+    "exploration": "small/model-id",
+    "embedding": "embedding/model-id"
+  },
   "steering_prompt": "Prefer semantic search for descriptive queries.",
   "limits": {
     "max_concurrency": 2,
@@ -55,10 +59,16 @@ maxima reject the entire configuration.
 ```
 
 `default_model` is optional in each individual file, but the resolved value is
-required and must be present in `LMW_ALLOWED_MODELS`. `steering_prompt` is an
-optional custom directive appended to the harness prompt steering instructions;
-it is limited to 2,000 characters. `limits` and each child field are optional. A
-file must always include `schema_version: 1`.
+required and must be present in `LMW_ALLOWED_MODELS`. `model_routing` is an
+optional object mapping task types (`embedding`, `exploration`,
+`test_proposal`, `lint_fix`, `docs_generation`, `summarization`, `code_graph`)
+to model IDs from `LMW_ALLOWED_MODELS`; a task with no routing entry falls back
+to `default_model`, routing entries follow the same project > global > built-in
+precedence, and any entry that references an unauthorized model rejects the
+whole configuration. `steering_prompt` is an optional custom directive
+appended to the harness prompt steering instructions; it is limited to 2,000
+characters. `limits` and each child field are optional. A file must always
+include `schema_version: 1`.
 
 ### Global location
 
@@ -131,11 +141,13 @@ implemented and registered as the `validate_config` and `update_config` MCP
 tools.
 
 A proposal is a non-empty partial object containing only `default_model`,
-`steering_prompt`, and/or the editable children of `limits`. A value changes the
-project override. `null` removes that override so resolution falls back to
-global preferences or a built-in default. Protected fields, `schema_version`,
-global settings, unknown fields, empty proposals, no-ops, wrong types, and
-values outside maxima are rejected.
+`model_routing`, `steering_prompt`, and/or the editable children of `limits`.
+A value changes the project override. `null` removes that override so
+resolution falls back to global preferences or a built-in default. Routing
+entries in `model_routing` follow the same strict per-entry model schema and
+allowlist rules, and each task type can be set or cleared independently.
+Protected fields, `schema_version`, global settings, unknown fields, empty
+proposals, no-ops, wrong types, and values outside maxima are rejected.
 
 Validation requires the current `expected_revision`, performs no write, and
 returns either structured errors or:
@@ -197,7 +209,9 @@ Global preferences are changed only by the local
 case, displays the complete proposed secret-free preference document, and
 requires `--yes` before writing. `--dry-run` performs validation and discovery
 without a write. The command applies this same strict schema and model
-allowlist; it cannot persist protected fields. See [installation.md](installation.md)
+allowlist; it cannot persist protected fields. Global `model_routing` entries
+can be added directly to the global preference file; they are validated by the
+same strict schema and allowlist when the file is read. See [installation.md](installation.md)
 for examples and recovery behavior.
 
 Project `.mcp-agent-ignore` handling is implemented by the outbound repository

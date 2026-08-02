@@ -236,6 +236,75 @@ void test("uses null to remove a project override and fall back globally", async
   });
 });
 
+void test("sets and clears routing entries through validated updates", async (t) => {
+  const fixture = await createFixture(t);
+  const current = await fixture.snapshot();
+
+  const setProposal = await fixture.validate(current.revision, {
+    model_routing: { exploration: "another/model" },
+  });
+  assert.equal(setProposal.valid, true);
+  if (!setProposal.valid) return;
+  assert.deepEqual(
+    setProposal.changes.find(
+      (change) => change.field === "lm_studio.model_routing.exploration",
+    ),
+    {
+      field: "lm_studio.model_routing.exploration",
+      old_value: undefined,
+      new_value: "another/model",
+      old_origin: "built_in",
+      new_origin: "project",
+    },
+  );
+  assert.equal(
+    setProposal.proposed_configuration.lm_studio.model_routing?.exploration,
+    "another/model",
+  );
+
+  await updateConfig({
+    ...fixture.input(),
+    expected_revision: current.revision,
+    changes: { model_routing: { exploration: "another/model" } },
+    confirmation: { approved: true, proposal_id: setProposal.proposal_id },
+  });
+
+  const updated = await fixture.snapshot();
+  assert.equal(updated.lm_studio.model_routing?.exploration, "another/model");
+  assert.equal(
+    updated.origins["lm_studio.model_routing.exploration"],
+    "project",
+  );
+
+  const clearProposal = await fixture.validate(updated.revision, {
+    model_routing: { exploration: null },
+  });
+  assert.equal(clearProposal.valid, true);
+  if (!clearProposal.valid) return;
+  assert.equal(
+    clearProposal.proposed_configuration.lm_studio.model_routing?.exploration,
+    undefined,
+  );
+  assert.equal(
+    clearProposal.proposed_configuration.origins[
+      "lm_studio.model_routing.exploration"
+    ],
+    "built_in",
+  );
+});
+
+void test("rejects routing to a model not allowed by protected policy", async (t) => {
+  const fixture = await createFixture(t);
+  const current = await fixture.snapshot();
+
+  await assert.rejects(
+    fixture.validate(current.revision, {
+      model_routing: { exploration: "blocked/model" },
+    }),
+    isConfigurationError("invalid_configuration"),
+  );
+});
+
 void test("binds confirmation to the exact proposal content", async (t) => {
   const fixture = await createFixture(t);
   const current = await fixture.snapshot();

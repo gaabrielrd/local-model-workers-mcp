@@ -18,6 +18,18 @@ import {
   resolveProjectPreferencesPath,
 } from "./paths.js";
 
+export const MODEL_TASK_TYPES = [
+  "embedding",
+  "exploration",
+  "test_proposal",
+  "lint_fix",
+  "docs_generation",
+  "summarization",
+  "code_graph",
+] as const;
+
+export type ModelTaskType = (typeof MODEL_TASK_TYPES)[number];
+
 const LimitsSchema = z
   .object({
     max_concurrency: z
@@ -53,11 +65,24 @@ const LimitsSchema = z
   })
   .strict();
 
+export const ModelRoutingSchema = z
+  .object({
+    embedding: z.string().trim().min(1).max(256).optional(),
+    exploration: z.string().trim().min(1).max(256).optional(),
+    test_proposal: z.string().trim().min(1).max(256).optional(),
+    lint_fix: z.string().trim().min(1).max(256).optional(),
+    docs_generation: z.string().trim().min(1).max(256).optional(),
+    summarization: z.string().trim().min(1).max(256).optional(),
+    code_graph: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+
 export const PreferencesSchema = z
   .object({
     schema_version: z.literal(CONFIGURATION_SCHEMA_VERSION),
     default_model: z.string().trim().min(1).max(256).optional(),
     embedding_model: z.string().trim().min(1).max(256).optional(),
+    model_routing: ModelRoutingSchema.optional(),
     steering_prompt: z.string().trim().min(1).max(2_000).optional(),
     limits: LimitsSchema.optional(),
   })
@@ -129,6 +154,8 @@ export interface EffectiveConfiguration {
     readonly allowed_models: readonly string[];
     readonly default_model: string;
     readonly embedding_model?: string | undefined;
+    readonly model_routing?:
+      Readonly<Partial<Record<ModelTaskType, string>>> | undefined;
   };
   readonly steering_prompt?: string | undefined;
   readonly limits: EffectiveLimits;
@@ -149,6 +176,7 @@ export type ConfigurationField =
   | "lm_studio.allowed_models"
   | "lm_studio.default_model"
   | "lm_studio.embedding_model"
+  | `lm_studio.model_routing.${ModelTaskType}`
   | "steering_prompt"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
@@ -250,6 +278,13 @@ export async function getEffectiveConfiguration(
     );
   }
 
+  const modelRouting = resolveModelRouting(
+    projectPreferences?.model_routing,
+    globalPreferences?.model_routing,
+    embeddingModel,
+    protectedSettings.allowedModels,
+  );
+
   const steeringPrompt = selectOptionalValue(
     projectPreferences?.steering_prompt,
     globalPreferences?.steering_prompt,
@@ -262,6 +297,7 @@ export async function getEffectiveConfiguration(
     "lm_studio.allowed_models": "protected",
     "lm_studio.default_model": defaultModel.origin,
     "lm_studio.embedding_model": embeddingModel.origin,
+    ...modelRouting.origins,
     steering_prompt: steeringPrompt.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
@@ -291,6 +327,7 @@ export async function getEffectiveConfiguration(
       ...(embeddingModel.value !== undefined
         ? { embedding_model: embeddingModel.value }
         : {}),
+      model_routing: modelRouting.values,
     },
     ...(steeringPrompt.value === undefined
       ? {}
@@ -326,6 +363,16 @@ export async function getConfig(
         : null,
     },
   });
+}
+
+export function resolveModelForTask(
+  configuration: EffectiveConfiguration,
+  taskType: ModelTaskType,
+): string {
+  return (
+    configuration.lm_studio.model_routing?.[taskType] ??
+    configuration.lm_studio.default_model
+  );
 }
 
 async function readProjectPreferences(
@@ -515,6 +562,57 @@ function selectOptionalValue<T>(
     return { value: globalValue, origin: "global" };
   }
   return { value: builtInValue, origin: "built_in" };
+}
+
+interface ResolvedModelRouting {
+  readonly values: Readonly<Partial<Record<ModelTaskType, string>>>;
+  readonly origins: Readonly<
+    Record<`lm_studio.model_routing.${ModelTaskType}`, ConfigurationOrigin>
+  >;
+}
+
+function resolveModelRouting(
+  projectRouting: Preferences["model_routing"],
+  globalRouting: Preferences["model_routing"],
+  legacyEmbedding: {
+    readonly value: string | undefined;
+    readonly origin: ConfigurationOrigin;
+  },
+  allowedModels: readonly string[],
+): ResolvedModelRouting {
+  const values: Partial<Record<ModelTaskType, string>> = {};
+  const origins = {} as Record<
+    `lm_studio.model_routing.${ModelTaskType}`,
+    ConfigurationOrigin
+  >;
+  for (const taskType of MODEL_TASK_TYPES) {
+    let selected = selectOptionalValue(
+      projectRouting?.[taskType],
+      globalRouting?.[taskType],
+      undefined,
+    );
+    if (selected.value === undefined && taskType === "embedding") {
+      selected = {
+        value: legacyEmbedding.value,
+        origin: legacyEmbedding.origin,
+      };
+    }
+    if (selected.value === undefined) {
+      origins[`lm_studio.model_routing.${taskType}`] = "built_in";
+      continue;
+    }
+    if (
+      !allowedModels.includes("*") &&
+      !allowedModels.includes(selected.value)
+    ) {
+      throw invalidConfiguration(
+        `The configured model for the ${taskType} task is not allowed by protected policy.`,
+      );
+    }
+    values[taskType] = selected.value;
+    origins[`lm_studio.model_routing.${taskType}`] = selected.origin;
+  }
+  return { values, origins };
 }
 
 export function isContainedPath(root: string, target: string): boolean {
