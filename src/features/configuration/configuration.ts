@@ -388,10 +388,14 @@ function parseProtectedSettings(
   readonly tokenConfigured: boolean;
   readonly allowedModels: readonly string[];
 } {
-  const rawBaseUrl = requiredEnvironmentValue(
+  const rawBaseUrlInput = requiredEnvironmentValue(
     environment,
     CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBaseUrl,
   );
+  const rawBaseUrl =
+    rawBaseUrlInput.startsWith("${") && rawBaseUrlInput.includes("}")
+      ? "http://localhost:1234/v1"
+      : rawBaseUrlInput;
   const bearerToken =
     environment[
       CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken

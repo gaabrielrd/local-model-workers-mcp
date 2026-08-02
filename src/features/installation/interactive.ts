@@ -239,6 +239,7 @@ export async function runInteractiveSetup(
       selection: target,
       projectRoot: projRoot,
       homeDirectory: homeDir,
+      environment: effectiveEnv,
     });
 
     for (const proposal of harnessProposals) {

@@ -41,6 +41,7 @@ export interface ProposeHarnessConfigurationsInput {
   readonly projectRoot?: string;
   readonly homeDirectory?: string;
   readonly command?: string;
+  readonly environment?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface ApplyHarnessConfigurationInput {
@@ -76,11 +77,12 @@ export async function proposeHarnessConfigurations(
       : input.selection === "both"
         ? ["claude-code", "codex"]
         : [input.selection];
+  const environment = input.environment ?? process.env;
 
   return Promise.all(
     harnesses.map(async (harness) => {
       const targetPath = resolveTargetPath(harness, input);
-      return proposeOne(harness, targetPath, command);
+      return proposeOne(harness, targetPath, command, environment);
     }),
   );
 }
@@ -140,8 +142,14 @@ async function proposeOne(
   harness: Harness,
   targetPath: string,
   command: string,
+  environment?: Readonly<Record<string, string | undefined>>,
 ): Promise<HarnessConfigurationProposal> {
-  const proposedFile = await inspectHarnessFile(harness, targetPath, command);
+  const proposedFile = await inspectHarnessFile(
+    harness,
+    targetPath,
+    command,
+    environment,
+  );
   const expectedRevision = revision(proposedFile.currentContents);
   const proposedRevision = revision(proposedFile.proposedContents);
   const proposalId = hash(
@@ -172,10 +180,16 @@ async function inspectHarnessFile(
   harness: Harness,
   targetPath: string,
   command: string,
+  environment?: Readonly<Record<string, string | undefined>>,
 ): Promise<ProposedFile> {
   const currentContents = await readOptionalFile(targetPath);
   return harness === "claude-code" || harness === "antigravity"
-    ? inspectJsonMcpConfiguration(harness, currentContents, command)
+    ? inspectJsonMcpConfiguration(
+        harness,
+        currentContents,
+        command,
+        environment,
+      )
     : inspectCodexConfiguration(currentContents, command);
 }
 
@@ -183,20 +197,25 @@ function inspectJsonMcpConfiguration(
   harness: "claude-code" | "antigravity",
   currentContents: string | undefined,
   command: string,
+  environment?: Readonly<Record<string, string | undefined>>,
 ): ProposedFile {
+  const envObj =
+    harness === "claude-code"
+      ? {
+          LMW_LM_STUDIO_BASE_URL: "${LMW_LM_STUDIO_BASE_URL}",
+          LMW_LM_STUDIO_BEARER_TOKEN: "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
+          LMW_ALLOWED_MODELS: "${LMW_ALLOWED_MODELS}",
+        }
+      : buildAntigravityEnv(environment);
   const managedEntry = {
     command,
     args: [] as string[],
-    env: {
-      LMW_LM_STUDIO_BASE_URL: "${LMW_LM_STUDIO_BASE_URL}",
-      LMW_LM_STUDIO_BEARER_TOKEN: "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
-      LMW_ALLOWED_MODELS: "${LMW_ALLOWED_MODELS}",
-    },
+    env: envObj,
   };
   const preview = [
     `mcpServers.${MANAGED_SERVER_NAME}.command = ${JSON.stringify(command)}`,
     `mcpServers.${MANAGED_SERVER_NAME}.args = []`,
-    `mcpServers.${MANAGED_SERVER_NAME}.env = protected environment references only`,
+    `mcpServers.${MANAGED_SERVER_NAME}.env = ${harness === "claude-code" ? "protected environment references only" : JSON.stringify(envObj)}`,
   ];
   if (currentContents === undefined) {
     return {
@@ -503,4 +522,22 @@ function isFileSystemError(error: unknown, code: string): boolean {
     "code" in error &&
     error.code === code
   );
+}
+
+function buildAntigravityEnv(
+  environment?: Readonly<Record<string, string | undefined>>,
+): Record<string, string> {
+  const env: Record<string, string> = {
+    LMW_LM_STUDIO_BASE_URL:
+      environment?.LMW_LM_STUDIO_BASE_URL ?? "http://localhost:1234/v1",
+  };
+  const token = environment?.LMW_LM_STUDIO_BEARER_TOKEN?.trim();
+  if (token !== undefined && token.length > 0) {
+    env.LMW_LM_STUDIO_BEARER_TOKEN = token;
+  }
+  const allowed = environment?.LMW_ALLOWED_MODELS?.trim();
+  if (allowed !== undefined && allowed.length > 0) {
+    env.LMW_ALLOWED_MODELS = allowed;
+  }
+  return env;
 }
