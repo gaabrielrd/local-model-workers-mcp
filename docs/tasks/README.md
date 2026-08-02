@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Status:** V1 Tasks 001-015 implemented; V1.5 Tasks 016-020 and 026 implemented; V2.0-V3.0 roadmap approved  
+**Status:** V1 Tasks 001-015 implemented; V1.5 Tasks 016-020 and 026 implemented; V2.0 Tasks 021-022 implemented; V3.0 roadmap approved  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-02
 

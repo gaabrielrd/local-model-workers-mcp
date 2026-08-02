@@ -5,7 +5,7 @@
 
 ## Approved tool names
 
-The product has exactly six technical tool names:
+The product registers exactly these eleven technical tool names:
 
 - `explore_repository`
 - `propose_tests`
@@ -13,12 +13,17 @@ The product has exactly six technical tool names:
 - `get_config`
 - `validate_config`
 - `update_config`
+- `query_code_graph`
+- `search_semantic`
+- `summarize_module`
+- `fix_lint_violations`
+- `generate_docs_patch`
 
 Only `explore_repository` and `propose_tests` use the task response envelope.
-The other four tools return their own synchronous result contracts and must not
-add `task_id`, `status`, or `model` merely for visual consistency. Configuration
-responses may expose their own redacted revision field as required by RF-22
-through RF-24; that does not turn them into remote tasks.
+The other nine tools return their own synchronous result contracts and must
+not add `task_id`, `status`, or `model` merely for visual consistency.
+Configuration responses may expose their own redacted revision field as
+required by RF-22 through RF-24; that does not turn them into remote tasks.
 
 These names are registered through strict Zod input schemas by the MCP v2
 `stdio` composition root. There are no resource, prompt, shell, generic

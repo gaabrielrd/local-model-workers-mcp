@@ -1,6 +1,8 @@
 export const TOOL_NAMES = Object.freeze({
   checkHealth: "check_health",
   exploreRepository: "explore_repository",
+  fixLintViolations: "fix_lint_violations",
+  generateDocsPatch: "generate_docs_patch",
   getConfig: "get_config",
   proposeTests: "propose_tests",
   queryCodeGraph: "query_code_graph",
@@ -24,6 +26,8 @@ export type TaskToolName = (typeof TASK_TOOL_NAMES)[number];
 
 export const NON_TASK_TOOL_NAMES = Object.freeze([
   TOOL_NAMES.checkHealth,
+  TOOL_NAMES.fixLintViolations,
+  TOOL_NAMES.generateDocsPatch,
   TOOL_NAMES.getConfig,
   TOOL_NAMES.validateConfig,
   TOOL_NAMES.updateConfig,

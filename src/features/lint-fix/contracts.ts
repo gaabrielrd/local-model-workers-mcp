@@ -1,0 +1,86 @@
+import { z } from "zod";
+
+export const LINT_FIX_MAX_FILES = 20;
+export const LINT_FIX_DEFAULT_MAX_FILES = 10;
+export const LINT_FIX_MAX_CHANGED_LINES = 500;
+export const LINT_FIX_CONTEXT_RADIUS = 5;
+export const LINT_FIX_MAX_INPUT_BYTES = 2 * 1_024 * 1_024;
+export const LINT_FIX_MAX_SOURCE_LINES_PER_FILE = 600;
+
+export const LINTER_NAMES = Object.freeze(["eslint", "biome", "ruff"] as const);
+export type LinterName = (typeof LINTER_NAMES)[number];
+
+export const FixLintViolationsInputSchema = z
+  .object({
+    repository_root: z.string().trim().min(1).max(4_096),
+    lint_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
+    linter: z.enum(["eslint", "biome", "ruff", "auto"]).default("auto"),
+    max_files: z
+      .number()
+      .int()
+      .min(1)
+      .max(LINT_FIX_MAX_FILES)
+      .default(LINT_FIX_DEFAULT_MAX_FILES),
+  })
+  .strict();
+
+export type FixLintViolationsInput = z.infer<
+  typeof FixLintViolationsInputSchema
+>;
+
+export interface LintViolation {
+  readonly file: string;
+  readonly line: number;
+  readonly column: number;
+  readonly rule_id: string;
+  readonly severity: string;
+  readonly message: string;
+}
+
+export const FixedViolationSchema = z
+  .object({
+    file: z.string().trim().min(1).max(4_096),
+    line: z.number().int().min(1),
+    rule_id: z.string().trim().min(1).max(512),
+  })
+  .strict();
+
+export const UnfixedViolationSchema = z
+  .object({
+    file: z.string().trim().min(1).max(4_096),
+    line: z.number().int().min(1),
+    rule_id: z.string().trim().min(1).max(512),
+    reason: z.string().trim().min(1).max(2_000),
+  })
+  .strict();
+
+export const FixLintViolationsResultSchema = z
+  .object({
+    patch: z.string().max(2 * 1_024 * 1_024),
+    fixed_violations: z.array(FixedViolationSchema).max(500),
+    unfixed_violations: z.array(UnfixedViolationSchema).max(500),
+    summary: z.string().trim().min(1).max(8_000),
+  })
+  .strict();
+
+export type FixedViolation = z.infer<typeof FixedViolationSchema>;
+export type UnfixedViolation = z.infer<typeof UnfixedViolationSchema>;
+export type FixLintViolationsResult = z.infer<
+  typeof FixLintViolationsResultSchema
+>;
+
+export type LintFixErrorCode =
+  | "invalid_request"
+  | "invalid_lint_output"
+  | "no_fixable_files"
+  | "invalid_evidence";
+
+export class LintFixError extends Error {
+  public readonly code: LintFixErrorCode;
+
+  public constructor(code: LintFixErrorCode, message: string) {
+    super(message);
+    this.name = "LintFixError";
+    this.code = code;
+  }
+}

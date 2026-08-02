@@ -53,6 +53,16 @@ import {
   SummarizationInputSchema,
   summarizeModule,
 } from "../module-summary/index.js";
+import {
+  FixLintViolationsInputSchema,
+  LintFixError,
+  fixLintViolations,
+} from "../lint-fix/index.js";
+import {
+  DocsGenerationError,
+  GenerateDocsPatchInputSchema,
+  generateDocsPatch,
+} from "../docs-generation/index.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -322,6 +332,58 @@ export function createMcpServer(
   );
 
   server.registerTool(
+    TOOL_NAMES.fixLintViolations,
+    {
+      title: "Fix lint violations",
+      description:
+        "Return a locally validated unified diff that fixes reported lint violations without writing.",
+      inputSchema: FixLintViolationsInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request, context) =>
+      safeToolCall(async () => {
+        const parsedInput = FixLintViolationsInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsedInput.repository_root,
+        );
+        return await fixLintViolations({
+          input: parsedInput,
+          inference: dependencies.inference,
+          repositoryRead: dependencies.repositoryRead,
+          model: dependencies.configuration.lm_studio.default_model,
+          signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+        });
+      }),
+  );
+
+  server.registerTool(
+    TOOL_NAMES.generateDocsPatch,
+    {
+      title: "Generate docs patch",
+      description:
+        "Return a locally validated unified diff that adds JSDoc/docstrings and docs/ markdown for public symbols without writing.",
+      inputSchema: GenerateDocsPatchInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request, context) =>
+      safeToolCall(async () => {
+        const parsedInput = GenerateDocsPatchInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsedInput.repository_root,
+        );
+        return await generateDocsPatch({
+          input: parsedInput,
+          inference: dependencies.inference,
+          repositoryRead: dependencies.repositoryRead,
+          model: dependencies.configuration.lm_studio.default_model,
+          signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+        });
+      }),
+  );
+
+  server.registerTool(
     TOOL_NAMES.checkHealth,
     {
       title: "Check health",
@@ -515,7 +577,19 @@ async function safeToolCall(
       content: [{ type: "text", text: JSON.stringify(structured) }],
       structuredContent: structured,
     };
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof LintFixError) {
+      return {
+        content: [{ type: "text", text: error.message }],
+        isError: true,
+      };
+    }
+    if (error instanceof DocsGenerationError) {
+      return {
+        content: [{ type: "text", text: error.message }],
+        isError: true,
+      };
+    }
     return {
       content: [
         {

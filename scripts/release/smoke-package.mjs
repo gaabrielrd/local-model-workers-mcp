@@ -139,6 +139,8 @@ try {
     assert.deepEqual(tools.tools.map((tool) => tool.name).sort(), [
       "check_health",
       "explore_repository",
+      "fix_lint_violations",
+      "generate_docs_patch",
       "get_config",
       "propose_tests",
       "query_code_graph",

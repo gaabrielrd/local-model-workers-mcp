@@ -37,6 +37,8 @@ void test("only approved tool names exist", () => {
   assert.deepEqual(Object.values(TOOL_NAMES).sort(), [
     "check_health",
     "explore_repository",
+    "fix_lint_violations",
+    "generate_docs_patch",
     "get_config",
     "propose_tests",
     "query_code_graph",
