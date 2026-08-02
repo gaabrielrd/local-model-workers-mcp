@@ -1,4 +1,4 @@
 export const PACKAGE_INFO = Object.freeze({
   name: "local-model-workers-mcp",
-  version: "1.0.0-rc.1",
+  version: "1.1.0",
 });

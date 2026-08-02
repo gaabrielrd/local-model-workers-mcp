@@ -12,9 +12,8 @@ patch, or runs a project command.
 
 ## Project status
 
-The approved V1 scope is feature-complete as release candidate `1.0.0-rc.1`,
-and the V1.5 read-offloading phase is implemented on top of it. The
-implementation includes:
+Release `1.1.0` implements the approved V1 scope, the V1.5 read-offloading
+phase, and the V2.0 write-offloading phase. The implementation includes:
 
 - layered, revision-controlled configuration with atomic writes;
 - canonical read-only repository access and fail-closed outbound filtering;
@@ -27,14 +26,17 @@ implementation includes:
 - confirmed Claude Code, Codex, and Antigravity harness configuration;
 - managed prompt-steering instruction files that direct harnesses to the MCP
   tools, with an optional custom `steering_prompt` preference;
+- validated lint-fix patches and documentation patches returned as unapplied
+  unified diffs, so write-heavy mechanical tasks stay on the developer's side
+  of the boundary;
 - a protocol-clean MCP v2 server over `stdio`.
 
 Local qualification is green as of 2026-08-02:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 221 automated tests;
+  typechecking, build, and all 253 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
-  isolated prefix, starts the packaged MCP server, and verifies all nine tools;
+  isolated prefix, starts the packaged MCP server, and verifies all eleven tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
   using `authentication: none` / `not_configured`;
 - Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and
@@ -44,12 +46,12 @@ Local qualification is green as of 2026-08-02:
 The package is private and is not published to the public npm registry. It is
 distributed as an installable tarball attached to the
 [latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
-The remaining release gates are complete nine-tool scenarios through real
+The remaining release gates are complete eleven-tool scenarios through real
 Claude Code and Codex sessions, plus successful remote Linux and Windows
 portability jobs. See [release qualification](docs/release-qualification.md)
 for evidence and the remaining procedure.
 
-The server exposes exactly nine MCP tools:
+The server exposes exactly eleven MCP tools:
 
 - `explore_repository`
 - `propose_tests`
@@ -60,6 +62,8 @@ The server exposes exactly nine MCP tools:
 - `query_code_graph`
 - `search_semantic`
 - `summarize_module`
+- `fix_lint_violations`
+- `generate_docs_patch`
 
 See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 
@@ -97,7 +101,7 @@ Or, for the current release specifically:
 
 ```sh
 npm install --global \
-  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.0.0-rc.1/local-model-workers-mcp-1.0.0-rc.1.tgz
+  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.1.0/local-model-workers-mcp-1.1.0.tgz
 ```
 
 To update, repeat the same command after a new release is published. There is no
