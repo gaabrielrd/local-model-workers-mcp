@@ -27,6 +27,7 @@ Raw configuration errors and credentials are never printed.
 | `summarize_module` | `repository_root`, `target` | Structured file or directory summaries from code graph metadata and inference; optional `depth` (`shallow`/`deep`) and `force_refresh` |
 | `fix_lint_violations` | `repository_root`, `lint_output` | Validated, unapplied unified diff that fixes only the reported lint violations; optional `linter` (`eslint`/`biome`/`ruff`/`auto`) and `max_files` |
 | `generate_docs_patch` | `repository_root`, `target`, `doc_type` | Validated, unapplied docs-only unified diff (JSDoc/docstring inline comments and/or a `docs/<slug>.md` guide) for public symbols; optional `style` (`jsdoc`/`tsdoc`/`numpy`/`google`) and `force_refresh` |
+| `auto_validate_tests` | `goal`, `repository_root` | Iterative test generation executed in an isolated temporary copy until green (or the limit is exhausted); optional `test_command`, `max_iterations`, and `timeout_per_iteration_ms` |
 
 Every input object is strict: unknown fields and invalid bounds are rejected by
 the MCP SDK before a feature is invoked. Results are returned in both a JSON
@@ -41,7 +42,7 @@ the same final result.
 
 ## Protocol safety
 
-The server registers exactly the eleven tools above and no resources or prompts.
+The server registers exactly the twelve tools above and no resources or prompts.
 It never exposes shell, generic filesystem, generic prompt, command execution,
 patch application, or dependency installation. Tool exceptions become a fixed
 tool error without raw exception text. Operational terminal observers receive

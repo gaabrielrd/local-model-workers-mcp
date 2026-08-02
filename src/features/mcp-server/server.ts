@@ -39,6 +39,11 @@ import {
 } from "../task-execution/index.js";
 import { proposeTests } from "../test-proposal/index.js";
 import {
+  AutoValidateInputSchema,
+  autoValidateTests,
+  type AutoValidateProgressEvent,
+} from "../auto-validate/index.js";
+import {
   executeSemanticSearch,
   InMemoryVectorIndex,
   SemanticSearchInputSchema,
@@ -222,6 +227,38 @@ export function createMcpServer(
           language: request.language,
           signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
           onProgress: progressReporter(context),
+          onTerminal: (event) => runtime.operationalEvents.record(event),
+        });
+      }),
+  );
+
+  server.registerTool(
+    TOOL_NAMES.autoValidateTests,
+    {
+      title: "Auto-validate tests",
+      description:
+        "Generate test proposals, execute them in an isolated temporary copy, and iterate until they pass. The original repository is never modified.",
+      inputSchema: AutoValidateInputSchema,
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (request, context) =>
+      safeToolCall(async () => {
+        const parsed = AutoValidateInputSchema.parse(request);
+        const dependencies = await taskDependencies(
+          runtime,
+          parsed.repository_root,
+        );
+        return await autoValidateTests({
+          request,
+          configuration: dependencies.configuration,
+          inference: dependencies.inference,
+          coordinator: dependencies.coordinator,
+          language: "en",
+          signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+          onIterationProgress: iterationProgressReporter(
+            context,
+            parsed.max_iterations ?? 3,
+          ),
           onTerminal: (event) => runtime.operationalEvents.record(event),
         });
       }),
@@ -553,6 +590,27 @@ function progressReporter(
           progress: event.sequence,
           total: 4,
           message: event.stage,
+        },
+      })
+      .catch(() => undefined);
+  };
+}
+
+function iterationProgressReporter(
+  context: ServerContext,
+  maxIterations: number,
+): (event: AutoValidateProgressEvent) => void {
+  const progressToken = context.mcpReq._meta?.progressToken;
+  return (event) => {
+    if (progressToken === undefined) return;
+    void context.mcpReq
+      .notify({
+        method: "notifications/progress",
+        params: {
+          progressToken,
+          progress: event.iteration,
+          total: maxIterations,
+          message: `${event.status} (iteration ${event.iteration}/${maxIterations})`,
         },
       })
       .catch(() => undefined);

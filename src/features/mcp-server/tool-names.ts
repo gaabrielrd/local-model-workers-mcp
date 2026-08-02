@@ -1,4 +1,5 @@
 export const TOOL_NAMES = Object.freeze({
+  autoValidateTests: "auto_validate_tests",
   checkHealth: "check_health",
   exploreRepository: "explore_repository",
   fixLintViolations: "fix_lint_violations",
@@ -15,6 +16,7 @@ export const TOOL_NAMES = Object.freeze({
 export type ToolName = (typeof TOOL_NAMES)[keyof typeof TOOL_NAMES];
 
 export const TASK_TOOL_NAMES = Object.freeze([
+  TOOL_NAMES.autoValidateTests,
   TOOL_NAMES.exploreRepository,
   TOOL_NAMES.proposeTests,
   TOOL_NAMES.queryCodeGraph,
