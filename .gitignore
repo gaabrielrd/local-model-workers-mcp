@@ -1,0 +1,27 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# Cobertura e cache
+coverage/
+.eslintcache
+
+# Segredos e variáveis locais
+.env
+.env.local
+.env.*.local
+
+# Skills geradas (cópias sincronizadas por npm run sync:skills)
+.claude/
+.agents/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
