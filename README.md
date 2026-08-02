@@ -11,19 +11,39 @@ patch, or runs a project command.
 
 ## Project status
 
-The product requirements and implementation plan are approved. The repository
-has a pinned TypeScript/Node.js foundation, layered atomic configuration,
-canonical read-only access, fail-closed outbound filtering, LM Studio structured
-inference with optional Bearer authentication and health diagnostics, isolated task lifecycle,
-cross-process FIFO capacity, and the complete transport-neutral repository
-exploration and safe test-proposal use cases, plus metadata-only operational
-logging and a protocol-clean MCP v2 `stdio` server exposing exactly six tools.
-The approved V1 feature scope is implemented as release candidate
-`1.0.0-rc.1`. Automated validation and installed-package smoke pass; publication
-remains blocked on real-harness scenarios and remote portability
-jobs documented in [release qualification](docs/release-qualification.md).
+The approved V1 scope is feature-complete as release candidate `1.0.0-rc.1`.
+The implementation includes:
 
-The intended V1 exposes exactly six MCP tools:
+- layered, revision-controlled configuration with atomic writes;
+- canonical read-only repository access and fail-closed outbound filtering;
+- structured LM Studio inference with optional Bearer authentication;
+- explicit trusted-LAN `none` mode for `lms` deployments without token support;
+- repository-free health diagnostics and model availability checks;
+- isolated task lifecycles with cross-process FIFO capacity;
+- bounded repository exploration and validated test-only patch proposals;
+- metadata-only operational logging with seven-day retention;
+- confirmed Claude Code and Codex harness configuration;
+- a protocol-clean MCP v2 server over `stdio`.
+
+Local qualification is green as of 2026-08-02:
+
+- `npm run validate` passes formatting, lint, architecture boundaries,
+  typechecking, build, and all 163 automated tests;
+- `npm run release:smoke` produces reproducible tarballs, installs one in an
+  isolated prefix, starts the packaged MCP server, and verifies all six tools;
+- the compiled MCP reports the real LM Studio instance healthy without a token,
+  using `authentication: none` / `not_configured`;
+- Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and
+  vision probes; Nomic Embed returned 768-dimensional embeddings;
+- the production dependency audit reports no known vulnerabilities.
+
+Publication is not approved yet. The remaining release gates are complete
+six-tool scenarios through real Claude Code and Codex sessions, plus successful
+remote Linux and Windows portability jobs. See
+[release qualification](docs/release-qualification.md) for evidence and the
+remaining procedure.
+
+The server exposes exactly six MCP tools:
 
 - `explore_repository`
 - `propose_tests`
@@ -90,6 +110,13 @@ npm candidate:
 npm run build
 node dist/cli/index.js --version
 npm run pack:check
+npm run release:smoke
+```
+
+Official harness evidence is measured with:
+
+```sh
+npm run release:measure -- /absolute/path/to/release-evidence.json
 ```
 
 The version and configuration diagnostics are written to stderr so stdout
