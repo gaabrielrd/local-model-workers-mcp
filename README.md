@@ -12,10 +12,13 @@ patch, or runs a project command.
 ## Project status
 
 The product requirements and implementation plan are approved. The project
-foundation is implemented: the repository has a pinned TypeScript/Node.js
-toolchain, a buildable CLI entry point, automated tests, and a CI validation
-workflow. Product tools, the MCP server, configuration files, and the
-environment-variable contract are not implemented yet.
+foundation and configuration feature are implemented: the
+repository has a pinned TypeScript/Node.js toolchain, a buildable CLI entry
+point, automated tests, a CI validation workflow, strict protected/global/
+project resolution, dry-run validation, and confirmed atomic project updates.
+The canonical, read-only repository capability also implements bounded listing,
+search, and snippet reads. Content filtering, product tool registration, LM
+Studio requests, and the MCP server are not implemented yet.
 
 The intended V1 exposes exactly six MCP tools:
 
@@ -51,6 +54,7 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 - [Testing strategy](docs/testing.md)
 - [Configuration model](docs/configuration.md)
 - [Security model](docs/security.md)
+- [Repository read capability](docs/repository-access.md)
 - [External integrations](docs/integrations.md)
 - [Core contracts](docs/contracts.md)
 - [Architecture decisions](docs/decisions/README.md)
@@ -79,6 +83,7 @@ The version is written to stderr so stdout remains reserved for the future MCP
 `stdio` protocol. Running the CLI without arguments currently exits cleanly and
 does not start a server.
 
-Do not create a local `.env` from guessed variable names. The supported names,
-validation rules, and a redacted `.env.example` must be added together when the
-configuration contract is implemented.
+The protected environment contract and editable file examples are documented
+in [configuration.md](docs/configuration.md). [`.env.example`](.env.example)
+contains placeholders only; the application does not load `.env` files or
+retain the Bearer token in effective configuration snapshots.

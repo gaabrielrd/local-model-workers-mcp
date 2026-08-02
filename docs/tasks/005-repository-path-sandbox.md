@@ -1,6 +1,6 @@
 # Task 005: Enforce a read-only repository path sandbox
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 001-002  
 **PRD coverage:** RF-04 input/root validation, RF-05; RN-05 through RN-07; CA-06 through CA-08
 
@@ -70,3 +70,20 @@ filters are layered in Task 006.
 - No test mutates the developer's repository.
 - `npm run validate` passes.
 
+## Completion evidence
+
+- Exploration inputs require a non-empty goal/root and bounded priority paths;
+  roots and every priority target are authorized before a capability is
+  returned.
+- The frozen public capability exposes only deterministic bounded listing,
+  literal/safe-regex search, and line-addressed snippet reading.
+- Every operation rechecks the canonical root and target identities, rejects
+  traversal, sibling-prefix and absolute escapes, and anchors reads to the
+  authorized target when a symlink later changes.
+- Temporary-repository and injected-filesystem tests cover root failures,
+  containment, symlinks, TOCTOU identity changes, operation bounds, unsupported
+  text and operations, redaction-safe errors, and POSIX/Windows semantics.
+- Repository access documentation and ADR-0006 record the portable path and
+  resource-limit contract; filtering remains explicitly in Task 006.
+- `npm run validate` passes formatting, linting, boundary checks, static types,
+  the complete automated suite, and the production build.

@@ -1,6 +1,6 @@
 # V1 implementation plan
 
-**Status:** Approved product scope; implementation tasks pending  
+**Status:** Approved product scope; Tasks 001-005 implemented
 **Source:** [PRD](../../prd.md)  
 **Last reviewed:** 2026-08-02
 

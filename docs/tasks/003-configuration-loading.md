@@ -1,6 +1,6 @@
 # Task 003: Load and resolve effective configuration
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 001-002  
 **PRD coverage:** RF-22; RN-28, RN-29, RN-32; CA-33
 
@@ -77,3 +77,19 @@ or task execution.
 - No credential is stored in editable JSON or returned to callers.
 - `npm run validate` passes.
 
+## Completion evidence
+
+- A strict versioned schema resolves protected environment, global preferences,
+  project preferences, and built-in limits with per-field origins.
+- The loader validates canonical project roots and rejects a project preference
+  symlink whose target escapes the root.
+- Effective snapshots are deeply immutable; public views redact the token; and
+  SHA-256 revisions exclude secret material while covering public values and
+  origins.
+- Tests cover precedence, maxima, malformed and unknown fields, missing
+  protected settings, allowlisting, redaction, revision determinism, platform
+  locations, containment, and immutability.
+- ADR-0004, `.env.example`, configuration, security, testing, and README
+  documentation record the implemented contract and remaining mutation scope.
+- `npm run validate` passes formatting, linting, boundary checks, static types,
+  the complete automated suite, and the production build.

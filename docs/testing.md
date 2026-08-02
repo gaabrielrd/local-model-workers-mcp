@@ -1,6 +1,6 @@
 # Testing strategy
 
-**Status:** Target product strategy; foundation test suite implemented
+**Status:** Target product strategy; foundation, contracts, and configuration loading suites implemented
 **Last reviewed:** 2026-08-02
 
 ## Goals
@@ -122,3 +122,26 @@ task identity, strict success/diagnostic separation, evidence line ranges,
 English technical names with Portuguese human text, known-secret redaction, and
 feature import boundaries. Negative boundary fixtures prove that internal
 cross-feature imports and shared-to-feature dependencies fail validation.
+
+The configuration suite uses temporary profiles and projects to verify strict
+schemas, all precedence layers, administrative maxima, missing protected
+settings, model allowlisting, deterministic secret-independent revisions,
+redacted views, deeply immutable snapshots, portable global paths, invalid
+project roots, and project preference symlinks escaping the root. It never reads
+the developer's profile or requires a real LM Studio instance.
+
+Configuration mutation tests additionally prove that validation is read-only,
+confirmation binds one proposal and revision, protected and invalid fields fail
+closed, stale and concurrent same-revision updates conflict, `null` removes an
+override, existing snapshots remain unchanged, successful replacement changes
+the revision, and simulated write/rename failures preserve original bytes and
+clean the exact temporary file.
+
+The repository-access suite uses only temporary directories and injected
+filesystem fakes. It covers missing, file, and inaccessible roots; traversal,
+absolute and sibling-prefix escapes; in-root and escaping symlinks; a symlink
+changed after authorization; root identity replacement; priority-scope
+validation; deterministic bounded listing; literal and safe-regex search;
+snippet line/byte/file bounds; binary rejection; fixed redaction-safe errors;
+and POSIX/Windows containment semantics. The public capability is asserted to
+contain only its three read methods.

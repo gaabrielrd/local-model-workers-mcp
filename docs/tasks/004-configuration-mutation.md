@@ -1,6 +1,6 @@
 # Task 004: Validate and update project configuration
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Task 003  
 **PRD coverage:** RF-23, RF-24, RF-25; RN-30, RN-31, RN-33; CA-34 through CA-39
 
@@ -72,3 +72,20 @@ command. The local global configuration command belongs to Task 014.
 - Successful writes are atomic and revisioned.
 - `npm run validate` passes.
 
+## Completion evidence
+
+- Strict partial proposals cover only the six project-editable fields; `null`
+  removes an override, while protected, global, unknown, invalid, empty, and
+  no-op proposals fail without a write.
+- Dry-run validation returns effective old/new values and origins plus a
+  proposal identifier bound to normalized content and the expected revision.
+- Updates require exact explicit confirmation, revalidate inside a
+  project-scoped critical section, and reject stale or concurrent revisions.
+- The persistence adapter flushes a mode-`0600` same-directory temporary file
+  before rename and cleans its exact path after simulated interruption or
+  rename failure while preserving existing bytes.
+- Tests prove successful revision change, conflict behavior, confirmation
+  binding, protected-field rejection, immutable active snapshots, and failure
+  recovery; documentation and ADR-0005 record the contract.
+- `npm run validate` passes formatting, linting, boundary checks, static types,
+  the complete automated suite, and the production build.

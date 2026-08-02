@@ -30,6 +30,14 @@ Listing directories, searching text, and reading snippets are the only internal
 repository operations available to a remote task. Repository content cannot
 grant tools, alter limits, change configuration, or override these rules.
 
+The implemented capability anchors one canonical root by device/inode identity
+and repeats root and target verification before returning each result. Reads use
+the resolved canonical target, so changing a symlink after authorization cannot
+redirect the operation. Component-aware containment handles sibling prefixes;
+Windows comparison is case-insensitive and separator-aware. Fixed listing,
+search, file, line, and byte ceilings are documented in
+[repository-access.md](repository-access.md).
+
 ## Content that cannot reach LM Studio
 
 - `.env` files and credential material;
@@ -62,8 +70,24 @@ errors, HTTP errors, and logs must redact protected values. `update_config`
 cannot alter protected settings and requires both explicit confirmation and a
 matching revision.
 
-Concrete environment-variable names are pending implementation. A future
-`.env.example` must contain placeholders only.
+The protected process environment uses `LMW_LM_STUDIO_BASE_URL`,
+`LMW_LM_STUDIO_BEARER_TOKEN`, and `LMW_ALLOWED_MODELS`. The placeholder-only
+`.env.example` documents their shape; the application does not load `.env`
+files. Editable global and project JSON cannot contain credentials or protected
+policy fields.
+
+Resolved snapshots never retain the token. They expose only that Bearer
+authentication is configured, while public configuration views show the fixed
+`[REDACTED]` placeholder. Configuration revisions hash public effective values
+and origins, not secret material. Validation diagnostics are constructed from
+fixed messages and never echo rejected raw values.
+
+Project mutation accepts only a strict allowlist of editable preference fields.
+Confirmation is bound to the normalized proposal and expected revision through
+a SHA-256 identifier. Protected-field attempts, stale revisions, missing or
+mismatched approval, and atomic-write failures perform no target write. The
+same-directory temporary file uses mode `0600`, is flushed before rename, and
+is removed by its exact generated path on failure.
 
 ## Data lifetime and logs
 
@@ -97,4 +121,3 @@ Security controls require automated negative tests, not only documentation.
 [testing.md](testing.md) defines the minimum attack and leakage cases. A failure
 that prevents safe classification must fail closed as `blocked` or `failed`; it
 must not silently broaden access or return partial work as completed.
-

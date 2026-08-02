@@ -1,0 +1,44 @@
+export {
+  ADMINISTRATIVE_MAXIMA,
+  BUILT_IN_LIMITS,
+  CONFIGURATION_DIRECTORY_NAME,
+  CONFIGURATION_ENVIRONMENT_VARIABLES,
+  CONFIGURATION_SCHEMA_VERSION,
+  FIXED_LIMITS,
+  GLOBAL_PREFERENCES_FILENAME,
+  PROJECT_PREFERENCES_FILENAME,
+  REDACTED_CONFIGURATION_VALUE,
+} from "./constants.js";
+export {
+  ConfigurationError,
+  getConfig,
+  getEffectiveConfiguration,
+  type ConfigurationErrorCode,
+  type ConfigurationField,
+  type ConfigurationFileSystem,
+  type ConfigurationOrigin,
+  type EffectiveConfiguration,
+  type EffectiveConfigurationView,
+  type EffectiveLimits,
+  type GetConfigurationInput,
+} from "./configuration.js";
+export {
+  updateConfig,
+  validateConfig,
+  type AtomicConfigurationWriter,
+  type ConfigurationChange,
+  type ConfigurationConfirmation,
+  type ConfigurationValidationIssue,
+  type ConfigurationValidationIssueCode,
+  type InvalidConfigurationProposal,
+  type UpdateConfigurationInput,
+  type UpdateConfigurationResult,
+  type ValidateConfigurationInput,
+  type ValidateConfigurationResult,
+  type ValidConfigurationProposal,
+} from "./mutation.js";
+export {
+  resolveGlobalPreferencesPath,
+  resolveProjectPreferencesPath,
+  type ConfigurationPathInput,
+} from "./paths.js";

@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Target product architecture; project foundation implemented
+**Status:** Target product architecture; foundation, configuration, and repository path sandbox implemented
 **Last reviewed:** 2026-08-02
 
 ## Purpose
@@ -85,6 +85,12 @@ The initial feature boundaries are expected to be:
 - `model-inference`: the service boundary around the LM Studio HTTP API;
 - `operational-logging`: metadata-only records and seven-day retention.
 
+The current `repository-exploration` public API contains only exploration input
+validation and the three-method repository read capability. Its filesystem
+adapter owns canonicalization, identity checks, deterministic traversal, and
+fixed operation bounds. Content/Git filters compose over this boundary in the
+next increment; details are in [repository-access.md](repository-access.md).
+
 `src/shared` may contain domain-neutral primitives only. External HTTP and
 filesystem access must remain behind services or adapters. No browser storage
 is planned for V1; if browser storage is ever introduced, it must also remain
@@ -117,10 +123,11 @@ Configuration precedence is:
 2. project preferences over global preferences for editable values;
 3. built-in defaults where neither preference layer supplies a value.
 
-An active task retains the resolved revision with which it started. Project
-updates are confirmed, revision-checked, validated, and atomically written.
-The storage locations and concrete schema remain implementation decisions; see
-[configuration.md](configuration.md).
+An active task retains the immutable resolved snapshot and revision with which
+it started. Project updates are confirmed with a proposal-bound identifier,
+revision-checked, validated, and atomically replaced through a persistence
+adapter. Storage locations, fields, units, and mutation semantics are concrete;
+see [configuration.md](configuration.md).
 
 ## Cross-process coordination
 
@@ -147,10 +154,11 @@ contracts.
 
 ## Known limitations
 
-- Only the TypeScript/Node.js foundation and minimal CLI exist; no product
-  feature or MCP tool is implemented yet.
-- Configuration filenames, environment-variable names, schemas, and storage
-  locations have not been selected.
+- The TypeScript/Node.js foundation, core contracts, and transport-neutral
+  configuration feature plus the repository path sandbox exist; no MCP tool is
+  registered yet.
+- Configuration update serialization is process-local; cross-process
+  coordination and release portability validation remain planned.
 - The LM Studio endpoint contract and supported API version have not been
   pinned.
 - The cross-process concurrency mechanism has not been selected.
