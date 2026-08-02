@@ -194,7 +194,10 @@ export async function getEffectiveConfiguration(
       "A default model is required in global or project preferences.",
     );
   }
-  if (!protectedSettings.allowedModels.includes(defaultModel.value)) {
+  if (
+    !protectedSettings.allowedModels.includes("*") &&
+    !protectedSettings.allowedModels.includes(defaultModel.value)
+  ) {
     throw invalidConfiguration(
       "The configured default model is not allowed by protected policy.",
     );
@@ -393,10 +396,8 @@ function parseProtectedSettings(
     environment[
       CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken
     ]?.trim();
-  const rawAllowedModels = requiredEnvironmentValue(
-    environment,
-    CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels,
-  );
+  const rawAllowedModels =
+    environment[CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels]?.trim();
 
   let baseUrl: URL;
   try {
@@ -415,14 +416,18 @@ function parseProtectedSettings(
   }
 
   let allowedModels: readonly string[];
-  try {
-    allowedModels = AllowedModelsSchema.parse(
-      JSON.parse(rawAllowedModels) as unknown,
-    );
-  } catch {
-    throw invalidConfiguration(
-      "The protected allowed-model policy must be a JSON array of unique model identifiers.",
-    );
+  if (rawAllowedModels === undefined || rawAllowedModels.length === 0) {
+    allowedModels = ["*"];
+  } else {
+    try {
+      allowedModels = AllowedModelsSchema.parse(
+        JSON.parse(rawAllowedModels) as unknown,
+      );
+    } catch {
+      throw invalidConfiguration(
+        "The protected allowed-model policy must be a JSON array of unique model identifiers.",
+      );
+    }
   }
 
   return {

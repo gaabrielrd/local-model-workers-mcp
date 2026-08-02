@@ -21,3 +21,4 @@ export {
   runInstallationCommand,
   type InstallationCommandIo,
 } from "./cli.js";
+export { runInteractiveSetup } from "./interactive.js";

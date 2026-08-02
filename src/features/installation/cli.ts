@@ -12,6 +12,7 @@ import {
   type HarnessConfigurationProposal,
   type HarnessSelection,
 } from "./harnesses.js";
+import { runInteractiveSetup } from "./interactive.js";
 
 export interface InstallationCommandIo {
   readonly write: (message: string) => void;
@@ -24,7 +25,10 @@ export interface InstallationCommandIo {
 export function isInstallationCommand(arguments_: readonly string[]): boolean {
   return (
     arguments_[0] === "configure-harness" ||
-    arguments_[0] === "configure-global"
+    arguments_[0] === "configure-global" ||
+    arguments_[0] === "init" ||
+    arguments_[0] === "setup" ||
+    arguments_[0] === "quickstart"
   );
 }
 
@@ -35,6 +39,9 @@ export async function runInstallationCommand(
   try {
     const command = arguments_[0];
     const options = parseOptions(arguments_.slice(1));
+    if (command === "init" || command === "setup" || command === "quickstart") {
+      return runInteractiveSetup(options, io);
+    }
     if (command === "configure-harness") {
       return configureHarness(options, io);
     }
@@ -63,7 +70,9 @@ async function configureHarness(
   ]);
   const selection = requiredOption(options, "target");
   if (!isHarnessSelection(selection)) {
-    throw new Error("Target must be claude-code, codex, both, or cancel.");
+    throw new Error(
+      "Target must be claude-code, codex, antigravity, all, both, or cancel.",
+    );
   }
   const executableCommand = stringOption(options, "command");
   const proposals = await proposeHarnessConfigurations({
@@ -275,6 +284,8 @@ function isHarnessSelection(value: string): value is HarnessSelection {
   return (
     value === "claude-code" ||
     value === "codex" ||
+    value === "antigravity" ||
+    value === "all" ||
     value === "both" ||
     value === "cancel"
   );

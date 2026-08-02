@@ -45,31 +45,34 @@ private LAN. The assistant never configures public exposure, certificates, or a
 proxy. The probed `lms` instance accepts requests without authentication; this
 is supported only because it remains on the explicitly trusted private LAN.
 
+## Single-command interactive onboarding
+
+The fastest way to install, initialize, and test the MCP server is the single interactive command:
+
+```sh
+local-model-workers-mcp setup
+# or:
+local-model-workers-mcp init
+```
+
+This assistant interactively prompts for the LM Studio Base URL, allowed models, default model, optional Bearer token, and target harness (`claude-code`, `codex`, `antigravity`, or `all`). It updates global preferences, writes harness configuration files, runs an immediate health check (`check_health`) against LM Studio, and presents first-call instructions. Non-interactive or automated execution is supported via flags (`--target all --yes`, `--dry-run`, etc.).
+
 ## Text-only configuration assistant
 
 Every flow is keyboard-operable. A proposal is always printed before a write.
 Without `--yes`, a required write exits without modifying a file; `--dry-run`
-never writes. Choose Claude Code, Codex, both, or cancellation:
+never writes. Choose Claude Code, Codex, Antigravity, all, or cancellation:
 
 ```sh
+local-model-workers-mcp setup --dry-run
 local-model-workers-mcp configure-harness --target claude-code --project-root "$PWD" --dry-run
 local-model-workers-mcp configure-harness --target codex --dry-run
-local-model-workers-mcp configure-harness --target both --project-root "$PWD"
-local-model-workers-mcp configure-harness --target both --project-root "$PWD" --yes
+local-model-workers-mcp configure-harness --target antigravity --dry-run
+local-model-workers-mcp configure-harness --target all --project-root "$PWD"
 local-model-workers-mcp configure-harness --target cancel
 ```
 
-Claude Code uses the project-scoped `.mcp.json` `mcpServers` format. The managed
-entry invokes `local-model-workers-mcp`, supplies no arguments, and contains
-only `${LMW_...}` environment references. Codex uses the user-scoped
-`~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`,
-`args`, and `env_vars`; values are inherited from the process and are not
-persisted. These shapes follow the official Claude Code MCP configuration and
-Codex configuration/CLI contracts current on 2026-08-02. The local adapter
-fixtures are pinned against Claude Code 2.1.204 and Codex CLI 0.145.0; full
-six-tool real-harness qualification remains Task 015. See the official
-[Claude Code MCP guide](https://docs.anthropic.com/en/docs/claude-code/mcp) and
-[Codex source configuration contract](https://github.com/openai/codex/blob/main/codex-rs/config/src/config_toml.rs).
+Claude Code uses the project-scoped `.mcp.json` `mcpServers` format. Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`.
 
 Existing unrelated Claude JSON properties, MCP servers, and Codex TOML text are
 preserved. A differing managed entry is classified as a conflict. Invalid JSON,

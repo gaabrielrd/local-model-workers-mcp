@@ -70,6 +70,57 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 - macOS is the full harness-validation platform for V1. Linux and Windows run
   basic install, startup, and configuration-read checks in the CI matrix.
 
+## Installation and First Use
+
+### 1. Installation
+
+Install globally using `npm`:
+
+```sh
+npm install --global local-model-workers-mcp
+```
+
+### 2. Single-Command Interactive Setup
+
+Run the single interactive onboarding assistant to configure your environment, harness integration, and test connectivity in one step:
+
+```sh
+local-model-workers-mcp setup
+# or:
+local-model-workers-mcp init
+```
+
+The setup assistant will interactively prompt for:
+- **LM Studio Base URL**: `http://localhost:1234/v1` (or your private LAN IP).
+- **Allowed Models** *(Optional)*: Press Enter to automatically query LM Studio's `/v1/models` endpoint and auto-populate all available active models.
+- **Default Model**: Select your preferred default model.
+- **Bearer Token** *(Optional)*: Leave empty for local unauthenticated LM Studio instances.
+- **Target Harness**: Choose `claude-code`, `codex`, `antigravity`, or `all` to configure all harnesses simultaneously.
+
+Non-interactive setup for scripts or CI pipelines is also supported:
+
+```sh
+local-model-workers-mcp setup --target all --url "http://localhost:1234/v1" --yes
+```
+
+### 3. First Use
+
+Once setup is complete and passes the health check, start your chosen harness:
+
+- **Claude Code**: Run `claude` in your repository directory. The MCP server `local-model-workers` is automatically loaded from `.mcp.json`.
+- **Codex**: Run `codex` from any directory. The MCP server is loaded from `~/.codex/config.toml`.
+- **Antigravity**: Start Antigravity. The MCP server is registered in `~/.gemini/config/mcp_config.json`.
+
+Make sure your shell exports the connection environment variables (or rely on the auto-configured harness defaults):
+
+```sh
+export LMW_LM_STUDIO_BASE_URL='http://localhost:1234/v1'
+# Optional: if omitted, all models available at /v1/models are allowed:
+export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'
+```
+
+---
+
 ## Documentation
 
 - [Product requirements](prd.md)
@@ -120,10 +171,8 @@ npm run release:measure -- /absolute/path/to/release-evidence.json
 ```
 
 The version and configuration diagnostics are written to stderr so stdout
-remains reserved for MCP `stdio`. Running the CLI without arguments starts the
-six-tool server. Use `configure-harness` and `configure-global` as documented in
-[installation.md](docs/installation.md); both support non-destructive dry runs
-and exact confirmation before writes.
+remains reserved for MCP `stdio`. Every push to `main` automatically runs CI
+validation and creates a GitHub Release with the package installer.
 
 The protected environment contract and editable file examples are documented
 in [configuration.md](docs/configuration.md). [`.env.example`](.env.example)

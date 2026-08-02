@@ -129,16 +129,20 @@ function validateDefaultModel(
     return;
   }
   const raw = environment[CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels];
+  if (raw === undefined || raw.trim().length === 0) {
+    return;
+  }
   let allowedModels: unknown;
   try {
-    allowedModels = raw === undefined ? undefined : JSON.parse(raw);
+    allowedModels = JSON.parse(raw);
   } catch {
     throw new Error("Protected allowed-model policy is invalid.");
   }
   if (
     !Array.isArray(allowedModels) ||
     !allowedModels.every((model) => typeof model === "string") ||
-    !allowedModels.includes(preferences.default_model)
+    (!allowedModels.includes("*") &&
+      !allowedModels.includes(preferences.default_model))
   ) {
     throw new Error(
       "The global default model is not allowed by protected policy.",

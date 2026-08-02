@@ -14,8 +14,8 @@ const FORWARDED_ENVIRONMENT_NAMES = [
   "LMW_ALLOWED_MODELS",
 ] as const;
 
-export type Harness = "claude-code" | "codex";
-export type HarnessSelection = Harness | "both" | "cancel";
+export type Harness = "claude-code" | "codex" | "antigravity";
+export type HarnessSelection = Harness | "all" | "both" | "cancel";
 export type InstallationState =
   "fresh" | "identical" | "compatible" | "conflicting" | "malformed";
 
@@ -71,7 +71,11 @@ export async function proposeHarnessConfigurations(
 
   const command = normalizeCommand(input.command);
   const harnesses: readonly Harness[] =
-    input.selection === "both" ? ["claude-code", "codex"] : [input.selection];
+    input.selection === "all"
+      ? ["claude-code", "codex", "antigravity"]
+      : input.selection === "both"
+        ? ["claude-code", "codex"]
+        : [input.selection];
 
   return Promise.all(
     harnesses.map(async (harness) => {
@@ -170,12 +174,13 @@ async function inspectHarnessFile(
   command: string,
 ): Promise<ProposedFile> {
   const currentContents = await readOptionalFile(targetPath);
-  return harness === "claude-code"
-    ? inspectClaudeConfiguration(currentContents, command)
+  return harness === "claude-code" || harness === "antigravity"
+    ? inspectJsonMcpConfiguration(harness, currentContents, command)
     : inspectCodexConfiguration(currentContents, command);
 }
 
-function inspectClaudeConfiguration(
+function inspectJsonMcpConfiguration(
+  harness: "claude-code" | "antigravity",
   currentContents: string | undefined,
   command: string,
 ): ProposedFile {
@@ -238,6 +243,7 @@ function inspectClaudeConfiguration(
       [MANAGED_SERVER_NAME]: managedEntry,
     },
   };
+  const label = harness === "claude-code" ? "Claude Code" : "Antigravity";
   return {
     state: existingEntry === undefined ? "compatible" : "conflicting",
     applicable: true,
@@ -246,7 +252,7 @@ function inspectClaudeConfiguration(
     preview:
       existingEntry === undefined
         ? preview
-        : ["replace existing managed Claude Code entry", ...preview],
+        : [`replace existing managed ${label} entry`, ...preview],
   };
 }
 
@@ -407,7 +413,17 @@ function resolveTargetPath(
     input.homeDirectory === undefined ||
     input.homeDirectory.trim().length === 0
   ) {
-    throw new Error("A home directory is required for Codex configuration.");
+    throw new Error(
+      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : "Codex"} configuration.`,
+    );
+  }
+  if (harness === "antigravity") {
+    return path.resolve(
+      input.homeDirectory,
+      ".gemini",
+      "config",
+      "mcp_config.json",
+    );
   }
   return path.resolve(input.homeDirectory, ".codex", "config.toml");
 }

@@ -65,6 +65,24 @@ void test("supports LM Studio without optional Bearer authentication", async (t)
   assert.equal(view.lm_studio.bearer_token, null);
 });
 
+void test("supports missing LMW_ALLOWED_MODELS environment variable with wildcard default", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "any/model",
+  });
+  const environment = {
+    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
+  };
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+
+  assert.deepEqual(snapshot.lm_studio.allowed_models, ["*"]);
+});
+
 void test("applies project over global over built-in precedence with field origins", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({

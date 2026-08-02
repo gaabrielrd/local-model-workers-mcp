@@ -37,22 +37,66 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
     [],
   );
 
-  const proposals = await proposeHarnessConfigurations({
+  const proposalsBoth = await proposeHarnessConfigurations({
     selection: "both",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
   assert.deepEqual(
-    proposals.map((proposal) => [proposal.harness, proposal.state]),
+    proposalsBoth.map((proposal) => [proposal.harness, proposal.state]),
     [
       ["claude-code", "fresh"],
       ["codex", "fresh"],
+    ],
+  );
+
+  const proposalsAll = await proposeHarnessConfigurations({
+    selection: "all",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(
+    proposalsAll.map((proposal) => [proposal.harness, proposal.state]),
+    [
+      ["claude-code", "fresh"],
+      ["codex", "fresh"],
+      ["antigravity", "fresh"],
     ],
   );
   await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
   await assert.rejects(
     access(path.join(fixture.home, ".codex", "config.toml")),
   );
+  await assert.rejects(
+    access(path.join(fixture.home, ".gemini", "config", "mcp_config.json")),
+  );
+});
+
+void test("configures antigravity harness in ~/.gemini/config/mcp_config.json", async (t) => {
+  const fixture = await createFixture(t);
+  const [proposal] = await proposeHarnessConfigurations({
+    selection: "antigravity",
+    homeDirectory: fixture.home,
+  });
+  assert.ok(proposal);
+  assert.equal(proposal.harness, "antigravity");
+  assert.equal(
+    proposal.target_path,
+    path.join(fixture.home, ".gemini", "config", "mcp_config.json"),
+  );
+
+  const result = await applyHarnessConfiguration({
+    proposal,
+    confirmation: { approved: true, proposal_id: proposal.proposal_id },
+  });
+  assert.equal(result.outcome, "written");
+
+  const contents = JSON.parse(await readFile(proposal.target_path, "utf8")) as {
+    mcpServers: Record<string, { command: string }>;
+  };
+  const entry = contents.mcpServers["local-model-workers"];
+  assert.ok(entry);
+  assert.equal(entry.command, "local-model-workers-mcp");
 });
 
 void test("requires exact confirmation and writes secret-safe harness files", async (t) => {
@@ -300,6 +344,58 @@ void test("CLI dry-run and unconfirmed flows make no changes or leak credentials
     output.join("").includes(protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN),
     false,
   );
+});
+
+void test("interactive setup command creates harness and global preference files and performs health check", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+  const exitCode = await runInstallationCommand(
+    ["setup", "--target", "both", "--yes"],
+    io,
+  );
+  assert.equal(exitCode, 0);
+  const claudePath = path.join(fixture.project, ".mcp.json");
+  const codexPath = path.join(fixture.home, ".codex", "config.toml");
+  const claude = await readFile(claudePath, "utf8");
+  const codex = await readFile(codexPath, "utf8");
+  assert.match(claude, /\$\{LMW_LM_STUDIO_BEARER_TOKEN:-\}/);
+  assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  const text = output.join("");
+  assert.match(text, /Setup Complete/);
+  assert.match(text, /Health status/);
+});
+
+void test("setup dry-run makes no changes to filesystem", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+  const exitCode = await runInstallationCommand(
+    ["init", "--target", "both", "--dry-run"],
+    io,
+  );
+  assert.equal(exitCode, 0);
+  await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
+  await assert.rejects(
+    access(path.join(fixture.home, ".codex", "config.toml")),
+  );
+  assert.match(output.join(""), /Dry Run/);
 });
 
 async function createFixture(
