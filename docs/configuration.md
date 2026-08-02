@@ -80,6 +80,12 @@ canonical target must remain within the canonical project root.
 All values are positive integers. Timeouts use milliseconds and context uses
 UTF-8 bytes.
 
+The outbound collector accounts `context_budget_bytes` as the exact UTF-8 byte
+length of each serialized excerpt, including path, trust label, line range, and
+content. It omits an excerpt whole when it does not fit. The exploration
+interaction counter permits exactly `max_exploration_interactions` and rejects
+the next request; both overages produce explicit limitations.
+
 | Field | Built-in default | Administrative maximum | Editable globally | Editable by project |
 | --- | ---: | ---: | --- | --- |
 | `max_concurrency` | 2 | 4 | Yes | Yes |

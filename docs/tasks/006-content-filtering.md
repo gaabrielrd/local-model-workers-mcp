@@ -1,6 +1,6 @@
 # Task 006: Filter repository content and enforce budgets
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Task 005  
 **PRD coverage:** RF-05, RF-06, RF-26 prerequisite; RN-08 through RN-14; CA-09 through CA-13
 
@@ -83,3 +83,23 @@ change-detection decision.
 - No repository content is persisted outside the active test/task memory.
 - `npm run validate` passes.
 
+## Completion evidence
+
+- The in-memory outbound collector applies additive project ignores, Git ignore
+  status, mandatory sensitive path/content rules, binary/UTF-8 classification,
+  duplicate minimization, and exact serialized-byte accounting before release.
+- `.mcp-agent-ignore` supports a documented bounded glob subset; negation cannot
+  re-enable content, while malformed or escaping policy files fail closed.
+- Git uses `execFile` without a shell and minimal environment; unavailable or
+  ambiguous classification omits the candidate with a metadata-only
+  limitation.
+- Exact interaction/context boundaries, immutable manifests, unread relevant
+  paths, content fingerprints, and untrusted prompt labels are implemented
+  without persisting repository text.
+- Captured-context tests prove prohibited fixture markers never leave the
+  collector and cover classifier/Git uncertainty, multibyte budgets, prompt
+  injection, changing fingerprints, and real temporary Git ignore behavior.
+- Documentation and ADR-0007 record binary, sensitive, Git, project-ignore,
+  budgeting, minimization, and false-positive decisions.
+- `npm run validate` passes formatting, linting, boundary checks, static types,
+  the complete automated suite, and the production build.

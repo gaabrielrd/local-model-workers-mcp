@@ -32,7 +32,35 @@ export {
   type TerminalStatus,
 } from "./contracts.js";
 export {
+  CapacityError,
+  CAPACITY_COORDINATION_DIRECTORY_NAME,
+  createFileSystemCapacityCoordinator,
+  resolveCapacityStateDirectory,
+  runTaskWithCapacity,
+  type CapacityCoordinatorClock,
+  type CapacityErrorCode,
+  type CapacityRunInput,
+  type FileSystemCapacityCoordinatorOptions,
+  type RunTaskWithCapacityInput,
+  type TaskCapacityCoordinator,
+} from "./capacity.js";
+export {
   REDACTED_TEXT,
   createDiagnostic,
   type DiagnosticInput,
 } from "./diagnostics.js";
+export {
+  TaskLifecycleError,
+  createTaskRuntime,
+  type CompletedWork,
+  type CreateTaskRuntimeOptions,
+  type DiagnosticWork,
+  type TaskClock,
+  type TaskContentKind,
+  type TaskContentScope,
+  type TaskExecutionContext,
+  type TaskInferenceRequest,
+  type TaskProgressEvent,
+  type TaskRuntime,
+  type TaskWorkOutcome,
+} from "./runtime.js";

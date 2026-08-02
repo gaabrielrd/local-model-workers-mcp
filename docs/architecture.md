@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Target product architecture; foundation, configuration, and repository path sandbox implemented
+**Status:** Target product architecture; foundation through global task capacity implemented
 **Last reviewed:** 2026-08-02
 
 ## Purpose
@@ -85,11 +85,14 @@ The initial feature boundaries are expected to be:
 - `model-inference`: the service boundary around the LM Studio HTTP API;
 - `operational-logging`: metadata-only records and seven-day retention.
 
-The current `repository-exploration` public API contains only exploration input
-validation and the three-method repository read capability. Its filesystem
-adapter owns canonicalization, identity checks, deterministic traversal, and
-fixed operation bounds. Content/Git filters compose over this boundary in the
-next increment; details are in [repository-access.md](repository-access.md).
+The current `repository-exploration` public API contains exploration input
+validation, the three-method repository read capability, and the outbound
+content collector. Filesystem adapters own canonicalization, identity checks,
+deterministic traversal, and fixed operation bounds. The collector composes Git,
+project ignore, sensitive/binary classification, task budgets, prompt trust
+labels, fingerprints, and metadata-only limitations over that boundary; details
+are in [repository-access.md](repository-access.md) and
+[content-filtering.md](content-filtering.md).
 
 `src/shared` may contain domain-neutral primitives only. External HTTP and
 filesystem access must remain behind services or adapters. No browser storage
@@ -117,6 +120,14 @@ Every task has its own identifier, cancellation signal, context budget,
 effective configuration revision, model, timestamps, and terminal result. Task
 content cannot be reused by another task or persisted after completion.
 
+The implemented lifecycle deep-clones and freezes the effective snapshot at
+creation, emits repository-independent progress events, starts its processing
+deadline only when work begins, and composes caller cancellation with the
+deadline through one abort signal. Its inference facade pins the selected model
+and passes only the remaining original deadline. A single terminal race decides
+completion, failure, cancellation, or timeout; cleanup closes and clears the
+task-owned content scope on every path.
+
 Configuration precedence is:
 
 1. protected administrative settings;
@@ -129,13 +140,36 @@ revision-checked, validated, and atomically replaced through a persistence
 adapter. Storage locations, fields, units, and mutation semantics are concrete;
 see [configuration.md](configuration.md).
 
+## Model inference and health
+
+`model-inference` owns all LM Studio wire shapes and exposes a transport-neutral
+port for model catalog checks, authentication enforcement, and structured
+inference. Its OpenAI-compatible adapter performs allowlist/catalog preflight,
+non-streaming JSON Schema requests, bounded response reads, local schema
+validation, model identity verification, cancellation, deadlines, and one
+classified transient retry. The durable protocol choice is recorded in
+[ADR-0008](decisions/0008-use-openai-compatible-lm-studio-json-schema.md).
+
+`health` depends only on public configuration and model-inference contracts. It
+loads a repository-free runtime configuration and reports configuration,
+reachability, authentication enforcement, default-model availability, and each
+allowed model. It never performs inference or receives a repository service.
+
 ## Cross-process coordination
 
 The default limit of two processing tasks is shared across all local MCP
-processes, not enforced independently per process. The coordination mechanism
-must support queue timeout, abandoned-owner recovery, and cancellation without
-persisting repository content. Its concrete implementation must be recorded in
-a dedicated ADR before code depends on it.
+processes through the filesystem coordinator in
+[ADR-0009](decisions/0009-coordinate-capacity-with-atomic-filesystem-state.md).
+An atomic lock-directory transaction maintains a metadata-only FIFO queue and
+active owners. Dead PIDs and stale current-PID UUIDs are recovered on the next
+transaction; a dead owner's short-lived transaction lock becomes recoverable
+after ten seconds.
+
+Queue timeout and cancellation complete the still-queued Task 008 runtime with
+`queue_timeout` or `task_cancelled`. Acquired work begins the independent
+processing deadline and releases capacity in `finally`. The state directory is
+resolved beside global preferences, with platform-standard macOS, XDG/Linux,
+and Windows locations.
 
 ## Error and response model
 
@@ -157,10 +191,12 @@ contracts.
 - The TypeScript/Node.js foundation, core contracts, and transport-neutral
   configuration feature plus the repository path sandbox exist; no MCP tool is
   registered yet.
+- Repository exploration now composes path security, filtering, inference,
+  lifecycle, capacity, and evidence verification; test-proposal orchestration
+  remains planned.
 - Configuration update serialization is process-local; cross-process
   coordination and release portability validation remain planned.
-- The LM Studio endpoint contract and supported API version have not been
-  pinned.
-- The cross-process concurrency mechanism has not been selected.
+- The LM Studio inference and health boundary exists, but MCP registration
+  remains planned.
 - Linux and Windows receive basic automated coverage only in V1; complete
   harness validation is limited to macOS.

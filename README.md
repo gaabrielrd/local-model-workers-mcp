@@ -11,14 +11,13 @@ patch, or runs a project command.
 
 ## Project status
 
-The product requirements and implementation plan are approved. The project
-foundation and configuration feature are implemented: the
-repository has a pinned TypeScript/Node.js toolchain, a buildable CLI entry
-point, automated tests, a CI validation workflow, strict protected/global/
-project resolution, dry-run validation, and confirmed atomic project updates.
-The canonical, read-only repository capability also implements bounded listing,
-search, and snippet reads. Content filtering, product tool registration, LM
-Studio requests, and the MCP server are not implemented yet.
+The product requirements and implementation plan are approved. The repository
+has a pinned TypeScript/Node.js foundation, layered atomic configuration,
+canonical read-only access, fail-closed outbound filtering, authenticated LM
+Studio structured inference and health diagnostics, isolated task lifecycle,
+cross-process FIFO capacity, and the complete transport-neutral repository
+exploration use case. Test proposal, operational logging, MCP registration,
+installation, and release qualification remain to be implemented.
 
 The intended V1 exposes exactly six MCP tools:
 
@@ -55,6 +54,8 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 - [Configuration model](docs/configuration.md)
 - [Security model](docs/security.md)
 - [Repository read capability](docs/repository-access.md)
+- [Outbound content filtering](docs/content-filtering.md)
+- [Repository exploration](docs/repository-exploration.md)
 - [External integrations](docs/integrations.md)
 - [Core contracts](docs/contracts.md)
 - [Architecture decisions](docs/decisions/README.md)

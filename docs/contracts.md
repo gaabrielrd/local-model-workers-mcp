@@ -117,6 +117,33 @@ Transport-neutral task progress uses only:
 Task 013 maps these domain events to MCP notifications when the harness supports
 them.
 
+## Isolated task runtime
+
+The implemented runtime creates one identifier, model selection, deep-frozen
+effective configuration snapshot, content scope, cancellation controller,
+processing deadline, and progress sequence per task. The runtime emits `queued`
+at creation, but starts the processing deadline only when `run` begins; time
+spent waiting for future Task 009 capacity therefore cannot consume processing
+time.
+
+Work receives a transport-neutral context with the task identity, immutable
+configuration, composed abort signal, remaining processing time, progress
+emitter, scoped content store, and a structured-inference method. Inference is
+always pinned to the captured model and receives the remaining original
+deadline, so the adapter's bounded retry cannot reset or multiply task time.
+
+Cancellation, processing timeout, work completion, and work failure race for
+one terminal response. Later events cannot replace it, and repeated `run` calls
+observe the same promise rather than starting work again. Invalid or thrown work
+becomes a fixed redaction-safe failed diagnostic; partial work has no completed
+shape.
+
+The content scope separates goals, snippets, prompts, responses, and patches.
+Every terminal path overwrites and clears its arrays, closes the scope, removes
+listeners, clears the timer, and aborts remaining child work. Closed scopes
+return no prior content and reject new writes. The runtime does not implement a
+queue or global capacity; those belong to Task 009.
+
 ## Error codes
 
 | Code | Intended category |

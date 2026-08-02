@@ -82,9 +82,10 @@ operation; raw paths and filesystem exception messages are not echoed. Codes
 are `invalid_request`, `repository_not_found`,
 `repository_access_denied`, and `context_limit_exceeded`.
 
-## Next filtering layer
+## Outbound filtering layer
 
-This capability establishes path containment and bounded text mechanics only.
-Task 006 adds Git ignore handling, mandatory secret/sensitive classification,
-binary detection, `.mcp-agent-ignore`, and the effective task context budget
-before any content can reach LM Studio.
+This capability establishes path containment and bounded text mechanics. The
+implemented outbound collector then applies Git ignore handling, mandatory
+secret/sensitive classification, binary detection, `.mcp-agent-ignore`,
+interaction limits, and the effective task context budget before content can
+become LM Studio context. See [content-filtering.md](content-filtering.md).

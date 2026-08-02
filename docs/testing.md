@@ -1,6 +1,6 @@
 # Testing strategy
 
-**Status:** Target product strategy; foundation, contracts, and configuration loading suites implemented
+**Status:** Target product strategy; foundation through repository exploration suites implemented
 **Last reviewed:** 2026-08-02
 
 ## Goals
@@ -145,3 +145,49 @@ validation; deterministic bounded listing; literal and safe-regex search;
 snippet line/byte/file bounds; binary rejection; fixed redaction-safe errors;
 and POSIX/Windows containment semantics. The public capability is asserted to
 contain only its three read methods.
+
+The outbound-filter suite captures the final context and proves that `.env`,
+credential paths/content, private keys, Git/project ignores, NUL/binary data,
+and invalid UTF-8 markers never appear. It also covers additive ignore
+negation, malformed rules, Git and classifier uncertainty, the exact 15/50
+interaction boundary, exact serialized multibyte byte accounting, whole-excerpt
+budget omission, metadata-only limitations, unread relevant paths, duplicate
+minimization, changing fingerprints, untrusted prompt-injection labeling, and a
+real temporary Git repository exercised without a shell.
+
+The LM Studio suite runs only against ephemeral loopback fake servers. It
+captures authorization and request payloads; verifies model allowlisting and
+catalog availability without fallback; checks JSON Schema, reasoning-disabled
+non-streaming requests and local output validation; bounds responses; rejects
+partial or model-mismatched output; exercises one transient retry and permanent
+non-retry; and proves cancellation/deadlines abort without an extra request.
+Health component tests cover invalid configuration, unreachable endpoints,
+authentication failure or non-enforcement, malformed catalogs, timeouts, and
+default/per-allowed-model availability without a repository dependency. Real LM
+Studio compatibility probes are opt-in operational evidence, not part of
+`npm run validate`.
+
+The task-lifecycle suite uses fake clocks, identifiers, inference, and retained
+content-scope references. It proves unique task identity and cross-task content
+isolation; immutable starting configuration; queued time excluded from the
+processing deadline; default/configured timeout; cancellation propagation;
+remaining-deadline inference composition; exactly one terminal result under
+races and repeated `run`; diagnostic-only partial failure; transport-neutral
+progress sequencing; and overwritten, empty, closed content after every
+terminal category.
+
+The capacity suite uses real temporary state directories and separate Node.js
+worker processes. It proves that two workers acquire the default two slots, a
+third waits, and a killed owner is recovered. Component cases cover committed
+FIFO ordering, configured capacity without oversubscription, exact queue
+timeout, queued and processing cancellation, normal release, stale state and
+transaction-lock recovery, corrupt-state and live-capacity mismatch failures,
+platform-standard state paths, administrative maxima, and a strict
+metadata-only artifact schema.
+
+The exploration suite drives fake structured model decisions through the public
+use case. It verifies validation before inference; filtered list/search/read
+observations; direct and iterative completion; exact evidence paths, lines, and
+fingerprints; changed and invented evidence blocking; interaction and context
+exhaustion; Portuguese human text with English technical fields; closed-protocol
+rejection of unknown actions; progress events; and task-scoped prompt cleanup.

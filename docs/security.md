@@ -51,6 +51,14 @@ search, file, line, and byte ceilings are documented in
 Exclusion rules are monotonic: a project rule can forbid more content but cannot
 allow content blocked by a mandatory rule.
 
+The implemented outbound collector is the only release gate for repository
+text. It fails closed on Git uncertainty, malformed project policy, invalid
+UTF-8, binary signals, classifier failure, sensitive path/content patterns, and
+budget overflow. Excluded and unread relevant files appear only as path, reason,
+and fixed impact metadata. Exact classifier patterns, Git process isolation,
+ignore syntax, byte accounting, and false-positive trade-offs are documented in
+[content-filtering.md](content-filtering.md).
+
 ## Remote output
 
 LM Studio output is data, not an instruction to the server. The server validates
@@ -88,6 +96,13 @@ a SHA-256 identifier. Protected-field attempts, stale revisions, missing or
 mismatched approval, and atomic-write failures perform no target write. The
 same-directory temporary file uses mode `0600`, is flushed before rename, and
 is removed by its exact generated path on failure.
+
+The LM Studio adapter places the token only in the `Authorization` header and
+constructs all returned errors from fixed messages without upstream bodies,
+URLs, headers, prompts, or responses. Health proves authentication enforcement
+with a deliberately invalid credential; accepting it is unhealthy even if the
+configured credential also succeeds. Inference verifies protected allowlisting,
+catalog presence, and response model identity without fallback.
 
 ## Data lifetime and logs
 

@@ -1,6 +1,6 @@
 # Task 008: Implement isolated task lifecycle
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 002-003 and 007  
 **PRD coverage:** RF-14, RF-17, RF-18, RF-19; RN-25, RN-34, RN-35, RN-38, RN-39; CA-26 through CA-29, CA-39, CA-43
 
@@ -73,4 +73,3 @@ exploration, test proposal, or persistent content.
 - Progress events and terminal states use the contracts from Task 002.
 - No global concurrency assumption is embedded in the runtime.
 - `npm run validate` passes.
-

@@ -1,6 +1,6 @@
 # Task 007: Integrate LM Studio and implement health diagnostics
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 002-003  
 **PRD coverage:** RF-03, RF-19, RF-21; RN-02 through RN-04; CA-03 through CA-05, CA-28, CA-29, CA-31, CA-32
 
@@ -32,6 +32,13 @@ Select endpoint paths, API version, streaming versus non-streaming behavior,
 structured-output protocol, timeout ownership, retryable error classes, and
 compatible LM Studio versions. Record them in integration documentation and an
 ADR if they constrain more than this adapter.
+
+Resolved by
+[ADR-0008](../decisions/0008-use-openai-compatible-lm-studio-json-schema.md):
+LM Studio 0.4.0+, OpenAI-compatible `/v1/models` and
+`/v1/chat/completions`, non-streaming strict JSON Schema, disabled reasoning for
+structured calls, caller-owned deadlines through body parsing, a 1 MiB response
+limit, and one retry only for network/408/429/5xx transient failures.
 
 ## Non-scope
 
@@ -82,4 +89,3 @@ network dependency in the default suite.
 - Every failure path redacts the Bearer token.
 - Health requires no repository input or access.
 - `npm run validate` passes.
-

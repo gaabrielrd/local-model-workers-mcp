@@ -12,6 +12,9 @@ technical context and consequences of implementing that scope.
 - [ADR-0004: Use environment-protected policy and versioned preference files](0004-layered-configuration-authority.md)
 - [ADR-0005: Bind confirmation to an atomic project preference update](0005-confirmed-atomic-project-configuration.md)
 - [ADR-0006: Anchor repository reads to canonical filesystem identities](0006-anchor-repository-reads-to-canonical-identities.md)
+- [ADR-0007: Release repository text only through a fail-closed collector](0007-fail-closed-outbound-content-collector.md)
+- [ADR-0008: Use LM Studio's OpenAI-compatible JSON Schema API](0008-use-openai-compatible-lm-studio-json-schema.md)
+- [ADR-0009: Coordinate local capacity with atomic filesystem state](0009-coordinate-capacity-with-atomic-filesystem-state.md)
 
 ## Status values
 

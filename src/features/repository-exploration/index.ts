@@ -27,3 +27,42 @@ export {
   type RepositoryFileStats,
   type RepositoryFileSystem,
 } from "./repository-access.js";
+export {
+  ContentCollectionError,
+  createOutboundContextCollector,
+  defaultContentClassifier,
+  type AddExcerptResult,
+  type AnalysisManifest,
+  type CandidateExcerpt,
+  type CollectedExcerpt,
+  type ContentClassification,
+  type ContentClassifier,
+  type ContentExclusionReason,
+  type ContentLimitation,
+  type CreateOutboundContextCollectorInput,
+  type FileAnalysisRecord,
+  type InteractionUsage,
+  type LimitationImpact,
+  type OutboundContextCollector,
+  type OutboundRepositoryContext,
+} from "./content-filter.js";
+export {
+  GitIgnoreUnavailableError,
+  createGitIgnorePolicy,
+  type GitCheckIgnoreRunner,
+  type GitIgnorePolicy,
+} from "./git-ignore.js";
+export {
+  ExplorationResultSchema,
+  exploreRepository,
+  type ExploreRepositoryInput,
+  type ExplorationResult,
+} from "./exploration.js";
+export {
+  PROJECT_IGNORE_FILENAME,
+  ProjectIgnorePolicyError,
+  loadProjectIgnorePolicy,
+  parseProjectIgnorePolicy,
+  type ProjectIgnoreFileSystem,
+  type ProjectIgnorePolicy,
+} from "./project-ignore.js";

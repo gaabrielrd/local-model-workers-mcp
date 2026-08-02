@@ -1,6 +1,6 @@
 # Task 009: Coordinate global concurrency and queueing
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Task 008  
 **PRD coverage:** RF-15, RF-16; RN-26; CA-24, CA-25
 
@@ -31,6 +31,13 @@ Evaluate filesystem locks, local lock files with leases, or another
 single-machine primitive. Select one based on atomicity, fairness, stale-owner
 recovery, platform semantics, and testability. Record the choice and recovery
 model in a dedicated ADR before implementing it.
+
+Resolved by
+[ADR-0009](../decisions/0009-coordinate-capacity-with-atomic-filesystem-state.md):
+atomic lock-directory transactions over a metadata-only JSON state, FIFO by
+committed sequence, PID plus per-process UUID recovery, a ten-second dead lock
+threshold, strict configuration agreement while work is active, and portable
+global configuration paths.
 
 ## Non-scope
 
@@ -81,4 +88,3 @@ multiple worker pools, or result consolidation.
 - Queue state contains no task content.
 - The selected mechanism is documented in an accepted ADR.
 - `npm run validate` passes.
-

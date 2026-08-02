@@ -1,6 +1,6 @@
 # External integrations
 
-**Status:** Contract outline; integration code and setup commands do not exist  
+**Status:** LM Studio and Git adapters implemented; remaining integrations are contract outlines
 **Last reviewed:** 2026-08-02
 
 ## Claude Code and Codex
@@ -25,25 +25,63 @@ configuration must never be overwritten without confirmation.
 
 ## LM Studio
 
-LM Studio runs on another developer-controlled machine and provides the remote
-model through an HTTP-compatible API.
+The implemented adapter targets LM Studio 0.4.0 or later and its
+OpenAI-compatible REST surface:
 
-The integration must:
+- `GET /v1/models` for the visible model catalog;
+- `POST /v1/chat/completions` for non-streaming structured inference;
+- `Authorization: Bearer <token>` on every request.
 
-- use a configured Bearer token;
-- allow only configured model identifiers;
-- fail when a requested model is unauthorized or unavailable rather than
-  silently substituting another model;
-- use one retry by default for a transient failure;
-- honor task cancellation and processing deadlines;
-- send only context that has passed local path, sensitivity, ignore, binary, and
-  budget filters;
-- treat every response as untrusted and validate it locally.
+The base URL therefore ends in `/v1`, for example
+`http://model-host.local:1234/v1`. It cannot contain credentials, a query, or a
+fragment. The version floor exists because LM Studio added API-token
+authentication in 0.4.0. See the official [REST API
+overview](https://lmstudio.ai/docs/developer/rest), [authentication
+guide](https://lmstudio.ai/docs/developer/core/authentication), and [API
+changelog](https://lmstudio.ai/docs/developer/api-changelog).
 
-`check_health` verifies configuration validity, reachability, authentication,
-the default model, and all allowed models without reading a repository. The
-specific LM Studio endpoint paths and compatible API version are still to be
-selected and documented.
+Inference sends `stream: false`, `temperature: 0`, `reasoning_effort: none`, and
+strict `response_format: json_schema`. The adapter then parses the returned text
+as JSON and validates it again with the local Zod schema. A non-`stop` finish,
+invalid UTF-8/JSON/schema, response above 1 MiB, or response naming a different
+model fails closed. The structured-output protocol follows LM Studio's official
+[JSON Schema compatibility](https://beta.lmstudio.ai/docs/developer/openai-compat/structured-output).
+
+Before inference, the requested identifier must be both protected-policy
+allowlisted and present in `/models`; there is no fallback. A caller deadline
+and cancellation signal remain active while response bytes are read. Only
+network failures and HTTP 408, 429, 500, 502, 503, and 504 are transient; an
+inference gets at most the configured single retry. Authentication, policy,
+schema, size, partial-output, and other permanent failures are not retried.
+
+`check_health` is repository-free. It reports configuration, reachability,
+authentication, the default model, and every allowed model independently. In
+addition to a request with the configured credential, it sends a catalog
+request with a deliberately invalid token. If that token succeeds,
+authentication is classified as `authentication_not_enforced` and overall
+health is unhealthy.
+
+### Controlled compatibility probes
+
+On 2026-08-02, a controlled LAN instance exposed these capabilities:
+
+| Model | Catalog type | Structured JSON Schema | Tool call | Vision |
+| --- | --- | --- | --- | --- |
+| `qwen/qwen3.5-9b` | LLM | Passed | Passed | Passed |
+| `google/gemma-4-12b-qat` | LLM | Passed | Passed | Passed |
+| `text-embedding-nomic-embed-text-v1.5` | embedding | N/A | N/A | N/A |
+
+The embedding probe returned 768 dimensions. Both LLMs advertise configurable
+reasoning; with the default reasoning enabled, a deliberately tiny output
+budget could be consumed entirely by reasoning tokens. Structured application
+requests therefore disable reasoning explicitly. Tool calling is compatible
+but is not exposed by this V1 adapter because the approved product uses locally
+validated structured results rather than remote tools.
+
+The tested instance returned HTTP 200 for a deliberately invalid Bearer token,
+which means server authentication was disabled at test time. This is not a
+supported healthy deployment: enable LM Studio authentication before relying
+on `check_health` or sending repository context.
 
 HTTP is supported only on a trusted private local network. HTTPS may be used
 when the environment provides it, but proxy and certificate management are not
@@ -51,9 +89,13 @@ part of V1. Public exposure is unsupported.
 
 ## Git
 
-Git is used to identify ignored files before context is selected. If ignore
-status cannot be determined safely, the server must not send the uncertain file.
-Git is not used to modify, stage, commit, or revert repository content.
+Git is used only to identify ignored files before context is selected. The
+implemented adapter executes
+`git check-ignore --quiet --no-index -- <relative-path>` with `execFile`, never
+a shell. It disables global/system configuration, optional locks, and pagers and
+inherits no protected application variables. Exit 0 means ignored, exit 1 means
+visible, and any other error excludes the uncertain file with a limitation.
+Git is not used to modify, stage, commit, revert, or execute repository content.
 
 ## Local filesystem
 
@@ -63,8 +105,17 @@ metadata-only operational logs through separate adapters. Canonical path and
 symlink checks occur before access; permission failures never trigger an attempt
 to expand process privileges.
 
-Project preference updates are atomic and revision-controlled. The exact
-configuration and log locations are not yet defined.
+Project preference updates are atomic and revision-controlled. Configuration
+locations are defined in [configuration.md](configuration.md); operational log
+locations remain pending Task 012.
+
+Global capacity metadata lives in a `coordination` directory beside the global
+preference file. Its only durable file is `capacity-state.json`; a
+`capacity-state.lock/owner.json` pair exists only during short state
+transactions. Files use owner-only modes where supported. A process crash needs
+no manual cleanup: the next waiter removes dead owners, and a dead transaction
+lock is eligible after ten seconds. Do not place this directory on a network
+filesystem, and do not delete it while MCP processes are active.
 
 ## Project test infrastructure
 
@@ -92,4 +143,3 @@ harness to review and run.
 When an integration becomes executable, update this document with its supported
 versions, exact configuration fields, timeouts, setup and health-check commands,
 expected errors, and a secret-safe troubleshooting example.
-
