@@ -151,7 +151,7 @@ export function resolveCapacityStateDirectory(
   input: ConfigurationPathInput,
 ): string {
   const preferencesPath = resolveGlobalPreferencesPath(input);
-  const pathApi = input.platform === "win32" ? path.win32 : path;
+  const pathApi = input.platform === "win32" ? path.win32 : path.posix;
   return pathApi.join(
     pathApi.dirname(preferencesPath),
     CAPACITY_COORDINATION_DIRECTORY_NAME,

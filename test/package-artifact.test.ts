@@ -23,6 +23,7 @@ void test("the package candidate contains only runtime artifacts and documentati
       cwd: projectRoot,
       encoding: "utf8",
       env: { ...process.env, npm_config_cache: cacheDirectory },
+      ...(process.platform === "win32" ? { shell: true } : {}),
     },
   );
   const result = JSON.parse(stdout) as readonly [

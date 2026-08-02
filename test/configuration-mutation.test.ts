@@ -122,7 +122,8 @@ void test("atomically updates project preferences and preserves old snapshots", 
   assert.equal(activeSnapshot.lm_studio.default_model, "qwen/test-model");
   assert.equal(activeSnapshot.limits.max_concurrency, 2);
   assert.equal(activeSnapshot.revision, result.old_revision);
-  assert.equal((await stat(fixture.projectPath)).mode & 0o777, 0o600);
+  const expectedMode = process.platform === "win32" ? 0o666 : 0o600;
+  assert.equal((await stat(fixture.projectPath)).mode & 0o777, expectedMode);
   assert.deepEqual(JSON.parse(await readFile(fixture.projectPath, "utf8")), {
     schema_version: 1,
     default_model: "another/model",
