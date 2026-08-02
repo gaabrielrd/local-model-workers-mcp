@@ -15,6 +15,7 @@ import {
   type TaskExecutionContext,
   type TaskProgressEvent,
   type TaskResponse,
+  type TaskTerminalMetadata,
   type TaskWorkOutcome,
 } from "../task-execution/index.js";
 import {
@@ -114,6 +115,7 @@ export interface ExploreRepositoryInput {
   readonly signal?: AbortSignal;
   readonly onProgress?: (event: TaskProgressEvent) => void;
   readonly createTaskId?: () => string;
+  readonly onTerminal?: (event: TaskTerminalMetadata) => void | Promise<void>;
   readonly capabilityFactory?: (
     input: CreateRepositoryReadCapabilityInput,
   ) => Promise<RepositoryReadCapability>;
@@ -174,6 +176,7 @@ export async function exploreRepository(
     ...(input.createTaskId === undefined
       ? {}
       : { createTaskId: input.createTaskId }),
+    ...(input.onTerminal === undefined ? {} : { onTerminal: input.onTerminal }),
   });
 
   return await runTaskWithCapacity(

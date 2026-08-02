@@ -14,10 +14,12 @@ task snapshots.
 
 ## Decision
 
-Keep the LM Studio URL, Bearer token, and allowed-model policy in required
-process environment variables. Keep administrative maxima and fixed safety
-limits as code-owned protected constants. Never place a credential in editable
-JSON or in a resolved snapshot.
+Keep the required LM Studio URL and allowed-model policy plus the optional
+Bearer token in process environment variables. An absent or blank token selects
+the explicit `none` authentication mode for LM Studio CLI deployments that do
+not support tokens. Keep administrative maxima and fixed safety limits as
+code-owned protected constants. Never place a credential in editable JSON or in
+a resolved snapshot.
 
 Use one strict `schema_version: 1` JSON shape for global and project
 preferences. Store the global file in the operating system's standard
@@ -26,9 +28,9 @@ inside a validated canonical project root. Resolve editable fields as project,
 global, then built-in, while protected policy always wins.
 
 Represent revisions as a SHA-256 digest of normalized effective public values
-and their origins. Exclude the Bearer token, but expose that Bearer
-authentication is configured. Freeze the resolved object recursively before it
-can be retained by a task.
+and their origins. Exclude the Bearer token, but expose `authentication` as
+`bearer` or `none` and whether a token is configured. Freeze the resolved object
+recursively before it can be retained by a task.
 
 ## Consequences
 
@@ -42,8 +44,8 @@ can be retained by a task.
 
 ### Negative
 
-- Launchers must provide three environment variables before configuration can
-  resolve.
+- Launchers must provide the URL and allowlist; authenticated deployments also
+  provide the optional token.
 - The default model must be repeated in a preference file instead of guessed.
 - Rotating only the token does not create a new public configuration revision.
 - Schema evolution requires an explicit new version and migration decision.

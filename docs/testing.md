@@ -1,6 +1,6 @@
 # Testing strategy
 
-**Status:** Target product strategy; foundation through repository exploration suites implemented
+**Status:** Implemented automated strategy; external release scenarios pending
 **Last reviewed:** 2026-08-02
 
 ## Goals
@@ -64,9 +64,10 @@ the default concurrency of two is global, the third task queues, queue and
 processing timeouts differ, cancellation releases capacity, and abandoned
 owners do not permanently consume a slot.
 
-Installation, startup, and configuration-reading smoke tests are required on
-macOS, Linux, and Windows. Full release-candidate validation of both Claude Code
-and Codex is required on macOS for V1.
+Installation, startup, and configuration-reading smoke tests run on macOS,
+Linux, and Windows through `.github/workflows/validate.yml`. Full
+release-candidate validation of both Claude Code and Codex remains a manual
+macOS release gate for V1.
 
 ### Release-candidate validation
 
@@ -110,7 +111,7 @@ CA-33 through CA-45. Include both expected attacks and malformed inputs:
 
 ## Validation command
 
-The current foundation suite runs through `npm run validate` together with
+The complete automated suite runs through `npm run validate` together with
 formatting, linting, type checking, and the production build. It verifies that
 package/runtime versions remain aligned, the compiled CLI exists, normal startup
 does not write to stdout, version output uses stderr, and unknown options fail
@@ -156,13 +157,14 @@ minimization, changing fingerprints, untrusted prompt-injection labeling, and a
 real temporary Git repository exercised without a shell.
 
 The LM Studio suite runs only against ephemeral loopback fake servers. It
-captures authorization and request payloads; verifies model allowlisting and
+captures request payloads and verifies that authorization is sent only when a
+token is configured; verifies model allowlisting and
 catalog availability without fallback; checks JSON Schema, reasoning-disabled
 non-streaming requests and local output validation; bounds responses; rejects
 partial or model-mismatched output; exercises one transient retry and permanent
 non-retry; and proves cancellation/deadlines abort without an extra request.
 Health component tests cover invalid configuration, unreachable endpoints,
-authentication failure or non-enforcement, malformed catalogs, timeouts, and
+authentication absent by configuration, failure, or non-enforcement, malformed catalogs, timeouts, and
 default/per-allowed-model availability without a repository dependency. Real LM
 Studio compatibility probes are opt-in operational evidence, not part of
 `npm run validate`.

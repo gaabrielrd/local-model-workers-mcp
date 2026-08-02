@@ -25,7 +25,7 @@ Local Model Workers MCP
   |     |              |
   |     |              +-- local configuration and metadata-only logs
   |     +-- read-only, root-scoped repository access
-  +-- authenticated HTTP on a private LAN --> LM Studio
+  +-- HTTP on a trusted private LAN --> LM Studio
 ```
 
 The harness owns user interaction, approval, patch application, and command
@@ -47,7 +47,8 @@ direct filesystem access through this product.
    the repository access service.
 5. The context filter removes prohibited, ignored, binary, and out-of-root
    content before any network request.
-6. The LM Studio client requests an analysis from an authorized model.
+6. The LM Studio client requests an analysis from an allowlisted model, using
+   Bearer authentication when configured.
 7. The server validates cited paths and line references against the analyzed
    content and returns a uniform response.
 
@@ -143,8 +144,8 @@ see [configuration.md](configuration.md).
 ## Model inference and health
 
 `model-inference` owns all LM Studio wire shapes and exposes a transport-neutral
-port for model catalog checks, authentication enforcement, and structured
-inference. Its OpenAI-compatible adapter performs allowlist/catalog preflight,
+port for model catalog checks, optional authentication enforcement probes, and
+structured inference. Its OpenAI-compatible adapter performs allowlist/catalog preflight,
 non-streaming JSON Schema requests, bounded response reads, local schema
 validation, model identity verification, cancellation, deadlines, and one
 classified transient retry. The durable protocol choice is recorded in
@@ -152,8 +153,10 @@ classified transient retry. The durable protocol choice is recorded in
 
 `health` depends only on public configuration and model-inference contracts. It
 loads a repository-free runtime configuration and reports configuration,
-reachability, authentication enforcement, default-model availability, and each
-allowed model. It never performs inference or receives a repository service.
+reachability, authentication mode, default-model availability, and each allowed
+model. Bearer enforcement is checked only when a token is configured; otherwise
+authentication is healthy with `not_configured`. Health never performs
+inference or receives a repository service.
 
 ## Cross-process coordination
 
@@ -188,15 +191,12 @@ contracts.
 
 ## Known limitations
 
-- The TypeScript/Node.js foundation, core contracts, and transport-neutral
-  configuration feature plus the repository path sandbox exist; no MCP tool is
-  registered yet.
-- Repository exploration now composes path security, filtering, inference,
-  lifecycle, capacity, and evidence verification; test-proposal orchestration
-  remains planned.
-- Configuration update serialization is process-local; cross-process
-  coordination and release portability validation remain planned.
-- The LM Studio inference and health boundary exists, but MCP registration
-  remains planned.
+- The V1 six-tool server, bounded use cases, logging, configuration, installation
+  adapters, and release candidate are implemented.
+- Project configuration writes are serialized within one MCP process; task
+  capacity is coordinated across processes through application-owned state.
 - Linux and Windows receive basic automated coverage only in V1; complete
   harness validation is limited to macOS.
+- Publication remains gated on real Claude Code/Codex scenarios
+  and completed remote portability jobs; see
+  [release-qualification.md](release-qualification.md).

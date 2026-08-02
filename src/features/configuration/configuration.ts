@@ -122,8 +122,8 @@ export interface EffectiveConfiguration {
   readonly revision: `sha256:${string}`;
   readonly lm_studio: {
     readonly base_url: string;
-    readonly authentication: "bearer";
-    readonly token_configured: true;
+    readonly authentication: "bearer" | "none";
+    readonly token_configured: boolean;
     readonly allowed_models: readonly string[];
     readonly default_model: string;
   };
@@ -135,7 +135,7 @@ export interface EffectiveConfiguration {
 
 export interface EffectiveConfigurationView extends EffectiveConfiguration {
   readonly lm_studio: EffectiveConfiguration["lm_studio"] & {
-    readonly bearer_token: typeof REDACTED_CONFIGURATION_VALUE;
+    readonly bearer_token: typeof REDACTED_CONFIGURATION_VALUE | null;
   };
 }
 
@@ -250,8 +250,10 @@ export async function getEffectiveConfiguration(
     schema_version: CONFIGURATION_SCHEMA_VERSION,
     lm_studio: {
       base_url: protectedSettings.baseUrl,
-      authentication: "bearer" as const,
-      token_configured: true as const,
+      authentication: protectedSettings.tokenConfigured
+        ? ("bearer" as const)
+        : ("none" as const),
+      token_configured: protectedSettings.tokenConfigured,
       allowed_models: protectedSettings.allowedModels,
       default_model: defaultModel.value,
     },
@@ -281,7 +283,9 @@ export async function getConfig(
     ...configuration,
     lm_studio: {
       ...configuration.lm_studio,
-      bearer_token: REDACTED_CONFIGURATION_VALUE,
+      bearer_token: configuration.lm_studio.token_configured
+        ? REDACTED_CONFIGURATION_VALUE
+        : null,
     },
   });
 }
@@ -376,15 +380,19 @@ async function readRequiredPreferences(
 
 function parseProtectedSettings(
   environment: Readonly<Record<string, string | undefined>>,
-): { readonly baseUrl: string; readonly allowedModels: readonly string[] } {
+): {
+  readonly baseUrl: string;
+  readonly tokenConfigured: boolean;
+  readonly allowedModels: readonly string[];
+} {
   const rawBaseUrl = requiredEnvironmentValue(
     environment,
     CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBaseUrl,
   );
-  requiredEnvironmentValue(
-    environment,
-    CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken,
-  );
+  const bearerToken =
+    environment[
+      CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken
+    ]?.trim();
   const rawAllowedModels = requiredEnvironmentValue(
     environment,
     CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels,
@@ -419,6 +427,7 @@ function parseProtectedSettings(
 
   return {
     baseUrl: baseUrl.toString().replace(/\/$/, ""),
+    tokenConfigured: bearerToken !== undefined && bearerToken.length > 0,
     allowedModels: [...allowedModels].sort(),
   };
 }

@@ -1,6 +1,6 @@
 # Task 015: Qualify and release V1
 
-**Status:** Pending  
+**Status:** Automated qualification implemented; external gates blocked
 **Depends on:** Tasks 001-014  
 **PRD coverage:** Final audit of RF-01 through RF-29 and CA-01 through CA-52
 
@@ -99,3 +99,12 @@ qualification. Failures return to the owning task.
   limitations, and recovery steps.
 - Final `npm run validate` and release review pass.
 
+## Current gate status
+
+Local validation, reproducible installed-package smoke, official fixture
+baselines, dependency audit, release measurement tooling, and the three-OS CI
+workflow are implemented. Publication remains blocked until real Claude Code
+and Codex scenarios produce passing CA-47 through CA-51 evidence and the remote
+Linux/Windows jobs prove CA-52. The current LM Studio CLI's explicit
+unauthenticated mode is supported on a trusted private LAN.
+See [release-qualification.md](../release-qualification.md).

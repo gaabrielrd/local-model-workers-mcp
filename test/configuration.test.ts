@@ -43,6 +43,28 @@ void test("loads built-in defaults and returns a redacted effective view", async
   assert.match(snapshot.revision, /^sha256:[a-f0-9]{64}$/);
 });
 
+void test("supports LM Studio without optional Bearer authentication", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+  });
+  const environment = {
+    ...protectedEnvironment,
+    LMW_LM_STUDIO_BEARER_TOKEN: "   ",
+  };
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+  const view = await getConfig({ ...fixture.input(), environment });
+
+  assert.equal(snapshot.lm_studio.authentication, "none");
+  assert.equal(snapshot.lm_studio.token_configured, false);
+  assert.equal(view.lm_studio.bearer_token, null);
+});
+
 void test("applies project over global over built-in precedence with field origins", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({
@@ -148,7 +170,6 @@ void test("requires valid protected settings and never repeats their raw values"
   const invalidEnvironments: readonly Record<string, string | undefined>[] = [
     { ...protectedEnvironment, LMW_LM_STUDIO_BASE_URL: undefined },
     { ...protectedEnvironment, LMW_LM_STUDIO_BASE_URL: "file:///tmp/model" },
-    { ...protectedEnvironment, LMW_LM_STUDIO_BEARER_TOKEN: "" },
     { ...protectedEnvironment, LMW_ALLOWED_MODELS: "not-json" },
     {
       ...protectedEnvironment,
@@ -237,6 +258,14 @@ void test("produces deterministic secret-independent revisions", async (t) => {
 
   assert.equal(first.revision, second.revision);
   assert.equal(first.revision, rotatedToken.revision);
+  const withoutToken = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment: {
+      ...protectedEnvironment,
+      LMW_LM_STUDIO_BEARER_TOKEN: undefined,
+    },
+  });
+  assert.notEqual(first.revision, withoutToken.revision);
   assert.equal(first.revision.includes("super-secret-token"), false);
 });
 

@@ -11,8 +11,10 @@ local MCP server is responsible for enforcing policy before content crosses the
 network and before remote output is presented as applicable.
 
 The product does not make an untrusted network safe. Plain HTTP is supported
-only on a private, trusted local network and must use Bearer authentication. It
-is not supported over the public internet or a public network.
+only on a private, trusted local network. Bearer authentication is used when the
+LM Studio deployment supports it; `lms` deployments without token support use
+an explicit unauthenticated mode. Neither mode is supported over the public
+internet or a public network.
 
 ## Repository access
 
@@ -78,17 +80,18 @@ errors, HTTP errors, and logs must redact protected values. `update_config`
 cannot alter protected settings and requires both explicit confirmation and a
 matching revision.
 
-The protected process environment uses `LMW_LM_STUDIO_BASE_URL`,
-`LMW_LM_STUDIO_BEARER_TOKEN`, and `LMW_ALLOWED_MODELS`. The placeholder-only
-`.env.example` documents their shape; the application does not load `.env`
-files. Editable global and project JSON cannot contain credentials or protected
-policy fields.
+The protected process environment requires `LMW_LM_STUDIO_BASE_URL` and
+`LMW_ALLOWED_MODELS`; `LMW_LM_STUDIO_BEARER_TOKEN` is optional. The
+placeholder-only `.env.example` documents their shape; the application does not
+load `.env` files. Editable global and project JSON cannot contain credentials
+or protected policy fields.
 
-Resolved snapshots never retain the token. They expose only that Bearer
-authentication is configured, while public configuration views show the fixed
-`[REDACTED]` placeholder. Configuration revisions hash public effective values
-and origins, not secret material. Validation diagnostics are constructed from
-fixed messages and never echo rejected raw values.
+Resolved snapshots never retain the token. They expose `authentication` as
+`bearer` or `none` and `token_configured` as a boolean. Public views show
+`[REDACTED]` only in Bearer mode and `null` otherwise. Configuration revisions
+hash public effective values and origins, not secret material. Validation
+diagnostics are constructed from fixed messages and never echo rejected raw
+values.
 
 Project mutation accepts only a strict allowlist of editable preference fields.
 Confirmation is bound to the normalized proposal and expected revision through
@@ -97,12 +100,13 @@ mismatched approval, and atomic-write failures perform no target write. The
 same-directory temporary file uses mode `0600`, is flushed before rename, and
 is removed by its exact generated path on failure.
 
-The LM Studio adapter places the token only in the `Authorization` header and
-constructs all returned errors from fixed messages without upstream bodies,
-URLs, headers, prompts, or responses. Health proves authentication enforcement
-with a deliberately invalid credential; accepting it is unhealthy even if the
-configured credential also succeeds. Inference verifies protected allowlisting,
-catalog presence, and response model identity without fallback.
+The LM Studio adapter places a configured token only in the `Authorization`
+header and omits that header entirely in `none` mode. It constructs all returned
+errors from fixed messages without upstream bodies, URLs, headers, prompts, or
+responses. Health probes enforcement with a deliberately invalid credential
+only in Bearer mode; `none` is reported as healthy `not_configured` after
+successful reachability. Inference verifies protected allowlisting, catalog
+presence, and response model identity without fallback.
 
 ## Data lifetime and logs
 

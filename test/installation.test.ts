@@ -1,0 +1,315 @@
+import assert from "node:assert/strict";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import {
+  applyGlobalPreferences,
+  applyHarnessConfiguration,
+  proposeGlobalPreferences,
+  proposeHarnessConfigurations,
+  runInstallationCommand,
+} from "../src/features/installation/index.js";
+
+const protectedEnvironment = {
+  LMW_ALLOWED_MODELS: '["qwen/qwen3.5-9b","google/gemma-4-12b-qat"]',
+  LMW_LM_STUDIO_BASE_URL: "http://pc-gabriel.local:1234/v1",
+  LMW_LM_STUDIO_BEARER_TOKEN: "fixture-secret-never-print",
+};
+
+void test("proposes cancellation or both harnesses without writing", async (t) => {
+  const fixture = await createFixture(t);
+  assert.deepEqual(
+    await proposeHarnessConfigurations({
+      selection: "cancel",
+      projectRoot: fixture.project,
+      homeDirectory: fixture.home,
+    }),
+    [],
+  );
+
+  const proposals = await proposeHarnessConfigurations({
+    selection: "both",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(
+    proposals.map((proposal) => [proposal.harness, proposal.state]),
+    [
+      ["claude-code", "fresh"],
+      ["codex", "fresh"],
+    ],
+  );
+  await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
+  await assert.rejects(
+    access(path.join(fixture.home, ".codex", "config.toml")),
+  );
+});
+
+void test("requires exact confirmation and writes secret-safe harness files", async (t) => {
+  const fixture = await createFixture(t);
+  const proposals = await proposeHarnessConfigurations({
+    selection: "both",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  const first = proposals[0];
+  assert.ok(first);
+  await assert.rejects(
+    applyHarnessConfiguration({ proposal: first }),
+    /Explicit confirmation/,
+  );
+
+  for (const proposal of proposals) {
+    const result = await applyHarnessConfiguration({
+      proposal,
+      confirmation: { approved: true, proposal_id: proposal.proposal_id },
+    });
+    assert.equal(result.outcome, "written");
+  }
+
+  const claudePath = path.join(fixture.project, ".mcp.json");
+  const codexPath = path.join(fixture.home, ".codex", "config.toml");
+  const claude = await readFile(claudePath, "utf8");
+  const codex = await readFile(codexPath, "utf8");
+  assert.match(claude, /\$\{LMW_LM_STUDIO_BEARER_TOKEN:-\}/);
+  assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  assert.equal(
+    `${claude}${codex}`.includes(
+      protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN,
+    ),
+    false,
+  );
+  if (process.platform !== "win32") {
+    assert.equal((await stat(claudePath)).mode & 0o777, 0o600);
+    assert.equal((await stat(codexPath)).mode & 0o777, 0o600);
+  }
+
+  const identical = await proposeHarnessConfigurations({
+    selection: "both",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(
+    identical.map((proposal) => proposal.state),
+    ["identical", "identical"],
+  );
+});
+
+void test("preserves unrelated compatible Claude and Codex configuration", async (t) => {
+  const fixture = await createFixture(t);
+  await writeFile(
+    path.join(fixture.project, ".mcp.json"),
+    JSON.stringify({
+      projectSetting: true,
+      mcpServers: { other: { command: "other" } },
+    }),
+  );
+  await mkdir(path.join(fixture.home, ".codex"), { recursive: true });
+  await writeFile(
+    path.join(fixture.home, ".codex", "config.toml"),
+    'model = "approved-model"\n\n[mcp_servers.other]\ncommand = "other"\n',
+  );
+  const proposals = await proposeHarnessConfigurations({
+    selection: "both",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(
+    proposals.map((proposal) => proposal.state),
+    ["compatible", "compatible"],
+  );
+  for (const proposal of proposals) {
+    await applyHarnessConfiguration({
+      proposal,
+      confirmation: { approved: true, proposal_id: proposal.proposal_id },
+    });
+  }
+  const claude = JSON.parse(
+    await readFile(path.join(fixture.project, ".mcp.json"), "utf8"),
+  ) as {
+    projectSetting: boolean;
+    mcpServers: Record<string, unknown>;
+  };
+  assert.equal(claude.projectSetting, true);
+  assert.ok(claude.mcpServers.other);
+  const codex = await readFile(
+    path.join(fixture.home, ".codex", "config.toml"),
+    "utf8",
+  );
+  assert.match(codex, /model = "approved-model"/);
+  assert.match(codex, /\[mcp_servers\.other\]/);
+});
+
+void test("redacts conflicting content and rejects malformed or stale harness files", async (t) => {
+  const fixture = await createFixture(t);
+  const secretMarker = "existing-harness-secret-marker";
+  const claudePath = path.join(fixture.project, ".mcp.json");
+  await writeFile(
+    claudePath,
+    JSON.stringify({
+      mcpServers: {
+        "local-model-workers": { command: "old", env: { TOKEN: secretMarker } },
+      },
+    }),
+  );
+  const [conflict] = await proposeHarnessConfigurations({
+    selection: "claude-code",
+    projectRoot: fixture.project,
+  });
+  assert.ok(conflict);
+  assert.equal(conflict.state, "conflicting");
+  assert.equal(JSON.stringify(conflict).includes(secretMarker), false);
+  const before = await readFile(claudePath, "utf8");
+  await assert.rejects(
+    applyHarnessConfiguration({ proposal: conflict }),
+    /confirmation/,
+  );
+  assert.equal(await readFile(claudePath, "utf8"), before);
+
+  await writeFile(claudePath, '{"changed":true}\n');
+  await assert.rejects(
+    applyHarnessConfiguration({
+      proposal: conflict,
+      confirmation: { approved: true, proposal_id: conflict.proposal_id },
+    }),
+    /changed after the proposal/,
+  );
+
+  await mkdir(path.join(fixture.home, ".codex"), { recursive: true });
+  await writeFile(
+    path.join(fixture.home, ".codex", "config.toml"),
+    "# local-model-workers-mcp:start\nmissing end marker\n",
+  );
+  const [malformed] = await proposeHarnessConfigurations({
+    selection: "codex",
+    homeDirectory: fixture.home,
+  });
+  assert.ok(malformed);
+  assert.equal(malformed.state, "malformed");
+  assert.equal(malformed.applicable, false);
+});
+
+void test("validates, confirms, and atomically writes global preferences", async (t) => {
+  const fixture = await createFixture(t);
+  const proposal = await proposeGlobalPreferences({
+    preferences: {
+      schema_version: 1,
+      default_model: "qwen/qwen3.5-9b",
+      limits: { max_concurrency: 2 },
+    },
+    environment: protectedEnvironment,
+    platform: "linux",
+    homeDirectory: fixture.home,
+  });
+  assert.equal(proposal.state, "fresh");
+  await assert.rejects(
+    applyGlobalPreferences({
+      proposal,
+      environment: protectedEnvironment,
+      platform: "linux",
+      homeDirectory: fixture.home,
+    }),
+    /confirmation/,
+  );
+  const result = await applyGlobalPreferences({
+    proposal,
+    confirmation: { approved: true, proposal_id: proposal.proposal_id },
+    environment: protectedEnvironment,
+    platform: "linux",
+    homeDirectory: fixture.home,
+  });
+  assert.equal(result.outcome, "written");
+  const contents = await readFile(result.target_path, "utf8");
+  assert.equal(
+    contents.includes(protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN),
+    false,
+  );
+
+  const merged = await proposeGlobalPreferences({
+    preferences: {
+      schema_version: 1,
+      default_model: "google/gemma-4-12b-qat",
+    },
+    environment: protectedEnvironment,
+    platform: "linux",
+    homeDirectory: fixture.home,
+  });
+  assert.deepEqual(merged.preferences.limits, { max_concurrency: 2 });
+
+  await assert.rejects(
+    proposeGlobalPreferences({
+      preferences: { schema_version: 1, bearer_token: "forbidden" },
+      environment: protectedEnvironment,
+      platform: "linux",
+      homeDirectory: fixture.home,
+    }),
+    /strict editable schema/,
+  );
+  await assert.rejects(
+    proposeGlobalPreferences({
+      preferences: { schema_version: 1, default_model: "not/allowed" },
+      environment: protectedEnvironment,
+      platform: "linux",
+      homeDirectory: fixture.home,
+    }),
+    /not allowed/,
+  );
+});
+
+void test("CLI dry-run and unconfirmed flows make no changes or leak credentials", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+  assert.equal(
+    await runInstallationCommand(
+      ["configure-harness", "--target", "both", "--dry-run"],
+      io,
+    ),
+    0,
+  );
+  assert.equal(
+    await runInstallationCommand(
+      ["configure-global", "--default-model", "qwen/qwen3.5-9b"],
+      io,
+    ),
+    77,
+  );
+  await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
+  await assert.rejects(
+    access(path.join(fixture.home, ".codex", "config.toml")),
+  );
+  assert.equal(
+    output.join("").includes(protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN),
+    false,
+  );
+});
+
+async function createFixture(
+  t: test.TestContext,
+): Promise<{ home: string; project: string }> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "lmw-installation-"));
+  const home = path.join(root, "home");
+  const project = path.join(root, "project");
+  await mkdir(home, { recursive: true });
+  await mkdir(project, { recursive: true });
+  t.after(async () => rm(root, { recursive: true, force: true }));
+  return { home, project };
+}

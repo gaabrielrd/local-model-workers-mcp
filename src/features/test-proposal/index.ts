@@ -12,3 +12,9 @@ export {
   detectTestInfrastructure,
   type TestInfrastructure,
 } from "./infrastructure.js";
+export {
+  TestProposalResultSchema,
+  proposeTests,
+  type ProposeTestsInput,
+  type TestProposalResult,
+} from "./proposal.js";

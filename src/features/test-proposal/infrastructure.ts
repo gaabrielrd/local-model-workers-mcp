@@ -11,7 +11,9 @@ export async function detectTestInfrastructure(
   repository: RepositoryReadCapability,
 ): Promise<readonly TestInfrastructure[]> {
   const listing = await repository.listDirectory({ max_entries: 500 });
-  const paths = new Set(listing.entries.map((entry) => entry.path.toLowerCase()));
+  const paths = new Set(
+    listing.entries.map((entry) => entry.path.toLowerCase()),
+  );
   const testDirectories = listing.entries
     .filter(
       (entry) =>
@@ -28,7 +30,10 @@ export async function detectTestInfrastructure(
     "jest.config.ts",
     "jest.config.js",
   ].filter((candidate) => paths.has(candidate));
-  if (paths.has("package.json") && (testDirectories.length > 0 || tsConfigs.length > 0)) {
+  if (
+    paths.has("package.json") &&
+    (testDirectories.length > 0 || tsConfigs.length > 0)
+  ) {
     detected.push({
       kind: "typescript",
       config_files: ["package.json", ...tsConfigs],
@@ -36,9 +41,12 @@ export async function detectTestInfrastructure(
       suggested_commands: ["npm test"],
     });
   }
-  const pythonConfigs = ["pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini"].filter(
-    (candidate) => paths.has(candidate),
-  );
+  const pythonConfigs = [
+    "pyproject.toml",
+    "pytest.ini",
+    "setup.cfg",
+    "tox.ini",
+  ].filter((candidate) => paths.has(candidate));
   if (pythonConfigs.length > 0 && testDirectories.length > 0) {
     detected.push({
       kind: "python",

@@ -14,6 +14,7 @@ import {
   createDiagnosticTaskResponse,
   type Diagnostic,
   type Evidence,
+  type ErrorCode,
   type Limitation,
   type NonCompletedStatus,
   type ProgressStage,
@@ -92,6 +93,17 @@ export interface CreateTaskRuntimeOptions<Output> {
   readonly clock?: TaskClock;
   readonly createTaskId?: () => string;
   readonly onProgress?: (event: TaskProgressEvent) => void;
+  readonly onTerminal?: (event: TaskTerminalMetadata) => void | Promise<void>;
+}
+
+export interface TaskTerminalMetadata {
+  readonly task_id: string;
+  readonly started_at_ms: number;
+  readonly ended_at_ms: number;
+  readonly duration_ms: number;
+  readonly model: string;
+  readonly status: TerminalStatus;
+  readonly error_code: ErrorCode | null;
 }
 
 export interface TaskRuntime<Output> {
@@ -142,6 +154,7 @@ export function createTaskRuntime<Output>(
     throw new TaskLifecycleError("The task identifier must be non-empty.");
   }
   const clock = options.clock ?? nodeClock;
+  const taskStartedAt = clock.now();
   const content = createContentScope(options.goal);
   const cancellation = new AbortController();
   let currentState: "queued" | "processing" | TerminalStatus = "queued";
@@ -196,7 +209,7 @@ export function createTaskRuntime<Output>(
     currentState = response.status;
     cancellation.abort();
     content.close();
-    runPromise = Promise.resolve(response);
+    runPromise = observeTerminal(response);
     return runPromise;
   }
 
@@ -311,6 +324,7 @@ export function createTaskRuntime<Output>(
         );
       }
       currentState = response.status;
+      await notifyTerminal(response);
       return response;
     } finally {
       clock.clearTimeout(timer);
@@ -319,6 +333,31 @@ export function createTaskRuntime<Output>(
       processingTimeout.abort();
       cancellation.abort();
       content.close();
+    }
+  }
+
+  async function observeTerminal(
+    response: TaskResponse<Output>,
+  ): Promise<TaskResponse<Output>> {
+    await notifyTerminal(response);
+    return response;
+  }
+
+  async function notifyTerminal(response: TaskResponse<Output>): Promise<void> {
+    const endedAt = clock.now();
+    try {
+      await options.onTerminal?.({
+        task_id: taskId,
+        started_at_ms: taskStartedAt,
+        ended_at_ms: endedAt,
+        duration_ms: Math.max(0, endedAt - taskStartedAt),
+        model,
+        status: response.status,
+        error_code:
+          response.status === "completed" ? null : response.diagnostic.code,
+      });
+    } catch {
+      // Operational observers cannot change task results.
     }
   }
 

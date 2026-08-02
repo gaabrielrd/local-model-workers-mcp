@@ -1,6 +1,6 @@
 # V1 implementation plan
 
-**Status:** Approved product scope; Tasks 001-010 implemented
+**Status:** Approved product scope; Tasks 001-014 implemented
 **Source:** [PRD](../../prd.md)  
 **Last reviewed:** 2026-08-02
 
@@ -25,8 +25,8 @@ The implementation must:
   operations;
 - prevent sensitive, ignored, binary, excluded, or out-of-root content from
   reaching LM Studio;
-- use authenticated HTTP to an allowlisted LM Studio model on a trusted private
-  network;
+- use HTTP with optional Bearer authentication to an allowlisted LM Studio model
+  on a trusted private network;
 - isolate tasks and enforce context, exploration, patch, queue, processing,
   cancellation, retry, and global concurrency limits;
 - return verified evidence for exploration and a validated test-only unified

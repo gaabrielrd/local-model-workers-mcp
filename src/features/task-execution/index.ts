@@ -62,5 +62,6 @@ export {
   type TaskInferenceRequest,
   type TaskProgressEvent,
   type TaskRuntime,
+  type TaskTerminalMetadata,
   type TaskWorkOutcome,
 } from "./runtime.js";

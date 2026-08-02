@@ -10,6 +10,7 @@ export type HealthCheckStatus = "healthy" | "unhealthy" | "not_checked";
 
 export type HealthDiagnosticCode =
   | "ok"
+  | "not_configured"
   | "invalid_configuration"
   | "endpoint_unreachable"
   | "authentication_failed"
@@ -41,7 +42,7 @@ export interface HealthResult {
 
 export interface HealthRuntimeConfiguration {
   readonly effective: EffectiveConfiguration;
-  readonly bearer_token: string;
+  readonly bearer_token?: string;
 }
 
 export interface CheckHealthInput {
@@ -75,7 +76,9 @@ export async function checkHealth(
   try {
     client = clientFactory({
       baseUrl: runtime.effective.lm_studio.base_url,
-      bearerToken: runtime.bearer_token,
+      ...(runtime.bearer_token === undefined
+        ? {}
+        : { bearerToken: runtime.bearer_token }),
       allowedModels: runtime.effective.lm_studio.allowed_models,
       retryCount: runtime.effective.fixed_limits.inference_retry_count,
     });
@@ -96,12 +99,16 @@ export async function checkHealth(
   }
 
   let authentication: HealthCheck;
-  try {
-    authentication = (await client.isAuthenticationEnforced(requestOptions))
-      ? HEALTHY
-      : { status: "unhealthy", code: "authentication_not_enforced" };
-  } catch (error: unknown) {
-    authentication = authenticationFailure(error);
+  if (runtime.effective.lm_studio.authentication === "none") {
+    authentication = { status: "healthy", code: "not_configured" };
+  } else {
+    try {
+      authentication = (await client.isAuthenticationEnforced(requestOptions))
+        ? HEALTHY
+        : { status: "unhealthy", code: "authentication_not_enforced" };
+    } catch (error: unknown) {
+      authentication = authenticationFailure(error);
+    }
   }
 
   const availableModels = new Set(models);

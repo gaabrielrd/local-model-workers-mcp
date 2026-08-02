@@ -1,6 +1,6 @@
 # External integrations
 
-**Status:** LM Studio and Git adapters implemented; remaining integrations are contract outlines
+**Status:** LM Studio, Git, Claude Code, and Codex adapters implemented
 **Last reviewed:** 2026-08-02
 
 ## Claude Code and Codex
@@ -19,9 +19,44 @@ The server must keep stdout reserved for MCP protocol messages. Operational
 diagnostics use a protocol-safe channel and must never contain protected or
 repository content.
 
-Concrete Claude Code and Codex configuration snippets will be added only after
-an executable command and package entry point exist. Existing harness
-configuration must never be overwritten without confirmation.
+The executable and confirmed configuration assistant are implemented. Claude
+Code 2.1.204 uses a project `.mcp.json` entry:
+
+```json
+{
+  "mcpServers": {
+    "local-model-workers": {
+      "command": "local-model-workers-mcp",
+      "args": [],
+      "env": {
+        "LMW_LM_STUDIO_BASE_URL": "${LMW_LM_STUDIO_BASE_URL}",
+        "LMW_LM_STUDIO_BEARER_TOKEN": "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
+        "LMW_ALLOWED_MODELS": "${LMW_ALLOWED_MODELS}"
+      }
+    }
+  }
+}
+```
+
+Codex CLI 0.145.0 uses a user `~/.codex/config.toml` table and inherits named
+variables from its process:
+
+```toml
+# local-model-workers-mcp:start
+[mcp_servers.local-model-workers]
+command = "local-model-workers-mcp"
+args = []
+env_vars = ["LMW_LM_STUDIO_BASE_URL", "LMW_LM_STUDIO_BEARER_TOKEN", "LMW_ALLOWED_MODELS"]
+# local-model-workers-mcp:end
+```
+
+Run `local-model-workers-mcp configure-harness --target both --project-root
+"$PWD" --dry-run`, review the managed-field proposal, then repeat with `--yes`.
+The adapters preserve unrelated configuration, reject ambiguous formats, and
+never print existing entries or protected values. Installation, global
+preferences, recovery, and exact commands are documented in
+[installation.md](installation.md). Full real-harness V1 qualification remains
+part of Task 015.
 
 ## LM Studio
 
@@ -30,7 +65,7 @@ OpenAI-compatible REST surface:
 
 - `GET /v1/models` for the visible model catalog;
 - `POST /v1/chat/completions` for non-streaming structured inference;
-- `Authorization: Bearer <token>` on every request.
+- optional `Authorization: Bearer <token>` when a token is configured.
 
 The base URL therefore ends in `/v1`, for example
 `http://model-host.local:1234/v1`. It cannot contain credentials, a query, or a
@@ -55,11 +90,11 @@ inference gets at most the configured single retry. Authentication, policy,
 schema, size, partial-output, and other permanent failures are not retried.
 
 `check_health` is repository-free. It reports configuration, reachability,
-authentication, the default model, and every allowed model independently. In
-addition to a request with the configured credential, it sends a catalog
-request with a deliberately invalid token. If that token succeeds,
-authentication is classified as `authentication_not_enforced` and overall
-health is unhealthy.
+authentication mode, the default model, and every allowed model independently.
+Without a token, successful reachability reports healthy `not_configured` and
+no `Authorization` header is sent. With a configured token, health also sends a
+catalog request with a deliberately invalid token. If that token succeeds,
+authentication is `authentication_not_enforced` and overall health is unhealthy.
 
 ### Controlled compatibility probes
 
@@ -78,10 +113,11 @@ requests therefore disable reasoning explicitly. Tool calling is compatible
 but is not exposed by this V1 adapter because the approved product uses locally
 validated structured results rather than remote tools.
 
-The tested instance returned HTTP 200 for a deliberately invalid Bearer token,
-which means server authentication was disabled at test time. This is not a
-supported healthy deployment: enable LM Studio authentication before relying
-on `check_health` or sending repository context.
+The tested `lms` instance returned HTTP 200 for a deliberately invalid Bearer
+token, which means authentication was unavailable. It is supported in explicit
+`none` mode: leave `LMW_LM_STUDIO_BEARER_TOKEN` unset. Supplying a token to such
+an endpoint intentionally remains unhealthy because the requested protection is
+not enforced.
 
 HTTP is supported only on a trusted private local network. HTTPS may be used
 when the environment provides it, but proxy and certificate management are not
@@ -106,8 +142,9 @@ symlink checks occur before access; permission failures never trigger an attempt
 to expand process privileges.
 
 Project preference updates are atomic and revision-controlled. Configuration
-locations are defined in [configuration.md](configuration.md); operational log
-locations remain pending Task 012.
+locations are defined in [configuration.md](configuration.md). Operational log
+locations and retention are defined in
+[operational-logging.md](operational-logging.md).
 
 Global capacity metadata lives in a `coordination` directory beside the global
 preference file. Its only durable file is `capacity-state.json`; a
@@ -116,6 +153,12 @@ transactions. Files use owner-only modes where supported. A process crash needs
 no manual cleanup: the next waiter removes dead owners, and a dead transaction
 lock is eligible after ten seconds. Do not place this directory on a network
 filesystem, and do not delete it while MCP processes are active.
+
+Operational logs use `~/Library/Logs/local-model-workers-mcp` on macOS,
+`${XDG_STATE_HOME:-~/.local/state}/local-model-workers-mcp/logs` on Linux, and
+`%LOCALAPPDATA%\\local-model-workers-mcp\\logs` on Windows. Each terminal event
+is one owner-only JSON file. Cleanup examines only direct files matching the
+application-owned `event-<timestamp>-<id>.json` pattern.
 
 ## Project test infrastructure
 

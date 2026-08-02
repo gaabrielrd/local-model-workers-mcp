@@ -63,7 +63,7 @@ const ChatResponseSchema = z
 
 export interface LmStudioClientOptions {
   readonly baseUrl: string;
-  readonly bearerToken: string;
+  readonly bearerToken?: string;
   readonly allowedModels: readonly string[];
   readonly retryCount?: number;
   readonly maxResponseBytes?: number;
@@ -108,7 +108,7 @@ export function createLmStudioClient(
 
 interface ValidatedOptions {
   readonly baseUrl: URL;
-  readonly bearerToken: string;
+  readonly bearerToken?: string;
   readonly allowedModels: ReadonlySet<string>;
   readonly retryCount: number;
   readonly maxResponseBytes: number;
@@ -133,9 +133,7 @@ function validateOptions(options: LmStudioClientOptions): ValidatedOptions {
       "The LM Studio base URL must use HTTP(S) without embedded credentials.",
     );
   }
-  if (options.bearerToken.trim().length === 0) {
-    throw invalidConfiguration("The LM Studio Bearer token is required.");
-  }
+  const bearerToken = options.bearerToken?.trim();
   if (
     options.allowedModels.length === 0 ||
     options.allowedModels.some((model) => model.trim().length === 0)
@@ -154,7 +152,9 @@ function validateOptions(options: LmStudioClientOptions): ValidatedOptions {
 
   return {
     baseUrl,
-    bearerToken: options.bearerToken,
+    ...(bearerToken === undefined || bearerToken.length === 0
+      ? {}
+      : { bearerToken }),
     allowedModels: new Set(options.allowedModels),
     retryCount,
     maxResponseBytes,
@@ -165,7 +165,7 @@ function validateOptions(options: LmStudioClientOptions): ValidatedOptions {
 async function listModels(
   options: ValidatedOptions,
   requestOptions: RequestOptions,
-  token: string,
+  token: string | undefined,
 ): Promise<ModelCatalog> {
   const context = requestContext(requestOptions);
   const payload = await requestJson(
@@ -336,7 +336,7 @@ async function requestJson(
   options: ValidatedOptions,
   url: URL,
   init: RequestInit,
-  token: string,
+  token: string | undefined,
   context: RequestContext,
 ): Promise<unknown> {
   const requestSignal = deadlineSignal(context);
@@ -346,7 +346,7 @@ async function requestJson(
       ...init,
       headers: {
         ...init.headers,
-        authorization: `Bearer ${token}`,
+        ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
       },
       signal: requestSignal.signal,
     });

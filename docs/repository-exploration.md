@@ -65,5 +65,5 @@ status, field names, and diagnostic codes remain English.
   but their content is never sent.
 - The V1 protocol uses structured decisions rather than remote executable tool
   calls, even when the selected model advertises tool-use capability.
-- Release-candidate Python and TypeScript evidence-quality metrics remain Task
-  015 work.
+- Release-candidate Python and TypeScript fixtures and strict metric tooling are
+  present; real-harness results remain a publication gate.

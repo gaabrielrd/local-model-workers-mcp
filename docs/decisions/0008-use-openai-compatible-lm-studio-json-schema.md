@@ -7,8 +7,9 @@
 ## Context
 
 LM Studio exposes both a native REST API and OpenAI-compatible endpoints. The
-application needs authenticated model discovery, strict structured results,
-bounded retries, cancellation, and model identity enforcement. Native chat has
+application needs model discovery with optional authentication, strict
+structured results, bounded retries, cancellation, and model identity
+enforcement. Native chat has
 useful stateful behavior, but the approved V1 does not need server-side chat
 state and benefits more from the compatible endpoint's JSON Schema contract.
 
@@ -24,8 +25,9 @@ therefore cannot be treated as proof that authentication is enforced.
 ## Decision
 
 Support LM Studio 0.4.0 or later and use `GET /v1/models` plus non-streaming
-`POST /v1/chat/completions`. Send Bearer authentication only in the
-`Authorization` header. Use strict `response_format: json_schema`, disable
+`POST /v1/chat/completions`. When a token is configured, send Bearer
+authentication only in the `Authorization` header; otherwise omit the header.
+Use strict `response_format: json_schema`, disable
 reasoning for structured operations, and validate the decoded result again
 against the caller's local Zod schema.
 
@@ -39,8 +41,9 @@ Retry only transient inference failures, once by default. Treat HTTP 408, 429,
 authentication, authorization, unavailable-model, invalid-output, partial, or
 oversized-response failures.
 
-Health checks call `/models` with both the configured credential and a fixed
-invalid credential. A successful invalid-credential request is
+Health reports unauthenticated mode as healthy `not_configured` after a
+successful catalog request. When a token is configured, health also calls
+`/models` with a fixed invalid credential; accepting it is
 `authentication_not_enforced` and makes health unhealthy. Health accepts no
 repository input or repository adapter.
 
@@ -52,14 +55,15 @@ repository input or repository adapter.
   validated independently of model compliance.
 - The server cannot silently substitute an unauthorized or different model.
 - Default reasoning cannot unexpectedly consume structured-output budgets.
-- Authentication-disabled LM Studio instances are visible instead of appearing
-  healthy merely because the endpoint responds.
+- Authentication mode is explicit and compatible with both `lms` and
+  token-enabled LM Studio deployments.
 - Non-streaming responses cannot expose partial model output as completed.
 
 ### Negative
 
 - Every inference performs a catalog preflight before generation.
-- Health performs an additional deliberately invalid authentication request.
+- Health performs an additional deliberately invalid authentication request
+  only when a token is configured.
 - Reasoning is unavailable for structured calls until a future use case defines
   an explicit budget and output policy for it.
 - LM Studio releases before 0.4.0 and APIs that omit OpenAI-compatible JSON

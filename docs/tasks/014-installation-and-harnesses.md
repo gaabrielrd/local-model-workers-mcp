@@ -1,6 +1,6 @@
 # Task 014: Package installation and harness configuration
 
-**Status:** Pending  
+**Status:** Implemented and validated
 **Depends on:** Tasks 003-004 and 013  
 **PRD coverage:** RF-28, RN-31; platform/distribution requirements; CA-01, CA-02, CA-46
 
@@ -34,6 +34,22 @@ configuration, and provides a local path for global preference changes.
 Pin the supported Claude Code and Codex configuration formats/versions from
 authoritative documentation. Decide install scope, executable invocation,
 configuration merge strategy, backup policy, and package release channel.
+
+## Resolved decisions
+
+- The package and executable are `local-model-workers-mcp`; V1 uses a local npm
+  tarball candidate until release qualification authorizes publication.
+- Node.js 24.18.x, npm 11.x, Claude Code 2.1.204, and Codex CLI 0.145.0 are the
+  pinned Task 014 baselines.
+- Claude Code uses project `.mcp.json`; Codex uses user
+  `~/.codex/config.toml`. Only one named managed entry is owned in each file.
+- Every non-identical write receives a bounded proposal and exact confirmation.
+  Unknown existing values are never included in output.
+- Writes are atomic per file. No automatic backup is created because it could
+  duplicate unknown credentials; secure manual/version-control recovery is
+  documented.
+- `configure-global` is the only local global-preference mutation path. MCP
+  `update_config` remains project-only.
 
 ## Non-scope
 
@@ -88,4 +104,3 @@ configuration, or silent migration of unknown formats.
   protected.
 - Installation and recovery instructions are complete.
 - `npm run validate` passes.
-

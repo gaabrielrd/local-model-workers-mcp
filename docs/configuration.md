@@ -1,6 +1,6 @@
 # Configuration model
 
-**Status:** Read-only effective configuration implemented
+**Status:** Effective configuration and confirmed local mutation implemented
 **Last reviewed:** 2026-08-02
 
 ## Authority and precedence
@@ -21,12 +21,12 @@ be set globally or by the project.
 
 ## Protected environment
 
-The server process requires all three variables:
+The server process requires the URL and allowlist. The token is optional:
 
 | Variable | Type and validation |
 | --- | --- |
 | `LMW_LM_STUDIO_BASE_URL` | Absolute `http` or `https` URL without embedded credentials |
-| `LMW_LM_STUDIO_BEARER_TOKEN` | Non-empty Bearer credential |
+| `LMW_LM_STUDIO_BEARER_TOKEN` | Optional non-empty Bearer credential; absent or blank selects `none` |
 | `LMW_ALLOWED_MODELS` | JSON array containing one or more unique, non-empty model identifiers |
 
 Use the placeholder-only [`.env.example`](../.env.example) as a reference. The
@@ -110,10 +110,13 @@ value, its source in a flat `origins` map, and a revision formatted as
 `protected`, `project`, `global`, or `built_in`.
 
 The revision hashes a canonical in-memory object containing effective public
-values and origins. It never includes the Bearer token. Rotating only the token
-therefore does not change the revision. The effective snapshot reports
-`authentication: "bearer"` and `token_configured: true`; the public view adds
-only `bearer_token: "[REDACTED]"`. Neither object retains credential material.
+values and origins. It never includes the Bearer token. Rotating one configured
+token for another therefore does not change the revision, while switching
+between modes does. The effective snapshot reports `authentication: "bearer"`
+and `token_configured: true`, or `authentication: "none"` and
+`token_configured: false`. The public view adds `bearer_token: "[REDACTED]"` in
+Bearer mode and `bearer_token: null` otherwise. Neither object retains
+credential material.
 
 Resolved snapshots and all nested values are frozen. A later task can safely
 retain the starting snapshot and revision for the lifetime of one task.
@@ -121,7 +124,8 @@ retain the starting snapshot and revision for the lifetime of one task.
 ## Validate and update project preferences
 
 The transport-neutral `validateConfig` and `updateConfig` use cases are
-implemented. MCP registration remains a later transport task.
+implemented and registered as the `validate_config` and `update_config` MCP
+tools.
 
 A proposal is a non-empty partial object containing only `default_model` and/or
 the editable children of `limits`. A value changes the project override. `null`
@@ -184,5 +188,14 @@ Project updates are serialized within one server process. Global cross-process
 coordination is introduced with the shared task coordination work and receives
 release-level portability coverage in Task 015.
 
-Project `.mcp-agent-ignore` handling is also separate and remains planned with
-the repository content boundary.
+Global preferences are changed only by the local
+`local-model-workers-mcp configure-global` command. It accepts
+`--default-model` and the documented limit fields in kebab case, displays the
+complete proposed secret-free preference document, and requires `--yes` before
+writing. `--dry-run` performs validation and discovery without a write. The
+command applies this same strict schema and model allowlist; it cannot persist
+protected fields. See [installation.md](installation.md) for examples and
+recovery behavior.
+
+Project `.mcp-agent-ignore` handling is implemented by the outbound repository
+content boundary and cannot re-enable Git-ignored or mandatory-sensitive paths.

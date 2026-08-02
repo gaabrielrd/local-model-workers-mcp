@@ -1,6 +1,6 @@
 # Task 012: Add metadata-only operational logging
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 002 and 008  
 **PRD coverage:** RF-29; RN-39, RN-40; CA-44, CA-45
 
@@ -71,4 +71,3 @@ retention configuration beyond protected policy.
 - Content fixtures never appear in logs, stdout, or diagnostics.
 - Retention behavior and local location are documented.
 - `npm run validate` passes.
-

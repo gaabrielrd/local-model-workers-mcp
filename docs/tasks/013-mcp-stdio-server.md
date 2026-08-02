@@ -1,6 +1,6 @@
 # Task 013: Compose the MCP stdio server
 
-**Status:** Pending  
+**Status:** Completed
 **Depends on:** Tasks 004, 007, 010, 011, and 012  
 **PRD coverage:** RF-01, RF-02, RF-20, RF-27; CA-01, CA-02, CA-30, CA-41, CA-42
 
@@ -76,4 +76,3 @@ HTTP listening server, patch application, or command execution.
 - CA-30, CA-41, and CA-42 pass over MCP, not only at feature boundaries.
 - No additional tool can be discovered.
 - `npm run validate` passes.
-

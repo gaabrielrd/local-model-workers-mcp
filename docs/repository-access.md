@@ -43,8 +43,9 @@ is discarded with `repository_access_denied`.
 POSIX paths use case-sensitive component comparison. Windows paths use
 `path.win32`, normalize separators, and compare case-insensitively. Successful
 returned paths always use `/` as the portable repository-relative separator.
-Real-filesystem smoke coverage on macOS, Linux, and Windows remains part of the
-release qualification task.
+Real-filesystem package/start/configuration smoke coverage runs in the macOS,
+Linux, and Windows release workflow; path semantics also have explicit POSIX and
+Windows unit coverage.
 
 ## Operation limits
 

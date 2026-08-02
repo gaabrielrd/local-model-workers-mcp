@@ -13,6 +13,7 @@ export {
   ConfigurationError,
   getConfig,
   getEffectiveConfiguration,
+  PreferencesSchema,
   type ConfigurationErrorCode,
   type ConfigurationField,
   type ConfigurationFileSystem,
@@ -21,10 +22,12 @@ export {
   type EffectiveConfigurationView,
   type EffectiveLimits,
   type GetConfigurationInput,
+  type Preferences,
 } from "./configuration.js";
 export {
   updateConfig,
   validateConfig,
+  writeConfigurationFileAtomically,
   type AtomicConfigurationWriter,
   type ConfigurationChange,
   type ConfigurationConfirmation,

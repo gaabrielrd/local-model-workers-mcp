@@ -15,6 +15,7 @@ technical context and consequences of implementing that scope.
 - [ADR-0007: Release repository text only through a fail-closed collector](0007-fail-closed-outbound-content-collector.md)
 - [ADR-0008: Use LM Studio's OpenAI-compatible JSON Schema API](0008-use-openai-compatible-lm-studio-json-schema.md)
 - [ADR-0009: Coordinate local capacity with atomic filesystem state](0009-coordinate-capacity-with-atomic-filesystem-state.md)
+- [ADR-0010: Use managed, confirmed harness configuration entries](0010-confirmed-harness-configuration.md)
 
 ## Status values
 

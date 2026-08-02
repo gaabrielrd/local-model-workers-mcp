@@ -52,6 +52,28 @@ void test("fails health when authentication is not enforced", async () => {
   });
 });
 
+void test("treats intentionally unconfigured authentication as healthy", async () => {
+  let authenticationProbes = 0;
+  const effective = configuration(false);
+  const result = await checkHealth({
+    loadConfiguration: () => Promise.resolve({ effective }),
+    clientFactory: () => ({
+      ...fakeClient({ models: [DEFAULT_MODEL, SECOND_MODEL] }),
+      isAuthenticationEnforced: () => {
+        authenticationProbes += 1;
+        return Promise.resolve(false);
+      },
+    }),
+  });
+
+  assert.equal(result.status, "healthy");
+  assert.deepEqual(result.authentication, {
+    status: "healthy",
+    code: "not_configured",
+  });
+  assert.equal(authenticationProbes, 0);
+});
+
 void test("distinguishes invalid configuration without repository access", async () => {
   let repositoryCalls = 0;
   const repository = {
@@ -139,14 +161,14 @@ function loadConfiguration() {
     });
 }
 
-function configuration(): EffectiveConfiguration {
+function configuration(tokenConfigured = true): EffectiveConfiguration {
   return {
     schema_version: 1,
     revision: `sha256:${"a".repeat(64)}`,
     lm_studio: {
       base_url: "http://127.0.0.1:1234/v1",
-      authentication: "bearer",
-      token_configured: true,
+      authentication: tokenConfigured ? "bearer" : "none",
+      token_configured: tokenConfigured,
       allowed_models: [DEFAULT_MODEL, SECOND_MODEL],
       default_model: DEFAULT_MODEL,
     },

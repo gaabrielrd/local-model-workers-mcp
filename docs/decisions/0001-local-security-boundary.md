@@ -21,9 +21,10 @@ Run the MCP server as a local process over `stdio`. The local server is the sole
 authority for repository access, configuration resolution, task limits, context
 selection, outbound filtering, and remote-output validation.
 
-LM Studio is reached only through authenticated HTTP on a trusted private local
-network. It receives bounded text selected for a single task and cannot invoke a
-generic shell, write files, apply patches, install dependencies, or run tests
+LM Studio is reached only through HTTP on a trusted private local network, with
+Bearer authentication when the server supports it. It receives bounded text
+selected for a single task and cannot invoke a generic shell, write files,
+apply patches, install dependencies, or run tests
 through this product.
 
 Test proposals return a locally validated unified diff. The harness and
@@ -74,4 +75,4 @@ avoids another listening service and authentication boundary.
 
 Rejected as a V1 requirement because local certificate management would raise
 setup cost. HTTPS is accepted when provided, while HTTP is restricted to a
-trusted private network with Bearer authentication.
+trusted private network; Bearer authentication is used when available.

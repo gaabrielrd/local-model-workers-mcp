@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "prohibited_fixture_markers": [
+    "RELEASE_PROHIBITED_MARKER_TYPESCRIPT",
+    "RELEASE_PROHIBITED_MARKER_PYTHON"
+  ],
+  "runs": [
+    {
+      "harness": "claude-code",
+      "fixture_root": "/absolute/path/to/test/fixtures/release/typescript",
+      "discovered_tools": [
+        "check_health",
+        "explore_repository",
+        "get_config",
+        "propose_tests",
+        "update_config",
+        "validate_config"
+      ],
+      "evidence": [
+        {
+          "path": "src/pricing.js",
+          "start_line": 1,
+          "end_line": 1
+        }
+      ],
+      "proposals": [
+        {
+          "applied_without_conflict": true,
+          "test_command_started": true,
+          "paths_allowed": true,
+          "paths": ["test/pricing.test.js"]
+        }
+      ],
+      "capture_files": ["/absolute/path/to/secret-scanned-capture.jsonl"]
+    }
+  ]
+}

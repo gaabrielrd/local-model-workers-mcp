@@ -43,6 +43,25 @@ void test("sends authenticated non-streaming JSON Schema requests and validates 
   assert.equal(JSON.stringify(payload).includes(TOKEN), false);
 });
 
+void test("omits Authorization when optional authentication is not configured", async (t) => {
+  const captured: CapturedRequest[] = [];
+  const baseUrl = await startFakeServer(t, async (request, response) => {
+    captured.push(await capture(request));
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: MODEL }] });
+      return;
+    }
+    json(response, 200, completedResponse());
+  });
+  const client = createLmStudioClient({ baseUrl, allowedModels: [MODEL] });
+
+  assert.deepEqual((await client.inferStructured(inferenceRequest())).output, {
+    ok: true,
+  });
+  assert.equal(captured.length, 2);
+  assert.ok(captured.every((request) => request.authorization === undefined));
+});
+
 void test("rejects unauthorized and unavailable models without fallback", async (t) => {
   let requestCount = 0;
   const baseUrl = await startFakeServer(t, (request, response) => {

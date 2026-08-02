@@ -20,7 +20,9 @@ add `task_id`, `status`, or `model` merely for visual consistency. Configuration
 responses may expose their own redacted revision field as required by RF-22
 through RF-24; that does not turn them into remote tasks.
 
-These names are constants only. MCP registration is implemented in Task 013.
+These names are registered through strict Zod input schemas by the MCP v2
+`stdio` composition root. There are no resource, prompt, shell, generic
+filesystem, or execution registrations.
 
 ## Task identity and terminal states
 

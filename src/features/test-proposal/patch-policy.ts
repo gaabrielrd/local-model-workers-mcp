@@ -17,9 +17,7 @@ export interface ValidatedTestPatch {
 }
 
 export type PatchFailureCode =
-  | "malformed_patch"
-  | "patch_not_allowed"
-  | "patch_limit_exceeded";
+  "malformed_patch" | "patch_not_allowed" | "patch_limit_exceeded";
 
 export class PatchPolicyError extends Error {
   public readonly code: PatchFailureCode;
@@ -74,10 +72,14 @@ export async function validateTestPatch(
     );
   }
   const inspectPath =
-    input.inspectPath ?? createRepositoryPatchPathInspector(input.repositoryRoot);
+    input.inspectPath ??
+    createRepositoryPatchPathInspector(input.repositoryRoot);
   const unsafe: string[] = [];
   for (const file of files) {
-    if (!isTestOnlyPath(file.path) || (await inspectPath(file.path)) !== "safe") {
+    if (
+      !isTestOnlyPath(file.path) ||
+      (await inspectPath(file.path)) !== "safe"
+    ) {
       unsafe.push(file.path);
     }
   }
@@ -164,7 +166,11 @@ export function createRepositoryPatchPathInspector(
 }
 
 function parseUnifiedDiff(patch: string): ParsedPatchFile[] {
-  if (patch.length === 0 || patch.includes("\r") || patch.includes("GIT binary patch")) {
+  if (
+    patch.length === 0 ||
+    patch.includes("\r") ||
+    patch.includes("GIT binary patch")
+  ) {
     throw malformed();
   }
   const lines = patch.split("\n");
@@ -178,7 +184,11 @@ function parseUnifiedDiff(patch: string): ParsedPatchFile[] {
         files.push(finishFile(current));
       }
       const match = /^diff --git a\/([^\s"]+) b\/([^\s"]+)$/u.exec(line);
-      if (match?.[1] === undefined || match[2] === undefined || match[1] !== match[2]) {
+      if (
+        match?.[1] === undefined ||
+        match[2] === undefined ||
+        match[1] !== match[2]
+      ) {
         throw malformed();
       }
       current = { path: match[2], additions: 0, deletions: 0, hunks: 0 };
@@ -200,7 +210,11 @@ function parseUnifiedDiff(patch: string): ParsedPatchFile[] {
         [current.path],
       );
     }
-    if (line.startsWith("--- ") && line !== `--- a/${current.path}` && line !== "--- /dev/null") {
+    if (
+      line.startsWith("--- ") &&
+      line !== `--- a/${current.path}` &&
+      line !== "--- /dev/null"
+    ) {
       throw malformed();
     }
     if (line.startsWith("+++ ") && line !== `+++ b/${current.path}`) {
@@ -213,14 +227,25 @@ function parseUnifiedDiff(patch: string): ParsedPatchFile[] {
     if (line.startsWith("@@ ")) {
       if (!/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/u.test(line)) throw malformed();
       current.hunks += 1;
-    } else if (current.hunks > 0 && line.startsWith("+") && !line.startsWith("+++")) {
+    } else if (
+      current.hunks > 0 &&
+      line.startsWith("+") &&
+      !line.startsWith("+++")
+    ) {
       current.additions += 1;
-    } else if (current.hunks > 0 && line.startsWith("-") && !line.startsWith("---")) {
+    } else if (
+      current.hunks > 0 &&
+      line.startsWith("-") &&
+      !line.startsWith("---")
+    ) {
       current.deletions += 1;
     }
   }
   if (current !== undefined) files.push(finishFile(current));
-  if (files.length === 0 || new Set(files.map((file) => file.path)).size !== files.length) {
+  if (
+    files.length === 0 ||
+    new Set(files.map((file) => file.path)).size !== files.length
+  ) {
     throw malformed();
   }
   return files;
@@ -242,9 +267,17 @@ function finishFile(current: {
 }
 
 function malformed(): PatchPolicyError {
-  return new PatchPolicyError("malformed_patch", "The unified diff is malformed.");
+  return new PatchPolicyError(
+    "malformed_patch",
+    "The unified diff is malformed.",
+  );
 }
 
 function isFileSystemError(error: unknown, code: string): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === code
+  );
 }

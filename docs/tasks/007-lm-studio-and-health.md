@@ -6,16 +6,16 @@
 
 ## Objective
 
-Implement an authenticated, cancelable LM Studio adapter and a repository-free
-health use case that validates configuration, connectivity, authentication, and
-model availability.
+Implement a cancelable LM Studio adapter with optional Bearer authentication
+and a repository-free health use case that validates configuration,
+connectivity, authentication mode, and model availability.
 
 ## Requirements
 
 - Confirm and pin the supported LM Studio API contract from authoritative
   documentation and a controlled compatibility test.
-- Send Bearer authentication without exposing it in URLs, errors, diagnostics,
-  or logs.
+- Send Bearer authentication only when configured, without exposing it in URLs,
+  errors, diagnostics, or logs; omit the header entirely otherwise.
 - Permit only configured model identifiers and never substitute silently.
 - Distinguish invalid configuration, unreachable endpoint, authentication
   failure, missing default model, unavailable allowed model, timeout, malformed
@@ -48,8 +48,8 @@ network dependency in the default suite.
 ## Implementation outline
 
 1. Define a transport-neutral inference port.
-2. Implement the HTTP adapter with authentication, cancellation, deadlines, and
-   strict response parsing.
+2. Implement the HTTP adapter with optional authentication, cancellation,
+   deadlines, and strict response parsing.
 3. Implement allowlist and default-model validation before inference.
 4. Add a retry policy with exactly bounded attempts and classified errors.
 5. Implement the health use case independently of repository features.
@@ -65,7 +65,8 @@ network dependency in the default suite.
 
 ## Tests
 
-- Healthy configuration and every health failure category.
+- Healthy configurations with and without authentication, plus every health
+  failure category.
 - Invalid token never appears in returned or captured diagnostics.
 - Default model missing and requested model unauthorized/unavailable.
 - No fallback model request is made.
@@ -86,6 +87,6 @@ network dependency in the default suite.
 
 - CA-03 through CA-05, CA-28, CA-29, CA-31, and CA-32 pass.
 - The supported LM Studio contract is documented and contract-tested.
-- Every failure path redacts the Bearer token.
+- Every failure path redacts the Bearer token when one is configured.
 - Health requires no repository input or access.
 - `npm run validate` passes.

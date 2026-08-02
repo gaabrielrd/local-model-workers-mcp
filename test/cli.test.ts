@@ -32,14 +32,21 @@ void test("the built CLI artifact exists and is executable", async () => {
   }
 });
 
-void test("the CLI starts without writing protocol output", () => {
+void test("invalid startup configuration fails without writing protocol output or secrets", () => {
+  const secret = "startup-secret-marker";
   const result = spawnSync(process.execPath, [builtCliPath], {
     encoding: "utf8",
+    env: {
+      ...process.env,
+      LMW_LM_STUDIO_BEARER_TOKEN: secret,
+      LMW_LM_STUDIO_BASE_URL: "invalid-url",
+    },
   });
 
-  assert.equal(result.status, 0);
+  assert.equal(result.status, 78);
   assert.equal(result.stdout, "");
-  assert.equal(result.stderr, "");
+  assert.equal(result.stderr, "Invalid startup configuration.\n");
+  assert.equal(result.stderr.includes(secret), false);
 });
 
 void test("the CLI reports its version on the diagnostic channel", () => {

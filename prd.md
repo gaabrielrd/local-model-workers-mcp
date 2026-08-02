@@ -130,7 +130,7 @@ Nenhum.
 - **Comportamento:** o servidor verifica:
     - validade da configuração;
     - alcance da API do LM Studio;
-    - autenticação;
+    - modo de autenticação e, quando houver token configurado, sua aplicação;
     - disponibilidade do modelo padrão;
     - disponibilidade dos modelos autorizados.
 
@@ -426,7 +426,8 @@ Nenhum.
 ## 6. Regras de negócio
 
 - **RN-01:** o MCP funciona localmente por `stdio`; somente a comunicação com o LM Studio utiliza a rede.
-- **RN-02:** a API do LM Studio deve exigir autenticação Bearer.
+- **RN-02:** o servidor deve usar autenticação Bearer quando um token estiver
+  configurado e omitir o cabeçalho `Authorization` no modo explícito `none`.
 - **RN-03:** o produto só oferece suporte a HTTP quando as máquinas estiverem em uma rede local privada e confiável.
 - **RN-04:** o produto não deve orientar a exposição do LM Studio à internet ou a redes públicas.
 - **RN-05:** o servidor nunca pode ler fora da raiz informada do repositório.
@@ -540,7 +541,9 @@ A V1 não possui interface gráfica própria. A interação acontece pelas ferra
 - **Desempenho:** duas tarefas simultâneas por padrão, cinco minutos máximos de fila e dez minutos máximos de processamento.
 - **Privacidade:** nenhum conteúdo do repositório, prompt, resposta ou patch é persistido.
 - **Acesso:** leitura restrita à raiz e aos arquivos permitidos.
-- **Autenticação:** token Bearer para a API do LM Studio.
+- **Autenticação:** token Bearer opcional para a API do LM Studio; quando
+  ausente, o servidor opera explicitamente em modo `none` somente na rede local
+  privada e confiável.
 - **Portabilidade:** a implementação não deve depender intencionalmente de comportamento exclusivo do macOS quando houver alternativa portável.
 - **Responsividade visual:** não se aplica, porque não há interface gráfica própria.
 - **Confiabilidade:** gravação de configuração atômica e controle por revisão.
@@ -573,7 +576,7 @@ A V1 não possui interface gráfica própria. A interação acontece pelas ferra
 
 - **CA-01:** dado um servidor instalado, quando Claude Code iniciar o processo por `stdio`, então as seis ferramentas aprovadas devem ficar disponíveis.
 - **CA-02:** dado um servidor instalado, quando Codex iniciar o processo por `stdio`, então as seis ferramentas aprovadas devem ficar disponíveis.
-- **CA-03:** dado `check_health`, quando a configuração estiver correta, então o retorno deve confirmar acesso, autenticação e disponibilidade do modelo padrão.
+- **CA-03:** dado `check_health`, quando a configuração estiver correta, então o retorno deve confirmar acesso, o modo de autenticação e a disponibilidade do modelo padrão.
 - **CA-04:** dado um token inválido, quando `check_health` consultar o LM Studio, então o retorno deve identificar falha de autenticação sem revelar o token.
 - **CA-05:** dado um modelo padrão indisponível, quando `check_health` for executado, então o retorno deve identificar o modelo ausente.
 - **CA-06:** dado um objetivo vazio, quando `explore_repository` for chamado, então a tarefa deve falhar antes de consultar o LM Studio.
@@ -673,7 +676,7 @@ A V1 não possui interface gráfica própria. A interação acontece pelas ferra
 | Atualização pelo agente  | Confirmação explícita                          | Evitar alterações induzidas pelo repositório          | Aplicação automática teria maior risco                                                  |
 | Privacidade              | Sem persistência de conteúdo                   | Reduzir exposição do código                           | Histórico completo ajudaria depuração, mas ampliaria risco                              |
 | Logs                     | Metadados por sete dias                        | Permitir diagnóstico básico                           | Logs de conteúdo violariam a política de privacidade                                    |
-| Rede                     | HTTP autenticado em rede privada               | Menor custo de implantação local                      | HTTPS obrigatório exigiria gestão de certificados                                       |
+| Rede                     | HTTP em rede privada, com autenticação opcional | Compatibilidade com `lms` e menor custo de implantação | HTTPS obrigatório exigiria gestão de certificados                                       |
 | Plataforma               | macOS validado oficialmente                    | Corresponder ao ambiente inicial do usuário           | Três plataformas completas aumentariam a matriz de lançamento                           |
 | Portabilidade            | Testes básicos em Linux e Windows              | Evitar dependência exclusiva do macOS                 | Ignorar os outros sistemas dificultaria expansão futura                                 |
 | Linguagens               | Genérico, com validação em Python e TypeScript | Permitir uso amplo com critérios mensuráveis          | Suporte formal universal não seria verificável na V1                                    |
