@@ -228,6 +228,7 @@ async function fixture(t: test.TestContext): Promise<string> {
 const inference: ModelInferencePort = {
   listModels: () => Promise.resolve({ models: ["qwen/qwen3.5-9b"] }),
   isAuthenticationEnforced: () => Promise.resolve(true),
+  embedText: () => Promise.reject(new Error("not used")),
   inferStructured: () => Promise.reject(new Error("not used")),
 };
 

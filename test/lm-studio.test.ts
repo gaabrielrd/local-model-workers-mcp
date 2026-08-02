@@ -388,3 +388,241 @@ function isInferenceError(code: InferenceError["code"]) {
   return (error: unknown): boolean =>
     error instanceof InferenceError && error.code === code;
 }
+
+const EMBEDDING_MODEL = "nomic-ai/nomic-embed-text";
+
+function embeddingRequest(
+  overrides: Partial<{
+    model: string;
+    input: string | readonly string[];
+    timeout_ms: number;
+    signal: AbortSignal;
+  }> = {},
+) {
+  return {
+    model: EMBEDDING_MODEL,
+    input: "hello world",
+    timeout_ms: 1_000,
+    ...overrides,
+  };
+}
+
+function embeddingResponse(
+  vectors: number[][] = [[0.1, 0.2, 0.3]],
+  model = EMBEDDING_MODEL,
+) {
+  return {
+    model,
+    data: vectors.map((embedding, index) => ({ embedding, index })),
+    usage: {
+      prompt_tokens: 4,
+      total_tokens: 4,
+    },
+  };
+}
+
+function embeddingClient(baseUrl: string) {
+  return createLmStudioClient({
+    baseUrl,
+    bearerToken: TOKEN,
+    allowedModels: [MODEL, EMBEDDING_MODEL],
+  });
+}
+
+void test("embedText: single string input returns one embedding vector", async (t) => {
+  const captured: CapturedRequest[] = [];
+  const baseUrl = await startFakeServer(t, async (request, response) => {
+    captured.push(await capture(request));
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    json(response, 200, embeddingResponse([[0.1, 0.2, 0.3]]));
+  });
+  const client = embeddingClient(baseUrl);
+
+  const result = await client.embedText(embeddingRequest());
+
+  assert.equal(result.model, EMBEDDING_MODEL);
+  assert.equal(result.embeddings.length, 1);
+  assert.deepEqual(result.embeddings[0], [0.1, 0.2, 0.3]);
+  assert.equal(result.usage.prompt_tokens, 4);
+  assert.equal(result.usage.total_tokens, 4);
+  assert.equal(captured.length, 2);
+  assert.equal(captured[0]?.authorization, `Bearer ${TOKEN}`);
+  assert.equal(captured[1]?.authorization, `Bearer ${TOKEN}`);
+  const payload = object(captured[1]?.body);
+  assert.deepEqual(payload.input, ["hello world"]);
+  assert.equal(payload.model, EMBEDDING_MODEL);
+});
+
+void test("embedText: batch input returns one embedding per input string", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    json(
+      response,
+      200,
+      embeddingResponse([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ]),
+    );
+  });
+  const client = embeddingClient(baseUrl);
+
+  const result = await client.embedText(
+    embeddingRequest({ input: ["one", "two", "three"] }),
+  );
+
+  assert.equal(result.embeddings.length, 3);
+  assert.deepEqual(result.embeddings[0], [1, 0, 0]);
+  assert.deepEqual(result.embeddings[1], [0, 1, 0]);
+  assert.deepEqual(result.embeddings[2], [0, 0, 1]);
+});
+
+void test("embedText: rejects unauthorized model", async (t) => {
+  const baseUrl = await startFakeServer(t, (_request, response) => {
+    json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+  });
+  const client = createLmStudioClient({
+    baseUrl,
+    allowedModels: [MODEL],
+  });
+
+  await assert.rejects(
+    client.embedText(embeddingRequest()),
+    isInferenceError("model_unauthorized"),
+  );
+});
+
+void test("embedText: rejects unavailable model", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: "different/model" }] });
+      return;
+    }
+    json(response, 200, embeddingResponse());
+  });
+  const client = embeddingClient(baseUrl);
+
+  await assert.rejects(
+    client.embedText(embeddingRequest()),
+    isInferenceError("model_unavailable"),
+  );
+});
+
+void test("embedText: malformed response returns malformed_response", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    json(response, 200, { wrong: "shape" });
+  });
+  const client = embeddingClient(baseUrl);
+
+  await assert.rejects(
+    client.embedText(embeddingRequest()),
+    isInferenceError("malformed_response"),
+  );
+});
+
+void test("embedText: retries one transient 503 and succeeds", async (t) => {
+  let embeddingRequests = 0;
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    embeddingRequests += 1;
+    json(response, embeddingRequests === 1 ? 503 : 200, embeddingResponse());
+  });
+  const client = embeddingClient(baseUrl);
+
+  const result = await client.embedText(embeddingRequest());
+
+  assert.deepEqual(result.embeddings[0], [0.1, 0.2, 0.3]);
+  assert.equal(embeddingRequests, 2);
+});
+
+void test("embedText: timeout aborts the request", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    response.writeHead(200, { "content-type": "application/json" });
+  });
+  const client = embeddingClient(baseUrl);
+
+  await assert.rejects(
+    client.embedText(embeddingRequest({ timeout_ms: 20 })),
+    isInferenceError("inference_timeout"),
+  );
+});
+
+void test("embedText: cancellation via AbortSignal propagates", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    response.writeHead(200, { "content-type": "application/json" });
+  });
+  const client = embeddingClient(baseUrl);
+  const controller = new AbortController();
+  const pending = client.embedText(
+    embeddingRequest({ signal: controller.signal }),
+  );
+  setTimeout(() => {
+    controller.abort();
+  }, 20);
+
+  await assert.rejects(pending, isInferenceError("inference_cancelled"));
+});
+
+void test("embedText: oversized response is rejected", async (t) => {
+  const baseUrl = await startFakeServer(t, (request, response) => {
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    const largeVector = Array.from({ length: 5000 }, (_, i) => i * 0.001);
+    json(response, 200, embeddingResponse([largeVector]));
+  });
+  const client = createLmStudioClient({
+    baseUrl,
+    bearerToken: TOKEN,
+    allowedModels: [MODEL, EMBEDDING_MODEL],
+    maxResponseBytes: 1_000,
+  });
+
+  await assert.rejects(
+    client.embedText(embeddingRequest()),
+    isInferenceError("response_too_large"),
+  );
+});
+
+void test("embedText: omits Authorization when no token configured", async (t) => {
+  const captured: CapturedRequest[] = [];
+  const baseUrl = await startFakeServer(t, async (request, response) => {
+    captured.push(await capture(request));
+    if (request.url === "/v1/models") {
+      json(response, 200, { data: [{ id: EMBEDDING_MODEL }] });
+      return;
+    }
+    json(response, 200, embeddingResponse());
+  });
+  const client = createLmStudioClient({
+    baseUrl,
+    allowedModels: [EMBEDDING_MODEL],
+  });
+
+  await client.embedText(embeddingRequest());
+
+  assert.ok(captured.every((request) => request.authorization === undefined));
+});

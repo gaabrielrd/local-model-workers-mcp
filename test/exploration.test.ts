@@ -382,6 +382,7 @@ function inferenceFrom(
   return {
     listModels: () => Promise.resolve({ models: [MODEL] }),
     isAuthenticationEnforced: () => Promise.resolve(true),
+    embedText: () => Promise.reject(new Error("Embedding not used.")),
     inferStructured: (request) => {
       onCall?.();
       prompts.push(

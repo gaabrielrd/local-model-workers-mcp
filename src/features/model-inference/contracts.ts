@@ -66,6 +66,24 @@ export interface ModelCatalog {
   readonly models: readonly string[];
 }
 
+export interface EmbeddingRequest {
+  readonly model: string;
+  readonly input: string | readonly string[];
+  readonly timeout_ms: number;
+  readonly signal?: AbortSignal;
+}
+
+export interface EmbeddingUsage {
+  readonly prompt_tokens: number;
+  readonly total_tokens: number;
+}
+
+export interface EmbeddingResult {
+  readonly model: string;
+  readonly embeddings: readonly (readonly number[])[];
+  readonly usage: EmbeddingUsage;
+}
+
 export interface RequestOptions {
   readonly timeout_ms: number;
   readonly signal?: AbortSignal;
@@ -77,4 +95,5 @@ export interface ModelInferencePort {
   inferStructured<Output>(
     request: StructuredInferenceRequest<Output>,
   ): Promise<StructuredInferenceResult<Output>>;
+  embedText(request: EmbeddingRequest): Promise<EmbeddingResult>;
 }

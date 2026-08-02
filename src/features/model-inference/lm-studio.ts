@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import {
   InferenceError,
+  type EmbeddingRequest,
+  type EmbeddingResult,
   type InferenceUsage,
   type ModelCatalog,
   type ModelInferencePort,
@@ -61,6 +63,28 @@ const ChatResponseSchema = z
   })
   .passthrough();
 
+const EmbeddingDataSchema = z
+  .object({
+    embedding: z.array(z.number()),
+    index: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+const EmbeddingUsageSchema = z
+  .object({
+    prompt_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+const EmbeddingResponseSchema = z
+  .object({
+    model: z.string().trim().min(1),
+    data: z.array(EmbeddingDataSchema).min(1),
+    usage: EmbeddingUsageSchema,
+  })
+  .passthrough();
+
 export interface LmStudioClientOptions {
   readonly baseUrl: string;
   readonly bearerToken?: string;
@@ -103,6 +127,7 @@ export function createLmStudioClient(
     },
     inferStructured: <Output>(request: StructuredInferenceRequest<Output>) =>
       inferStructured(validated, request),
+    embedText: (request: EmbeddingRequest) => embedText(validated, request),
   };
 }
 
@@ -278,6 +303,116 @@ function validateInferenceRequest<Output>(
     throw invalidConfiguration("The structured inference request is invalid.");
   }
   requestContext(requestInput);
+}
+
+async function embedText(
+  options: ValidatedOptions,
+  requestInput: EmbeddingRequest,
+): Promise<EmbeddingResult> {
+  if (requestInput.model.trim().length === 0) {
+    throw invalidConfiguration("The embedding request model is required.");
+  }
+  const normalizedInput =
+    typeof requestInput.input === "string"
+      ? [requestInput.input]
+      : [...requestInput.input];
+  if (
+    normalizedInput.length === 0 ||
+    normalizedInput.some((text) => text.length === 0)
+  ) {
+    throw invalidConfiguration(
+      "The embedding request input must contain at least one non-empty string.",
+    );
+  }
+
+  if (!options.allowedModels.has(requestInput.model)) {
+    throw new InferenceError(
+      "model_unauthorized",
+      "The requested model is not allowed by protected policy.",
+    );
+  }
+
+  const context = requestContext(requestInput);
+  const catalog = await listModels(
+    options,
+    {
+      timeout_ms: remainingTime(context),
+      ...(requestInput.signal === undefined
+        ? {}
+        : { signal: requestInput.signal }),
+    },
+    options.bearerToken,
+  );
+  if (!catalog.models.includes(requestInput.model)) {
+    throw new InferenceError(
+      "model_unavailable",
+      "The requested allowed model is unavailable in LM Studio.",
+    );
+  }
+
+  const payload = JSON.stringify({
+    model: requestInput.model,
+    input: normalizedInput,
+  });
+
+  let lastTransientError: InferenceError | undefined;
+  for (let attempt = 0; attempt <= options.retryCount; attempt += 1) {
+    try {
+      const responsePayload = await requestJson(
+        options,
+        endpoint(options.baseUrl, "embeddings"),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+        },
+        options.bearerToken,
+        context,
+      );
+      return parseEmbeddingResponse(responsePayload, requestInput);
+    } catch (error: unknown) {
+      if (!(error instanceof InferenceError) || !error.retryable) {
+        throw error;
+      }
+      lastTransientError = error;
+    }
+  }
+
+  throw (
+    lastTransientError ??
+    new InferenceError(
+      "inference_failed",
+      "LM Studio embedding failed without a completed response.",
+    )
+  );
+}
+
+function parseEmbeddingResponse(
+  payload: unknown,
+  requestInput: EmbeddingRequest,
+): EmbeddingResult {
+  const parsed = EmbeddingResponseSchema.safeParse(payload);
+  if (!parsed.success) {
+    throw malformedResponse(
+      "LM Studio returned a malformed embedding response.",
+    );
+  }
+  if (parsed.data.model !== requestInput.model) {
+    throw malformedResponse(
+      "LM Studio returned an embedding response for a different model.",
+    );
+  }
+
+  const sorted = [...parsed.data.data].sort((a, b) => a.index - b.index);
+
+  return {
+    model: parsed.data.model,
+    embeddings: sorted.map((entry) => entry.embedding),
+    usage: {
+      prompt_tokens: parsed.data.usage.prompt_tokens,
+      total_tokens: parsed.data.usage.total_tokens,
+    },
+  };
 }
 
 function parseInferenceResponse<Output>(

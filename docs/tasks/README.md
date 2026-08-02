@@ -1,7 +1,7 @@
-# V1 implementation plan
+# Implementation plan
 
-**Status:** Approved product scope; Tasks 001-014 implemented
-**Source:** [PRD](../../prd.md)  
+**Status:** V1 Tasks 001-015 implemented; V1.5-V3.0 roadmap approved  
+**Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-02
 
 ## Objective
@@ -125,8 +125,34 @@ The delivery sequence builds rules before orchestration:
 | 014 | [Installation and harnesses](014-installation-and-harnesses.md) | Installable CLI and safe harness setup | 003-004, 013 |
 | 015 | [Release qualification](015-release-qualification.md) | Cross-platform and V1 success evidence | 001-014 |
 
-Tasks are sequential even where dependencies would allow parallel work. This
-keeps one feature increment active at a time and makes failures attributable.
+Within each phase, tasks are sequential even where dependencies would allow
+parallel work. This keeps one feature increment active at a time and makes
+failures attributable.
+
+### Phase 2 — Read offloading and semantic analysis (V1.5)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 016 | [Embedding inference](016-embedding-inference.md) | `/v1/embeddings` adapter in LM Studio client | 007 |
+| 017 | [Vector index](017-vector-index.md) | In-memory vector index with persistence | 005-006, 016 |
+| 018 | [Semantic search tool](018-semantic-search-tool.md) | `search_semantic` MCP tool | 013, 016-017 |
+| 019 | [Code graph](019-code-graph.md) | AST-based symbol extraction and `query_code_graph` tool | 005-006 |
+| 020 | [Module summarization](020-module-summarization.md) | `summarize_module` MCP tool | 007, 019 |
+
+### Phase 3 — Repetitive write offloading (V2.0)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 021 | [Lint fix tool](021-lint-fix-tool.md) | `fix_lint_violations` MCP tool | 011, 018 |
+| 022 | [Documentation generation](022-docs-generation-tool.md) | `generate_docs_patch` MCP tool | 011, 020 |
+| 023 | [Multi-model routing](023-multi-model-routing.md) | Task-type to model-id configuration routing | 003-004, 007 |
+
+### Phase 4 — Autonomous hybrid loop (V3.0)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 024 | [Auto-validate loop](024-auto-validate-loop.md) | `auto_validate_tests` MCP tool with sandbox | 011, 023 |
+| 025 | [Multi-provider engine](025-multi-provider-engine.md) | Ollama, vLLM, LocalAI adapters with failover | 007, 023 |
 
 ## Global completion rule
 

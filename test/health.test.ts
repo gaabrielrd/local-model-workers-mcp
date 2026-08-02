@@ -210,6 +210,9 @@ function fakeClient(options: {
       return Promise.resolve({ models: options.models ?? [] });
     },
     isAuthenticationEnforced: () => Promise.resolve(options.auth ?? true),
+    embedText: () => {
+      throw new Error("Health must not perform embedding.");
+    },
     inferStructured: () => {
       throw new Error("Health must not perform inference.");
     },

@@ -442,6 +442,7 @@ function inferencePort(
   return {
     listModels: () => Promise.resolve({ models: [] }),
     isAuthenticationEnforced: () => Promise.resolve(true),
+    embedText: () => Promise.reject(new Error("Embedding was not expected.")),
     inferStructured: infer,
   };
 }

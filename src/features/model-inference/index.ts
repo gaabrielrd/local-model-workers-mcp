@@ -1,6 +1,9 @@
 export {
   INFERENCE_ERROR_CODES,
   InferenceError,
+  type EmbeddingRequest,
+  type EmbeddingResult,
+  type EmbeddingUsage,
   type InferenceErrorCode,
   type InferenceMessage,
   type InferenceUsage,
