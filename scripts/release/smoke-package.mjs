@@ -35,8 +35,15 @@ try {
   const artifactDigest = await digest(firstTarball);
   assert.equal(artifactDigest, await digest(secondTarball));
 
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const spawnOptions = {
+    cwd: temporaryRoot,
+    env: commandEnvironment(),
+    ...(process.platform === "win32" ? { shell: true } : {}),
+  };
+
   await execFileAsync(
-    "npm",
+    npmCommand,
     [
       "install",
       "--prefix",
@@ -46,7 +53,7 @@ try {
       "--no-fund",
       firstTarball,
     ],
-    { cwd: temporaryRoot, env: commandEnvironment() },
+    spawnOptions,
   );
 
   const installedRoot = path.join(
@@ -134,6 +141,7 @@ try {
       "explore_repository",
       "get_config",
       "propose_tests",
+      "search_semantic",
       "update_config",
       "validate_config",
     ]);
@@ -156,10 +164,16 @@ try {
 }
 
 async function pack(destination) {
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
   const { stdout } = await execFileAsync(
-    "npm",
+    npmCommand,
     ["pack", "--json", "--ignore-scripts", "--pack-destination", destination],
-    { cwd: projectRoot, encoding: "utf8", env: commandEnvironment() },
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+      env: commandEnvironment(),
+      ...(process.platform === "win32" ? { shell: true } : {}),
+    },
   );
   const result = JSON.parse(stdout);
   const filename = result[0]?.filename;
