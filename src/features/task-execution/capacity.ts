@@ -412,7 +412,14 @@ async function acquireStateLock(options: ValidatedOptions): Promise<void> {
           }),
           { encoding: "utf8", mode: 0o600, flag: "wx" },
         );
-      } catch {
+      } catch (writeError: unknown) {
+        if (isLockCollisionError(writeError)) {
+          await unlink(options.lockOwnerPath).catch(() => undefined);
+          await rmdir(options.lockDirectory).catch(() => undefined);
+          await recoverAbandonedLock(options);
+          await options.clock.sleep(options.pollIntervalMs);
+          continue;
+        }
         await unlink(options.lockOwnerPath).catch(() => undefined);
         await rmdir(options.lockDirectory).catch(() => undefined);
         throw new CapacityError(
@@ -422,7 +429,7 @@ async function acquireStateLock(options: ValidatedOptions): Promise<void> {
       }
       return;
     } catch (error: unknown) {
-      if (!isFileSystemError(error, "EEXIST")) {
+      if (!isLockCollisionError(error)) {
         await releaseStateLock(options).catch(() => undefined);
         throw new CapacityError(
           "coordination_unavailable",
@@ -462,7 +469,8 @@ async function recoverAbandonedLock(options: ValidatedOptions): Promise<void> {
   } catch (error: unknown) {
     if (
       !isFileSystemError(error, "ENOENT") &&
-      !isFileSystemError(error, "ENOTEMPTY")
+      !isFileSystemError(error, "ENOTEMPTY") &&
+      !isLockCollisionError(error)
     ) {
       throw new CapacityError(
         "coordination_unavailable",
@@ -480,10 +488,10 @@ async function releaseStateLock(options: ValidatedOptions): Promise<void> {
     if (owner.owner_id !== options.ownerId) {
       return;
     }
-    await unlink(options.lockOwnerPath);
-    await rmdir(options.lockDirectory);
+    await unlink(options.lockOwnerPath).catch(() => undefined);
+    await rmdir(options.lockDirectory).catch(() => undefined);
   } catch (error: unknown) {
-    if (!isFileSystemError(error, "ENOENT")) {
+    if (!isFileSystemError(error, "ENOENT") && !isLockCollisionError(error)) {
       throw new CapacityError(
         "coordination_unavailable",
         "The capacity coordination lock could not be released safely.",
@@ -644,5 +652,14 @@ function isFileSystemError(error: unknown, code: string): boolean {
     error !== null &&
     "code" in error &&
     error.code === code
+  );
+}
+
+function isLockCollisionError(error: unknown): boolean {
+  return (
+    isFileSystemError(error, "EEXIST") ||
+    isFileSystemError(error, "EPERM") ||
+    isFileSystemError(error, "EACCES") ||
+    isFileSystemError(error, "EBUSY")
   );
 }
