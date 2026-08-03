@@ -162,7 +162,10 @@ budget omission, metadata-only limitations, unread relevant paths, duplicate
 minimization, changing fingerprints, untrusted prompt-injection labeling, and a
 real temporary Git repository exercised without a shell.
 
-The LM Studio suite runs only against ephemeral loopback fake servers. It
+The provider suites use injected fetch fakes and ephemeral loopback servers. They
+cover native Ollama request/response shapes, all three OpenAI-compatible
+provider types, priority/model-aware routing, transient failover, all-unhealthy
+failure, and failed-provider rechecks. The LM Studio compatibility suite
 captures request payloads and verifies that authorization is sent only when a
 token is configured; verifies model allowlisting and
 catalog availability without fallback; checks JSON Schema, reasoning-disabled

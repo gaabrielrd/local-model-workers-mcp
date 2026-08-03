@@ -91,6 +91,7 @@ async function configureHarness(
     selection,
     projectRoot,
     homeDirectory,
+    environment: io.environment ?? process.env,
     ...(executableCommand === undefined ? {} : { command: executableCommand }),
     ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
   });
@@ -127,6 +128,7 @@ async function configureHarness(
             },
           }
         : {}),
+      environment: io.environment ?? process.env,
     });
     io.write(`${result.harness}: ${result.outcome}.\n`);
   }

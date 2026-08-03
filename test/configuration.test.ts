@@ -59,6 +59,125 @@ void test("loads enabled MCP features from global preferences only", async (t) =
   assert.deepEqual(snapshot.enabled_features, ["docs", "tests"]);
 });
 
+void test("loads protected multi-provider configuration without exposing tokens", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "shared/model",
+  });
+  const providerToken = "provider-secret-fixture";
+  const environment = {
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "backup",
+        type: "ollama",
+        base_url: "http://127.0.0.1:11434",
+        allowed_models: ["shared/model"],
+        priority: 20,
+      },
+      {
+        name: "primary",
+        type: "vllm",
+        base_url: "http://127.0.0.1:8000/v1",
+        bearer_token: providerToken,
+        allowed_models: ["shared/model", "special/model"],
+        priority: 10,
+      },
+    ]),
+    LMW_PROVIDER_RECHECK_INTERVAL_MS: "2500",
+  };
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+  const view = await getConfig({ ...fixture.input(), environment });
+
+  assert.deepEqual(
+    snapshot.providers?.map((provider) => [
+      provider.name,
+      provider.type,
+      provider.priority,
+      provider.token_configured,
+    ]),
+    [
+      ["primary", "vllm", 10, true],
+      ["backup", "ollama", 20, false],
+    ],
+  );
+  assert.deepEqual(snapshot.lm_studio.allowed_models, [
+    "shared/model",
+    "special/model",
+  ]);
+  assert.equal(snapshot.provider_routing?.recheck_interval_ms, 2500);
+  assert.equal(JSON.stringify(snapshot).includes(providerToken), false);
+  assert.equal(JSON.stringify(view).includes(providerToken), false);
+});
+
+void test("rejects malformed, duplicate, and unsafe provider configuration", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "shared/model",
+  });
+  const invalidProviders = [
+    [],
+    [
+      {
+        name: "duplicate",
+        type: "vllm",
+        base_url: "http://127.0.0.1:8000/v1",
+        allowed_models: ["shared/model"],
+        priority: 0,
+      },
+      {
+        name: "duplicate",
+        type: "ollama",
+        base_url: "http://127.0.0.1:11434",
+        allowed_models: ["shared/model"],
+        priority: 1,
+      },
+    ],
+    [
+      {
+        name: "unsafe",
+        type: "localai",
+        base_url: "http://user:password@127.0.0.1/v1",
+        allowed_models: ["shared/model"],
+        priority: 0,
+      },
+    ],
+  ];
+
+  for (const providers of invalidProviders) {
+    await assert.rejects(
+      getEffectiveConfiguration({
+        ...fixture.input(),
+        environment: { LMW_PROVIDERS: JSON.stringify(providers) },
+      }),
+      /provider configuration|provider base URL|Protected provider URLs/,
+    );
+  }
+  await assert.rejects(
+    getEffectiveConfiguration({
+      ...fixture.input(),
+      environment: {
+        LMW_PROVIDERS: JSON.stringify([
+          {
+            name: "valid",
+            type: "localai",
+            base_url: "http://127.0.0.1/v1",
+            allowed_models: ["shared/model"],
+            priority: 0,
+          },
+        ]),
+        LMW_PROVIDER_RECHECK_INTERVAL_MS: "0",
+      },
+    }),
+    /recheck interval/,
+  );
+});
+
 void test("rejects enabled MCP features in project preferences", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({

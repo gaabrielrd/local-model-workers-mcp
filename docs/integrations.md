@@ -1,12 +1,13 @@
 # External integrations
 
-**Status:** LM Studio, Git, Claude Code, and Codex adapters implemented
+**Status:** Local model providers, Git, Claude Code, and Codex adapters implemented
 **Last reviewed:** 2026-08-02
 
 ## Claude Code and Codex
 
 Both harnesses start the local MCP server as a child process and communicate over
-`stdio`. The server exposes exactly the six tools listed in the PRD. Harnesses
+`stdio`. With every feature group enabled, the server exposes twelve tools.
+Harnesses
 remain responsible for:
 
 - collecting explicit confirmation for `update_config`;
@@ -29,9 +30,7 @@ Code 2.1.204 uses a project `.mcp.json` entry:
       "command": "local-model-workers-mcp",
       "args": [],
       "env": {
-        "LMW_LM_STUDIO_BASE_URL": "${LMW_LM_STUDIO_BASE_URL}",
-        "LMW_LM_STUDIO_BEARER_TOKEN": "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
-        "LMW_ALLOWED_MODELS": "${LMW_ALLOWED_MODELS}"
+        "LMW_LM_STUDIO_BASE_URL": "http://localhost:1234/v1"
       }
     }
   }
@@ -122,6 +121,22 @@ not enforced.
 HTTP is supported only on a trusted private local network. HTTPS may be used
 when the environment provides it, but proxy and certificate management are not
 part of V1. Public exposure is unsupported.
+
+## Ollama, vLLM, and LocalAI
+
+Multi-provider mode configures these services alongside LM Studio through the
+protected `LMW_PROVIDERS` array. Ollama base URLs normally use the service root
+(for example `http://model-host.local:11434`) and the adapter calls
+`/api/tags`, `/api/chat`, and `/api/embed`. Structured chat sends the locally
+derived JSON Schema as Ollama's `format` and validates the returned JSON again.
+
+vLLM and LocalAI use their OpenAI-compatible `/v1/models`,
+`/v1/chat/completions`, and `/v1/embeddings` surfaces, so their configured base
+URL normally ends in `/v1`. Provider responses use the same byte bounds,
+deadline, cancellation, model identity, allowlist, and strict local validation
+rules as LM Studio. Compatibility is covered by deterministic fake-server and
+adapter tests; real deployments should still verify the exact server version
+and enabled endpoints.
 
 ## Git
 

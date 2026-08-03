@@ -339,6 +339,7 @@ export async function runInteractiveSetup(
               },
             }
           : {}),
+        environment: effectiveEnv,
       });
       io.write(`${result.harness}: ${result.outcome}\n`);
     }

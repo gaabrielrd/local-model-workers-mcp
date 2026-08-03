@@ -55,6 +55,61 @@ void test("creates an MCP runtime without the optional Bearer token", async (t) 
   assert.equal(runtime.bearerToken, undefined);
 });
 
+void test("creates the shared runtime from protected multi-provider settings", async (t) => {
+  const baseUrl = await fakeLmStudio(t);
+  const home = await mkdtemp(path.join(os.tmpdir(), "mcp-providers-"));
+  t.after(async () => rm(home, { recursive: true, force: true }));
+  const environment = stringEnvironment({
+    HOME: home,
+    XDG_CONFIG_HOME: path.join(home, ".config"),
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "fallback",
+        type: "localai",
+        base_url: baseUrl,
+        bearer_token: TOKEN,
+        allowed_models: [MODEL],
+        priority: 20,
+      },
+      {
+        name: "primary",
+        type: "vllm",
+        base_url: baseUrl,
+        bearer_token: TOKEN,
+        allowed_models: [MODEL],
+        priority: 10,
+      },
+    ]),
+  });
+  const preferencesPath = resolveGlobalPreferencesPath({
+    platform: process.platform,
+    homeDirectory: home,
+    environment,
+  });
+  await mkdir(path.dirname(preferencesPath), { recursive: true });
+  await writeFile(
+    preferencesPath,
+    `${JSON.stringify({ schema_version: 1, default_model: MODEL })}\n`,
+  );
+
+  const runtime = await createMcpApplicationRuntime({
+    environment,
+    platform: process.platform,
+    homeDirectory: home,
+    operationalEvents: { record: () => Promise.resolve() },
+  });
+
+  assert.deepEqual(
+    runtime.providers.map((provider) => provider.name),
+    ["primary", "fallback"],
+  );
+  assert.equal(runtime.inference.routeForModel(MODEL)?.name, "primary");
+  assert.equal(
+    JSON.stringify(runtime.startupConfiguration).includes(TOKEN),
+    false,
+  );
+});
+
 void test("serves all schema-validated tools over protocol-clean stdio", async (t) => {
   const baseUrl = await fakeLmStudio(t);
   const fixture = await applicationFixture(t, baseUrl);
@@ -105,6 +160,9 @@ void test("serves all schema-validated tools over protocol-clean stdio", async (
   });
   const configOutput = object(config.structuredContent);
   assert.equal(object(configOutput.lm_studio).bearer_token, "[REDACTED]");
+  assert.equal(Array.isArray(configOutput.providers), true);
+  assert.equal(Array.isArray(configOutput.provider_status), true);
+  assert.equal(object(configOutput.active_provider).name, "lm-studio");
   assert.equal(JSON.stringify(configOutput).includes(TOKEN), false);
 
   const health = await client.callTool({

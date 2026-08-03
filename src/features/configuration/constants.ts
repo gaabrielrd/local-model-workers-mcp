@@ -8,7 +8,11 @@ export const CONFIGURATION_ENVIRONMENT_VARIABLES = {
   lmStudioBaseUrl: "LMW_LM_STUDIO_BASE_URL",
   lmStudioBearerToken: "LMW_LM_STUDIO_BEARER_TOKEN",
   allowedModels: "LMW_ALLOWED_MODELS",
+  providers: "LMW_PROVIDERS",
+  providerRecheckIntervalMs: "LMW_PROVIDER_RECHECK_INTERVAL_MS",
 } as const;
+
+export const DEFAULT_PROVIDER_RECHECK_INTERVAL_MS = 60_000;
 
 export const BUILT_IN_LIMITS = {
   max_concurrency: 2,

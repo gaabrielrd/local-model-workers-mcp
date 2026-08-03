@@ -15,12 +15,10 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 1.1.0 publicado (escopos V1, V1.5 e V2.0); `main` inclui o loop de
-  auto-validação (Task 024) e o incremento de UX de seleção da Task 025
-  (engine multi-provider ainda pendente).
+- Release 1.2.0 publicado (`main` inclui multi-provider engine, auto-validação e setup com variáveis literais).
 - Existem exatamente 12 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
-  e testes (290 no total).
+  e testes (312 no total).
 
 ## Leia primeiro
 
@@ -86,3 +84,16 @@ com fallback não interativo via flags como `--target all --yes`.
 Uma tarefa só está concluída quando critérios de aceite, testes, lint,
 typecheck, build e documentação estiverem satisfeitos (`npm run validate`
 verde) e o diff final for revisado.
+
+# local-model-workers-mcp:start
+# Managed by local-model-workers-mcp. Edit only outside these markers.
+
+## Offload repository work to local MCP tools
+
+Use `explore_repository` for goal-directed repository exploration instead of scanning raw files directly.
+Use `search_semantic` for natural-language code search.
+Use `query_code_graph` for symbol, caller, dependency, and export queries.
+Use `summarize_module` for structured file or directory summaries.
+Use `propose_tests` when generating or verifying unit tests.
+
+# local-model-workers-mcp:end

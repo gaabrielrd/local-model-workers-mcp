@@ -46,7 +46,7 @@ Frontier model as architect/reviewer; local models handle iterative execution.
 - **Auto-validate test loop** (`auto_validate_tests`): sandbox-based iterative
   test generation with real execution feedback
 - **Multi-provider engine**: Ollama, vLLM, and LocalAI adapters with health-based
-  failover
+  failover — implemented in Task 025
 
 ## Non-scope (all phases)
 

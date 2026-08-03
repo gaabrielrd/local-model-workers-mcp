@@ -11,6 +11,7 @@ import { checkHealth } from "../src/features/health/index.js";
 import {
   InferenceError,
   type ModelInferencePort,
+  type ProviderRouterPort,
 } from "../src/features/model-inference/index.js";
 
 const DEFAULT_MODEL = "qwen/default";
@@ -151,6 +152,102 @@ void test("reports the missing default and each unavailable allowed model indepe
     },
     { status: "healthy", code: "ok", model: SECOND_MODEL },
   ]);
+});
+
+void test("reports every configured provider and aggregate model routing health", async () => {
+  const statuses = [
+    {
+      name: "primary",
+      type: "vllm" as const,
+      priority: 0,
+      status: "healthy" as const,
+      models: [DEFAULT_MODEL],
+      last_checked_at: "2026-08-02T00:00:00.000Z",
+    },
+    {
+      name: "backup",
+      type: "ollama" as const,
+      priority: 1,
+      status: "unhealthy" as const,
+      models: [],
+      last_checked_at: "2026-08-02T00:00:00.000Z",
+      error_code: "endpoint_unreachable" as const,
+    },
+  ];
+  const router: ProviderRouterPort = {
+    ...fakeClient({ models: [DEFAULT_MODEL, SECOND_MODEL] }),
+    refreshHealth: () => Promise.resolve(statuses),
+    getProviderStatus: () => statuses,
+    routeForModel: () => statuses[0] ?? null,
+  };
+
+  const result = await checkHealth({
+    loadConfiguration: () =>
+      Promise.resolve({
+        effective: configuration(false),
+        providers: [
+          {
+            name: "primary",
+            type: "vllm",
+            base_url: "http://primary.invalid/v1",
+            allowed_models: [DEFAULT_MODEL],
+            priority: 0,
+          },
+          {
+            name: "backup",
+            type: "ollama",
+            base_url: "http://backup.invalid",
+            allowed_models: [SECOND_MODEL],
+            priority: 1,
+          },
+        ],
+      }),
+    providerRouter: router,
+  });
+
+  assert.deepEqual(result.providers, statuses);
+  assert.equal(result.status, "healthy");
+  assert.equal(result.authentication.code, "not_configured");
+});
+
+void test("fails multi-provider health when configured authentication is not enforced", async () => {
+  const statuses = [
+    {
+      name: "primary",
+      type: "vllm" as const,
+      priority: 0,
+      status: "healthy" as const,
+      models: [DEFAULT_MODEL, SECOND_MODEL],
+      last_checked_at: "2026-08-02T00:00:00.000Z",
+    },
+  ];
+  const router: ProviderRouterPort = {
+    ...fakeClient({ models: [DEFAULT_MODEL, SECOND_MODEL], auth: false }),
+    refreshHealth: () => Promise.resolve(statuses),
+    getProviderStatus: () => statuses,
+    routeForModel: () => statuses[0] ?? null,
+  };
+
+  const result = await checkHealth({
+    loadConfiguration: () =>
+      Promise.resolve({
+        effective: configuration(),
+        providers: [
+          {
+            name: "primary",
+            type: "vllm",
+            base_url: "http://primary.invalid/v1",
+            bearer_token: "protected-token",
+            allowed_models: [DEFAULT_MODEL, SECOND_MODEL],
+            priority: 0,
+          },
+        ],
+      }),
+    providerRouter: router,
+  });
+
+  assert.equal(result.status, "unhealthy");
+  assert.equal(result.authentication.code, "authentication_not_enforced");
 });
 
 function loadConfiguration() {

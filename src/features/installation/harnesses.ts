@@ -63,6 +63,7 @@ export interface ProposeHarnessConfigurationsInput {
 export interface ApplyHarnessConfigurationInput {
   readonly proposal: HarnessConfigurationProposal;
   readonly confirmation?: HarnessConfirmation;
+  readonly environment?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface HarnessConfigurationResult {
@@ -128,7 +129,7 @@ export async function applyHarnessConfiguration(
     input.proposal.target_path,
     input.proposal.steering.target_path,
     input.proposal.command,
-    undefined,
+    input.environment,
     input.proposal.steeringPrompt,
   );
   if (current.proposal_id !== input.proposal.proposal_id) {
@@ -155,6 +156,7 @@ export async function applyHarnessConfiguration(
     current.harness,
     current.target_path,
     current.command,
+    input.environment,
   );
   if (proposedFile.proposedContents === undefined) {
     throw new Error("The harness configuration cannot be updated safely.");
@@ -275,14 +277,7 @@ function inspectJsonMcpConfiguration(
   command: string,
   environment?: Readonly<Record<string, string | undefined>>,
 ): ProposedFile {
-  const envObj =
-    harness === "claude-code"
-      ? {
-          LMW_LM_STUDIO_BASE_URL: "${LMW_LM_STUDIO_BASE_URL}",
-          LMW_LM_STUDIO_BEARER_TOKEN: "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
-          LMW_ALLOWED_MODELS: "${LMW_ALLOWED_MODELS}",
-        }
-      : buildAntigravityEnv(environment);
+  const envObj = buildMcpEnv(harness, environment);
   const managedEntry = {
     command,
     args: [] as string[],
@@ -291,7 +286,7 @@ function inspectJsonMcpConfiguration(
   const preview = [
     `mcpServers.${MANAGED_SERVER_NAME}.command = ${JSON.stringify(command)}`,
     `mcpServers.${MANAGED_SERVER_NAME}.args = []`,
-    `mcpServers.${MANAGED_SERVER_NAME}.env = ${harness === "claude-code" ? "protected environment references only" : JSON.stringify(envObj)}`,
+    `mcpServers.${MANAGED_SERVER_NAME}.env = ${formatEnvPreview(envObj)}`,
   ];
   if (currentContents === undefined) {
     return {
@@ -696,20 +691,31 @@ function isFileSystemError(error: unknown, code: string): boolean {
   );
 }
 
-function buildAntigravityEnv(
+function buildMcpEnv(
+  harness: "claude-code" | "antigravity",
   environment?: Readonly<Record<string, string | undefined>>,
 ): Record<string, string> {
   const env: Record<string, string> = {
     LMW_LM_STUDIO_BASE_URL:
       environment?.LMW_LM_STUDIO_BASE_URL ?? "http://localhost:1234/v1",
   };
-  const token = environment?.LMW_LM_STUDIO_BEARER_TOKEN?.trim();
-  if (token !== undefined && token.length > 0) {
-    env.LMW_LM_STUDIO_BEARER_TOKEN = token;
-  }
   const allowed = environment?.LMW_ALLOWED_MODELS?.trim();
   if (allowed !== undefined && allowed.length > 0) {
     env.LMW_ALLOWED_MODELS = allowed;
   }
+  if (harness === "antigravity") {
+    const token = environment?.LMW_LM_STUDIO_BEARER_TOKEN?.trim();
+    if (token !== undefined && token.length > 0) {
+      env.LMW_LM_STUDIO_BEARER_TOKEN = token;
+    }
+  }
   return env;
+}
+
+function formatEnvPreview(envObj: Record<string, string>): string {
+  const safeEnv = { ...envObj };
+  if (safeEnv.LMW_LM_STUDIO_BEARER_TOKEN !== undefined) {
+    safeEnv.LMW_LM_STUDIO_BEARER_TOKEN = "<redacted>";
+  }
+  return JSON.stringify(safeEnv);
 }

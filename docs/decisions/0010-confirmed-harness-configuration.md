@@ -19,10 +19,8 @@ content, and produces a secret-safe managed-field preview. Every write requires
 an exact confirmation bound to the observed file revision and proposed managed
 content. Malformed, duplicate, or ambiguous managed structures fail closed.
 
-Claude Code receives environment-variable references in `.mcp.json`. Codex
-receives only `env_vars` names and inherits their values from its process.
-Actual protected values are never persisted. Writes use the existing owner-only
-temporary-file, flush, and atomic-rename primitive. Automatic backups are not
+Claude Code and Antigravity receive literal environment configuration in JSON MCP files (`.mcp.json` and `mcp_config.json`) for seamless out-of-the-box initialization without requiring prompt variable approvals. Codex receives `env_vars` names and inherits their values from its process.
+Writes use the existing owner-only temporary-file, flush, and atomic-rename primitive. Automatic backups are not
 created because they could duplicate unknown secrets; recovery is documented.
 
 ## Consequences

@@ -1,7 +1,5 @@
 <Task 025: Multi-provider engine support>
-**Status:** In progress (setup UX increments done: interactive harness and MCP
-feature-group selection integrated into `setup`/`init`; multi-provider engine
-still pending)
+**Status:** Completed (setup feature selection and multi-provider engine)
 **Depends on:** Tasks 007, 023
 **PRD coverage:** New capability CAP-14
 
@@ -25,7 +23,7 @@ increment does not implement or change the provider engine requirements below.
 - When `providers` is absent, maintain backward compatibility with the existing single-provider environment variables.
 - Implement provider adapters:
   - **LM Studio** (existing): `/v1/chat/completions`, `/v1/embeddings`, `/v1/models`.
-  - **Ollama**: `/api/chat` (structured output via `format: 'json'`), `/api/embed`, `/api/tags`.
+  - **Ollama**: `/api/chat` (structured output via a JSON Schema `format`), `/api/embed`, `/api/tags`.
   - **vLLM**: `/v1/chat/completions` (OpenAI-compatible), `/v1/models`.
   - **LocalAI**: `/v1/chat/completions` (OpenAI-compatible), `/v1/models`.
 - Implement health-based failover:

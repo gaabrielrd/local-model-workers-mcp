@@ -10,7 +10,7 @@ administrative controls or expose credentials.
 
 | Layer | Purpose | Location | May contain secrets |
 | --- | --- | --- | --- |
-| Protected | LM Studio connection, credential, model allowlist, and administrative policy | Process environment and code-owned constants | Yes |
+| Protected | Provider connections, credentials, model allowlists, and administrative policy | Process environment and code-owned constants | Yes |
 | Global | Developer defaults shared across projects | OS configuration directory | No |
 | Project | Per-project preferences | `.local-model-workers.json` in the canonical project root | No |
 | Built-in | Safe limit defaults | Code-owned constants | No |
@@ -21,13 +21,37 @@ be set globally or by the project.
 
 ## Protected environment
 
-The server process requires the URL and allowlist. The token is optional:
+The legacy single-provider mode requires the URL and allowlist. The token is
+optional:
 
 | Variable | Type and validation |
 | --- | --- |
 | `LMW_LM_STUDIO_BASE_URL` | Absolute `http` or `https` URL without embedded credentials |
 | `LMW_LM_STUDIO_BEARER_TOKEN` | Optional non-empty Bearer credential; absent or blank selects `none` |
 | `LMW_ALLOWED_MODELS` | JSON array containing one or more unique, non-empty model identifiers |
+
+Multi-provider mode is enabled by `LMW_PROVIDERS`, a JSON array of one to 16
+strict objects with this shape:
+
+```json
+{
+  "name": "primary",
+  "type": "lm-studio | ollama | vllm | localai",
+  "base_url": "http://model-host.local:1234/v1",
+  "bearer_token": "optional-secret",
+  "allowed_models": ["publisher/model-id"],
+  "priority": 0
+}
+```
+
+Names must be unique, URLs must be absolute HTTP(S) URLs without credentials,
+query, or fragment, and lower numeric priority wins.
+`LMW_PROVIDER_RECHECK_INTERVAL_MS` controls when an unhealthy provider becomes
+eligible for another health check (default `60000`). When `LMW_PROVIDERS` is
+present it replaces the legacy provider variables; when absent, those variables
+are projected as one `lm-studio` provider for backward compatibility. Provider
+credentials remain protected and never enter editable preference files or
+public configuration.
 
 Use the placeholder-only [`.env.example`](../.env.example) as a reference. The
 application does not load `.env` files. The launcher or harness supplies the
@@ -132,11 +156,13 @@ value, its source in a flat `origins` map, and a revision formatted as
 The revision hashes a canonical in-memory object containing effective public
 values and origins. It never includes the Bearer token. Rotating one configured
 token for another therefore does not change the revision, while switching
-between modes does. The effective snapshot reports `authentication: "bearer"`
+between modes does. The compatibility `lm_studio` view reports
+`authentication: "bearer"`
 and `token_configured: true`, or `authentication: "none"` and
 `token_configured: false`. The public view adds `bearer_token: "[REDACTED]"` in
 Bearer mode and `bearer_token: null` otherwise. Neither object retains
-credential material.
+credential material. The effective view also exposes a redacted `providers`
+array (`token_configured` only) and the routing strategy and recheck interval.
 
 Resolved snapshots and all nested values are frozen. A later task can safely
 retain the starting snapshot and revision for the lifetime of one task.

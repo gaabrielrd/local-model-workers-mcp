@@ -1,12 +1,12 @@
 # Architecture
 
-**Status:** Target product architecture; foundation through global task capacity implemented
+**Status:** Product architecture implemented through the V3.0 multi-provider engine
 **Last reviewed:** 2026-08-02
 
 ## Purpose
 
 Local Model Workers MCP is a local security and orchestration boundary between
-an MCP harness and an LM Studio instance on a private network. It permits only
+an MCP harness and local model providers on a private network. It permits only
 bounded repository reads and returns either a verified analysis or a validated
 test-only patch.
 
@@ -25,13 +25,13 @@ Local Model Workers MCP
   |     |              |
   |     |              +-- local configuration and metadata-only logs
   |     +-- read-only, root-scoped repository access
-  +-- HTTP on a trusted private LAN --> LM Studio
+  +-- HTTP on a trusted private LAN --> LM Studio / Ollama / vLLM / LocalAI
 ```
 
 The harness owns user interaction, approval, patch application, and command
 execution. The MCP server owns input validation, repository selection, remote
 inference, output validation, concurrency, cancellation, and structured
-responses. LM Studio receives only the context selected for one task and has no
+responses. The selected provider receives only the context for one task and has no
 direct filesystem access through this product.
 
 ## Runtime flow
@@ -47,8 +47,9 @@ direct filesystem access through this product.
    the repository access service.
 5. The context filter removes prohibited, ignored, binary, and out-of-root
    content before any network request.
-6. The LM Studio client requests an analysis from an allowlisted model, using
-   Bearer authentication when configured.
+6. The provider router selects the highest-priority healthy provider that
+   advertises the allowlisted model and requests the analysis, using Bearer
+   authentication when configured.
 7. The server validates cited paths and line references against the analyzed
    content and returns a uniform response.
 
@@ -82,8 +83,8 @@ The initial feature boundaries are expected to be:
   validation, revisioning, and atomic project updates;
 - `task-execution`: task lifecycle, global concurrency, queueing, timeouts,
   cancellation, and retry policy;
-- `health`: configuration and LM Studio diagnostics without repository access;
-- `model-inference`: the service boundary around the LM Studio HTTP API;
+- `health`: configuration and provider diagnostics without repository access;
+- `model-inference`: provider adapters and health-aware inference routing;
 - `operational-logging`: metadata-only records and seven-day retention;
 - `code-graph`: structural symbol extraction and queryable in-memory index;
 - `semantic-search`: embedding service and local vector index with persistence;
@@ -112,7 +113,7 @@ concrete dependency or test seam requires them.
 
 - A feature imports another feature only through its public `index.ts`.
 - MCP transport types do not leak into domain rules.
-- LM Studio request/response shapes stay inside the inference adapter.
+- Provider request/response shapes stay inside inference adapters.
 - Filesystem, Git, clock, network, process, and persistence operations are
   injected at boundaries that require deterministic tests.
 - `shared` cannot depend on a product feature.
@@ -153,18 +154,22 @@ preferences cannot change the process-wide advertised tool surface.
 
 ## Model inference and health
 
-`model-inference` owns all LM Studio wire shapes and exposes a transport-neutral
-port for model catalog checks, optional authentication enforcement probes, and
-structured inference. Its OpenAI-compatible adapter performs allowlist/catalog preflight,
+`model-inference` owns all provider wire shapes and exposes a transport-neutral
+port for model catalogs, structured inference, embeddings, and provider status.
+LM Studio, vLLM, and LocalAI share an OpenAI-compatible adapter; Ollama uses its
+native tags, chat, and embedding endpoints. Every adapter performs allowlist/catalog preflight,
 non-streaming JSON Schema requests, bounded response reads, local schema
 validation, model identity verification, cancellation, deadlines, and one
-classified transient retry. The durable protocol choice is recorded in
+classified transient retry. A process-wide router checks every provider at
+startup, routes by ascending numeric priority and model availability, fails over
+only after a retryable error exhausts the adapter retry, and lazily rechecks an
+unhealthy provider after the protected interval. The durable LM Studio protocol choice is recorded in
 [ADR-0008](decisions/0008-use-openai-compatible-lm-studio-json-schema.md).
 
 `health` depends only on public configuration and model-inference contracts. It
 loads a repository-free runtime configuration and reports configuration,
-reachability, authentication mode, default-model availability, and each allowed
-model. Bearer enforcement is checked only when a token is configured; otherwise
+per-provider status, reachability, authentication mode, default-model
+availability, and each allowed model. Bearer enforcement is checked only when a token is configured; otherwise
 authentication is healthy with `not_configured`. Health never performs
 inference or receives a repository service.
 

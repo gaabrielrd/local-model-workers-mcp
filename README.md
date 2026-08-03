@@ -2,8 +2,8 @@
 
 Local Model Workers MCP is a local MCP server that lets Claude Code, Codex, and
 Antigravity delegate repository exploration, semantic search, code queries, and
-test proposals to a model served by LM Studio on another machine in a private
-local network.
+test proposals to local models served by LM Studio, Ollama, vLLM, or LocalAI
+on another machine in a private local network.
 
 The local server remains the security boundary: it selects repository context,
 enforces path and content restrictions, validates remote output, and returns a
@@ -12,14 +12,15 @@ patch, or runs a project command.
 
 ## Project status
 
-Release `1.1.0` implements the approved V1 scope, the V1.5 read-offloading
-phase, and the V2.0 write-offloading phase. The current `main` additionally
-includes the V2.1 auto-validate phase and the interactive harness selection UX.
+Release `1.2.0` implements the approved V1 scope, the V1.5 read-offloading
+phase, the V2.0 write-offloading phase, the V2.1 auto-validate phase, interactive feature selection, multi-provider engine, and out-of-the-box MCP harness setup.
 The implementation includes:
 
 - layered, revision-controlled configuration with atomic writes;
 - canonical read-only repository access and fail-closed outbound filtering;
-- structured LM Studio inference with optional Bearer authentication;
+- structured inference through LM Studio, Ollama, vLLM, and LocalAI adapters;
+- priority and model-aware routing, startup health checks, transient failover,
+  and lazy recovery checks for failed providers;
 - explicit trusted-LAN `none` mode for `lms` deployments without token support;
 - repository-free health diagnostics and model availability checks;
 - isolated task lifecycles with cross-process FIFO capacity;
@@ -45,7 +46,7 @@ The implementation includes:
 Local qualification is green as of 2026-08-02:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 296 automated tests;
+  typechecking, build, and all 312 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
   isolated prefix, starts the packaged MCP server, and verifies all twelve tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
@@ -82,9 +83,8 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 ## V1 boundaries
 
 - The MCP server runs locally over `stdio`.
-- Only inference traffic reaches LM Studio over HTTP on a trusted private
-  network. Bearer authentication is optional and used when the server supports
-  it.
+- Only inference traffic reaches configured local model providers over HTTP on
+  a trusted private network. Bearer authentication is optional per provider.
 - Repository access is read-only and restricted to the requested root.
 - Sensitive, ignored, binary, and explicitly excluded files are never sent to
   LM Studio.
@@ -113,7 +113,7 @@ Or, for the current release specifically:
 
 ```sh
 npm install --global \
-  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.1.0/local-model-workers-mcp-1.1.0.tgz
+  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.2.0/local-model-workers-mcp-1.2.0.tgz
 ```
 
 To update, repeat the same command after a new release is published. There is no
@@ -165,6 +165,12 @@ export LMW_LM_STUDIO_BASE_URL='http://localhost:1234/v1'
 # Optional: if omitted, all models available at /v1/models are allowed:
 export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'
 ```
+
+For multi-provider routing, set `LMW_PROVIDERS` to a protected JSON array. A
+lower numeric `priority` is preferred; the router selects the first healthy
+provider that advertises and allows the requested model. See
+[configuration.md](docs/configuration.md) for the schema and compatibility
+behavior.
 
 ---
 

@@ -16,14 +16,20 @@ import {
   FEATURE_GROUPS,
   getConfig,
   getEffectiveConfiguration,
+  getProtectedProviderConfigurations,
   resolveModelForTask,
   updateConfig,
   validateConfig,
   type EffectiveConfiguration,
   type FeatureGroup,
+  type ProtectedProviderConfiguration,
 } from "../configuration/index.js";
 import { checkHealth } from "../health/index.js";
-import { createLmStudioClient } from "../model-inference/index.js";
+import {
+  createProviderAdapter,
+  createProviderRouter,
+  type ProviderRouterPort,
+} from "../model-inference/index.js";
 import {
   createOperationalLogStore,
   resolveOperationalLogDirectory,
@@ -118,6 +124,8 @@ export interface McpApplicationRuntime {
   readonly homeDirectory: string;
   readonly startupConfiguration: EffectiveConfiguration;
   readonly bearerToken?: string;
+  readonly providers: readonly ProtectedProviderConfiguration[];
+  readonly inference: ProviderRouterPort;
   readonly operationalEvents: OperationalEventRecorder;
 }
 
@@ -143,6 +151,21 @@ export async function createMcpApplicationRuntime(
     platform,
     homeDirectory,
   });
+  const providers = getProtectedProviderConfigurations(environment);
+  const inference = createProviderRouter({
+    adapters: providers.map((provider) =>
+      createProviderAdapter(provider, {
+        retryCount: startupConfiguration.fixed_limits.inference_retry_count,
+      }),
+    ),
+    ...(startupConfiguration.provider_routing?.recheck_interval_ms === undefined
+      ? {}
+      : {
+          recheckIntervalMs:
+            startupConfiguration.provider_routing.recheck_interval_ms,
+        }),
+  });
+  await inference.refreshHealth({ timeout_ms: 5_000 });
   const bearerToken =
     environment[
       CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken
@@ -161,6 +184,8 @@ export async function createMcpApplicationRuntime(
     platform,
     homeDirectory,
     startupConfiguration,
+    providers,
+    inference,
     ...(bearerToken === undefined || bearerToken.length === 0
       ? {}
       : { bearerToken }),
@@ -458,7 +483,9 @@ export function createMcpServer(
               ...(runtime.bearerToken === undefined
                 ? {}
                 : { bearer_token: runtime.bearerToken }),
+              providers: runtime.providers,
             }),
+          providerRouter: runtime.inference,
           signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
         }),
       ),
@@ -473,16 +500,23 @@ export function createMcpServer(
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
     async (request) =>
-      safeToolCall(() =>
-        getConfig({
+      safeToolCall(async () => {
+        const configuration = await getConfig({
           ...(request.project_root === undefined
             ? {}
             : { projectRoot: request.project_root }),
           environment: runtime.environment,
           platform: runtime.platform,
           homeDirectory: runtime.homeDirectory,
-        }),
-      ),
+        });
+        return {
+          ...configuration,
+          provider_status: runtime.inference.getProviderStatus(),
+          active_provider: runtime.inference.routeForModel(
+            configuration.lm_studio.default_model,
+          ),
+        };
+      }),
   );
 
   server.registerTool(
@@ -574,14 +608,7 @@ async function taskDependencies(
     platform: runtime.platform,
     homeDirectory: runtime.homeDirectory,
   });
-  const inference = createLmStudioClient({
-    baseUrl: configuration.lm_studio.base_url,
-    ...(runtime.bearerToken === undefined
-      ? {}
-      : { bearerToken: runtime.bearerToken }),
-    allowedModels: configuration.lm_studio.allowed_models,
-    retryCount: configuration.fixed_limits.inference_retry_count,
-  });
+  const inference = runtime.inference;
   const coordinator: TaskCapacityCoordinator =
     createFileSystemCapacityCoordinator({
       stateDirectory: resolveCapacityStateDirectory({

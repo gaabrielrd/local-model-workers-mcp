@@ -31,8 +31,8 @@ Omitting `enabled_features` registers every group for backward compatibility.
 | --- | --- | --- |
 | `explore_repository` | `goal`, `repository_root` | Bounded exploration; optional `priority_paths` and `language` |
 | `propose_tests` | `goal`, `repository_root` | Validated, unapplied test-only diff; optional scope and language |
-| `check_health` | none | Repository-free LM Studio and configuration health |
-| `get_config` | none | Redacted global configuration; optional `project_root` |
+| `check_health` | none | Repository-free configuration and per-provider health |
+| `get_config` | none | Redacted configuration, provider status, and active default-model route; optional `project_root` |
 | `validate_config` | `project_root`, `expected_revision`, `changes` | Read-only project proposal validation |
 | `update_config` | validation fields | Atomic write only with matching explicit `confirmation` |
 | `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` |

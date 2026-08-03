@@ -10,6 +10,7 @@ import {
   BUILT_IN_LIMITS,
   CONFIGURATION_ENVIRONMENT_VARIABLES,
   CONFIGURATION_SCHEMA_VERSION,
+  DEFAULT_PROVIDER_RECHECK_INTERVAL_MS,
   FIXED_LIMITS,
   REDACTED_CONFIGURATION_VALUE,
 } from "./constants.js";
@@ -121,8 +122,57 @@ const AllowedModelsSchema = z
     }
   });
 
+const ProviderConfigurationSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/u),
+    type: z.enum(["lm-studio", "ollama", "vllm", "localai"]),
+    base_url: z.string().trim().min(1).max(2_048),
+    bearer_token: z.string().trim().min(1).max(8_192).optional(),
+    allowed_models: AllowedModelsSchema,
+    priority: z.number().int().min(0).max(10_000),
+  })
+  .strict();
+
+const ProvidersSchema = z
+  .array(ProviderConfigurationSchema)
+  .min(1)
+  .max(16)
+  .superRefine((providers, context) => {
+    if (
+      new Set(providers.map((provider) => provider.name)).size !==
+      providers.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Provider names must be unique.",
+      });
+    }
+  });
+
 export type Preferences = z.infer<typeof PreferencesSchema>;
 export type ProjectPreferences = z.infer<typeof ProjectPreferencesSchema>;
+export interface ProtectedProviderConfiguration {
+  readonly name: string;
+  readonly type: "lm-studio" | "ollama" | "vllm" | "localai";
+  readonly base_url: string;
+  readonly bearer_token?: string;
+  readonly allowed_models: readonly string[];
+  readonly priority: number;
+}
+
+export interface EffectiveProviderConfiguration {
+  readonly name: string;
+  readonly type: ProtectedProviderConfiguration["type"];
+  readonly base_url: string;
+  readonly token_configured: boolean;
+  readonly allowed_models: readonly string[];
+  readonly priority: number;
+}
 
 export interface EffectiveLimits {
   readonly max_concurrency: number;
@@ -181,6 +231,11 @@ export interface EffectiveConfiguration {
   };
   readonly steering_prompt?: string | undefined;
   readonly enabled_features?: readonly FeatureGroup[];
+  readonly providers?: readonly EffectiveProviderConfiguration[];
+  readonly provider_routing?: {
+    readonly strategy: "priority";
+    readonly recheck_interval_ms: number;
+  };
   readonly limits: EffectiveLimits;
   readonly administrative_maxima: typeof ADMINISTRATIVE_MAXIMA;
   readonly fixed_limits: typeof FIXED_LIMITS;
@@ -361,6 +416,19 @@ export async function getEffectiveConfiguration(
       ? {}
       : { steering_prompt: steeringPrompt.value }),
     enabled_features: [...enabledFeatures.value],
+    providers: protectedSettings.providers.map((provider) => ({
+      name: provider.name,
+      type: provider.type,
+      base_url: provider.base_url,
+      token_configured:
+        provider.bearer_token !== undefined && provider.bearer_token.length > 0,
+      allowed_models: [...provider.allowed_models],
+      priority: provider.priority,
+    })),
+    provider_routing: {
+      strategy: "priority" as const,
+      recheck_interval_ms: protectedSettings.recheckIntervalMs,
+    },
     limits: {
       max_concurrency: concurrency.value,
       queue_timeout_ms: queueTimeout.value,
@@ -500,7 +568,74 @@ function parseProtectedSettings(
   readonly baseUrl: string;
   readonly tokenConfigured: boolean;
   readonly allowedModels: readonly string[];
+  readonly providers: readonly ProtectedProviderConfiguration[];
+  readonly recheckIntervalMs: number;
 } {
+  const providers = getProtectedProviderConfigurations(environment);
+  const primaryProvider = providers[0];
+  if (primaryProvider === undefined) {
+    throw invalidConfiguration("At least one provider is required.");
+  }
+  const allowedModels = [
+    ...new Set(providers.flatMap((provider) => provider.allowed_models)),
+  ].sort();
+  const rawInterval =
+    environment[
+      CONFIGURATION_ENVIRONMENT_VARIABLES.providerRecheckIntervalMs
+    ]?.trim();
+  const recheckIntervalMs =
+    rawInterval === undefined || rawInterval.length === 0
+      ? DEFAULT_PROVIDER_RECHECK_INTERVAL_MS
+      : Number(rawInterval);
+  if (!Number.isInteger(recheckIntervalMs) || recheckIntervalMs < 1) {
+    throw invalidConfiguration(
+      "The provider recheck interval must be a positive integer.",
+    );
+  }
+  return {
+    baseUrl: primaryProvider.base_url,
+    tokenConfigured:
+      primaryProvider.bearer_token !== undefined &&
+      primaryProvider.bearer_token.length > 0,
+    allowedModels,
+    providers,
+    recheckIntervalMs,
+  };
+}
+
+export function getProtectedProviderConfigurations(
+  environment: Readonly<Record<string, string | undefined>>,
+): readonly ProtectedProviderConfiguration[] {
+  const rawProviders =
+    environment[CONFIGURATION_ENVIRONMENT_VARIABLES.providers]?.trim();
+  if (rawProviders !== undefined && rawProviders.length > 0) {
+    let parsed: z.infer<typeof ProvidersSchema>;
+    try {
+      parsed = ProvidersSchema.parse(JSON.parse(rawProviders) as unknown);
+    } catch {
+      throw invalidConfiguration(
+        "The protected provider configuration is invalid.",
+      );
+    }
+    return Object.freeze(
+      parsed
+        .map((provider) => ({
+          name: provider.name,
+          type: provider.type,
+          base_url: normalizeProviderUrl(provider.base_url),
+          ...(provider.bearer_token === undefined
+            ? {}
+            : { bearer_token: provider.bearer_token }),
+          allowed_models: Object.freeze([...provider.allowed_models]),
+          priority: provider.priority,
+        }))
+        .sort(
+          (left, right) =>
+            left.priority - right.priority ||
+            left.name.localeCompare(right.name),
+        ),
+    );
+  }
   const rawBaseUrlInput = requiredEnvironmentValue(
     environment,
     CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBaseUrl,
@@ -516,21 +651,7 @@ function parseProtectedSettings(
   const rawAllowedModels =
     environment[CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels]?.trim();
 
-  let baseUrl: URL;
-  try {
-    baseUrl = new URL(rawBaseUrl);
-  } catch {
-    throw invalidConfiguration("The protected LM Studio base URL is invalid.");
-  }
-  if (
-    (baseUrl.protocol !== "http:" && baseUrl.protocol !== "https:") ||
-    baseUrl.username.length > 0 ||
-    baseUrl.password.length > 0
-  ) {
-    throw invalidConfiguration(
-      "The protected LM Studio base URL must use HTTP(S) without embedded credentials.",
-    );
-  }
+  const baseUrl = normalizeProviderUrl(rawBaseUrl);
 
   let allowedModels: readonly string[];
   if (rawAllowedModels === undefined || rawAllowedModels.length === 0) {
@@ -547,11 +668,39 @@ function parseProtectedSettings(
     }
   }
 
-  return {
-    baseUrl: baseUrl.toString().replace(/\/$/, ""),
-    tokenConfigured: bearerToken !== undefined && bearerToken.length > 0,
-    allowedModels: [...allowedModels].sort(),
-  };
+  return Object.freeze([
+    {
+      name: "lm-studio",
+      type: "lm-studio" as const,
+      base_url: baseUrl,
+      ...(bearerToken === undefined || bearerToken.length === 0
+        ? {}
+        : { bearer_token: bearerToken }),
+      allowed_models: [...allowedModels].sort(),
+      priority: 0,
+    },
+  ]);
+}
+
+function normalizeProviderUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw invalidConfiguration("A protected provider base URL is invalid.");
+  }
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username.length > 0 ||
+    url.password.length > 0 ||
+    url.search.length > 0 ||
+    url.hash.length > 0
+  ) {
+    throw invalidConfiguration(
+      "Protected provider URLs must use HTTP(S) without embedded credentials.",
+    );
+  }
+  return url.toString().replace(/\/$/u, "");
 }
 
 function requiredEnvironmentValue(

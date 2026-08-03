@@ -97,3 +97,45 @@ export interface ModelInferencePort {
   ): Promise<StructuredInferenceResult<Output>>;
   embedText(request: EmbeddingRequest): Promise<EmbeddingResult>;
 }
+
+export const PROVIDER_TYPES = [
+  "lm-studio",
+  "ollama",
+  "vllm",
+  "localai",
+] as const;
+
+export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+export interface ProviderConfig {
+  readonly name: string;
+  readonly type: ProviderType;
+  readonly base_url: string;
+  readonly bearer_token?: string;
+  readonly allowed_models: readonly string[];
+  readonly priority: number;
+}
+
+export interface ProviderMetadata extends Omit<ProviderConfig, "bearer_token"> {
+  readonly token_configured: boolean;
+}
+
+export interface ProviderAdapter extends ModelInferencePort {
+  readonly provider: ProviderMetadata;
+}
+
+export interface ProviderStatus {
+  readonly name: string;
+  readonly type: ProviderType;
+  readonly priority: number;
+  readonly status: "healthy" | "unhealthy" | "unknown";
+  readonly models: readonly string[];
+  readonly last_checked_at: string | null;
+  readonly error_code?: InferenceErrorCode;
+}
+
+export interface ProviderRouterPort extends ModelInferencePort {
+  refreshHealth(options: RequestOptions): Promise<readonly ProviderStatus[]>;
+  getProviderStatus(): readonly ProviderStatus[];
+  routeForModel(model: string): ProviderStatus | null;
+}

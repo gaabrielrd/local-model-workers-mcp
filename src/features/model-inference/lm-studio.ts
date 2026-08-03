@@ -215,7 +215,10 @@ async function inferStructured<Output>(
   requestInput: StructuredInferenceRequest<Output>,
 ): Promise<StructuredInferenceResult<Output>> {
   validateInferenceRequest(requestInput);
-  if (!options.allowedModels.has(requestInput.model)) {
+  if (
+    !options.allowedModels.has("*") &&
+    !options.allowedModels.has(requestInput.model)
+  ) {
     throw new InferenceError(
       "model_unauthorized",
       "The requested model is not allowed by protected policy.",
@@ -325,7 +328,10 @@ async function embedText(
     );
   }
 
-  if (!options.allowedModels.has(requestInput.model)) {
+  if (
+    !options.allowedModels.has("*") &&
+    !options.allowedModels.has(requestInput.model)
+  ) {
     throw new InferenceError(
       "model_unauthorized",
       "The requested model is not allowed by protected policy.",

@@ -1,5 +1,6 @@
 export {
   INFERENCE_ERROR_CODES,
+  PROVIDER_TYPES,
   InferenceError,
   type EmbeddingRequest,
   type EmbeddingResult,
@@ -9,6 +10,12 @@ export {
   type InferenceUsage,
   type ModelCatalog,
   type ModelInferencePort,
+  type ProviderAdapter,
+  type ProviderConfig,
+  type ProviderMetadata,
+  type ProviderRouterPort,
+  type ProviderStatus,
+  type ProviderType,
   type RequestOptions,
   type StructuredInferenceRequest,
   type StructuredInferenceResult,
@@ -17,3 +24,8 @@ export {
   createLmStudioClient,
   type LmStudioClientOptions,
 } from "./lm-studio.js";
+export { createOllamaAdapter, type OllamaAdapterOptions } from "./ollama.js";
+export { createVllmAdapter } from "./vllm.js";
+export { createLocalAiAdapter } from "./localai.js";
+export { createProviderAdapter } from "./providers.js";
+export { createProviderRouter, type ProviderRouterOptions } from "./router.js";

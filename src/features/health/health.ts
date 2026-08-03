@@ -1,9 +1,14 @@
-import type { EffectiveConfiguration } from "../configuration/index.js";
+import type {
+  EffectiveConfiguration,
+  ProtectedProviderConfiguration,
+} from "../configuration/index.js";
 import {
   createLmStudioClient,
   InferenceError,
   type LmStudioClientOptions,
   type ModelInferencePort,
+  type ProviderRouterPort,
+  type ProviderStatus,
 } from "../model-inference/index.js";
 
 export type HealthCheckStatus = "healthy" | "unhealthy" | "not_checked";
@@ -38,17 +43,20 @@ export interface HealthResult {
   readonly authentication: HealthCheck;
   readonly default_model: ModelHealthCheck | null;
   readonly allowed_models: readonly ModelHealthCheck[];
+  readonly providers: readonly ProviderStatus[];
 }
 
 export interface HealthRuntimeConfiguration {
   readonly effective: EffectiveConfiguration;
   readonly bearer_token?: string;
+  readonly providers?: readonly ProtectedProviderConfiguration[];
 }
 
 export interface CheckHealthInput {
   readonly loadConfiguration: () => Promise<HealthRuntimeConfiguration>;
   readonly timeout_ms?: number;
   readonly signal?: AbortSignal;
+  readonly providerRouter?: ProviderRouterPort;
   readonly clientFactory?: (
     options: LmStudioClientOptions,
   ) => ModelInferencePort;
@@ -71,35 +79,62 @@ export async function checkHealth(
     return configurationFailure();
   }
 
-  const clientFactory = input.clientFactory ?? createLmStudioClient;
-  let client: ModelInferencePort;
-  try {
-    client = clientFactory({
-      baseUrl: runtime.effective.lm_studio.base_url,
-      ...(runtime.bearer_token === undefined
-        ? {}
-        : { bearerToken: runtime.bearer_token }),
-      allowedModels: runtime.effective.lm_studio.allowed_models,
-      retryCount: runtime.effective.fixed_limits.inference_retry_count,
-    });
-  } catch {
-    return configurationFailure();
-  }
-
   const requestOptions = {
     timeout_ms: input.timeout_ms ?? HEALTH_TIMEOUT_MS,
     ...(input.signal === undefined ? {} : { signal: input.signal }),
   };
 
+  const clientFactory = input.clientFactory ?? createLmStudioClient;
+  let client: ModelInferencePort;
+  let providers: readonly ProviderStatus[] = [];
+  if (input.providerRouter !== undefined) {
+    client = input.providerRouter;
+    providers = await input.providerRouter.refreshHealth(requestOptions);
+  } else {
+    try {
+      client = clientFactory({
+        baseUrl: runtime.effective.lm_studio.base_url,
+        ...(runtime.bearer_token === undefined
+          ? {}
+          : { bearerToken: runtime.bearer_token }),
+        allowedModels: runtime.effective.lm_studio.allowed_models,
+        retryCount: runtime.effective.fixed_limits.inference_retry_count,
+      });
+    } catch {
+      return configurationFailure();
+    }
+  }
+
   let models: readonly string[];
   try {
     models = (await client.listModels(requestOptions)).models;
   } catch (error: unknown) {
-    return catalogFailure(error, runtime.effective);
+    return catalogFailure(error, runtime.effective, providers);
   }
 
   let authentication: HealthCheck;
-  if (runtime.effective.lm_studio.authentication === "none") {
+  if (input.providerRouter !== undefined) {
+    const tokenConfigured =
+      runtime.providers?.some(
+        (provider) =>
+          provider.bearer_token !== undefined &&
+          provider.bearer_token.length > 0,
+      ) === true;
+    if (!tokenConfigured) {
+      authentication = { status: "healthy", code: "not_configured" };
+    } else {
+      try {
+        authentication = (await client.isAuthenticationEnforced(requestOptions))
+          ? HEALTHY
+          : { status: "unhealthy", code: "authentication_not_enforced" };
+      } catch (error: unknown) {
+        authentication = {
+          status: "unhealthy",
+          code: inferenceHealthCode(error),
+        };
+      }
+    }
+  } else if (runtime.effective.lm_studio.authentication === "none") {
     authentication = { status: "healthy", code: "not_configured" };
   } else {
     try {
@@ -143,6 +178,7 @@ export async function checkHealth(
     authentication,
     default_model: defaultModelCheck,
     allowed_models: allowedModelChecks,
+    providers,
   };
 }
 
@@ -157,12 +193,14 @@ function configurationFailure(): HealthResult {
     authentication: NOT_CHECKED,
     default_model: null,
     allowed_models: [],
+    providers: [],
   };
 }
 
 function catalogFailure(
   error: unknown,
   configuration: EffectiveConfiguration,
+  providers: readonly ProviderStatus[] = [],
 ): HealthResult {
   const code = inferenceHealthCode(error);
   const reached =
@@ -185,6 +223,7 @@ function catalogFailure(
       ...NOT_CHECKED,
       model,
     })),
+    providers,
   };
 }
 

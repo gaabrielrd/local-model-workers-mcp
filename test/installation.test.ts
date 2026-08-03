@@ -151,7 +151,7 @@ void test("requires exact confirmation and writes secret-safe harness files", as
   const codexPath = path.join(fixture.home, ".codex", "config.toml");
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
-  assert.match(claude, /\$\{LMW_LM_STUDIO_BEARER_TOKEN:-\}/);
+  assert.match(claude, /http:\/\/localhost:1234\/v1/);
   assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
   assert.equal(
     `${claude}${codex}`.includes(
@@ -393,7 +393,7 @@ void test("interactive setup command creates harness and global preference files
   const codexPath = path.join(fixture.home, ".codex", "config.toml");
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
-  assert.match(claude, /\$\{LMW_LM_STUDIO_BEARER_TOKEN:-\}/);
+  assert.match(claude, /http:\/\/pc-gabriel\.local:1234\/v1/);
   assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
   const text = output.join("");
   assert.match(text, /Setup Complete/);
