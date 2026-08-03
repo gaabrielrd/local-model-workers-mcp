@@ -18,8 +18,10 @@ const FORWARDED_ENVIRONMENT_NAMES = [
   "LMW_ALLOWED_MODELS",
 ] as const;
 
-export type Harness = "claude-code" | "codex" | "antigravity";
-export type HarnessSelection = Harness | "all" | "both" | "cancel";
+export type Harness =
+  "claude-code" | "claude-code-project" | "codex" | "antigravity";
+export type HarnessSelection =
+  Harness | "claude-code-global" | "all" | "both" | "cancel";
 export type InstallationState =
   "fresh" | "identical" | "compatible" | "conflicting" | "malformed";
 
@@ -53,6 +55,7 @@ export interface HarnessConfirmation {
 
 export interface ProposeHarnessConfigurationsInput {
   readonly selection: readonly Harness[] | HarnessSelection;
+  readonly scope?: "global" | "project" | "both";
   readonly projectRoot?: string;
   readonly homeDirectory?: string;
   readonly command?: string;
@@ -84,7 +87,7 @@ export async function proposeHarnessConfigurations(
   input: ProposeHarnessConfigurationsInput,
 ): Promise<readonly HarnessConfigurationProposal[]> {
   const command = normalizeCommand(input.command);
-  const harnesses = expandSelection(input.selection);
+  const harnesses = expandSelection(input.selection, input.scope);
   const environment = input.environment ?? process.env;
 
   return Promise.all(
@@ -105,20 +108,47 @@ export async function proposeHarnessConfigurations(
 
 function expandSelection(
   selection: readonly Harness[] | HarnessSelection,
+  scope?: "global" | "project" | "both",
 ): readonly Harness[] {
   if (typeof selection !== "string") {
-    return selection;
+    return applyScopeToHarnesses(selection, scope);
   }
   if (selection === "cancel") {
     return [];
   }
-  if (selection === "all") {
-    return ["claude-code", "codex", "antigravity"];
+  let base: readonly Harness[];
+  if (selection === "claude-code-global") {
+    base = ["claude-code"];
+  } else if (selection === "all") {
+    base = ["claude-code", "codex", "antigravity"];
+  } else if (selection === "both") {
+    base = ["claude-code", "codex"];
+  } else {
+    base = [selection];
   }
-  if (selection === "both") {
-    return ["claude-code", "codex"];
+  return applyScopeToHarnesses(base, scope);
+}
+
+function applyScopeToHarnesses(
+  harnesses: readonly Harness[],
+  scope?: "global" | "project" | "both",
+): readonly Harness[] {
+  if (scope === undefined || scope === "global") {
+    return harnesses;
   }
-  return [selection];
+  const result: Harness[] = [];
+  for (const item of harnesses) {
+    if (item === "claude-code") {
+      if (scope === "project") {
+        result.push("claude-code-project");
+      } else if (scope === "both") {
+        result.push("claude-code", "claude-code-project");
+      }
+    } else {
+      result.push(item);
+    }
+  }
+  return result;
 }
 
 export async function applyHarnessConfiguration(
@@ -261,7 +291,9 @@ async function inspectHarnessFile(
   environment?: Readonly<Record<string, string | undefined>>,
 ): Promise<ProposedFile> {
   const currentContents = await readOptionalFile(targetPath);
-  return harness === "claude-code" || harness === "antigravity"
+  return harness === "claude-code" ||
+    harness === "claude-code-project" ||
+    harness === "antigravity"
     ? inspectJsonMcpConfiguration(
         harness,
         currentContents,
@@ -272,7 +304,7 @@ async function inspectHarnessFile(
 }
 
 function inspectJsonMcpConfiguration(
-  harness: "claude-code" | "antigravity",
+  harness: "claude-code" | "claude-code-project" | "antigravity",
   currentContents: string | undefined,
   command: string,
   environment?: Readonly<Record<string, string | undefined>>,
@@ -333,7 +365,12 @@ function inspectJsonMcpConfiguration(
       [MANAGED_SERVER_NAME]: managedEntry,
     },
   };
-  const label = harness === "claude-code" ? "Claude Code" : "Antigravity";
+  const label =
+    harness === "claude-code"
+      ? "Claude Code (Global)"
+      : harness === "claude-code-project"
+        ? "Claude Code (Project)"
+        : "Antigravity";
   return {
     state: existingEntry === undefined ? "compatible" : "conflicting",
     applicable: true,
@@ -555,13 +592,13 @@ function resolveTargetPath(
   harness: Harness,
   input: ProposeHarnessConfigurationsInput,
 ): string {
-  if (harness === "claude-code") {
+  if (harness === "claude-code-project") {
     if (
       input.projectRoot === undefined ||
       input.projectRoot.trim().length === 0
     ) {
       throw new Error(
-        "A project root is required for Claude Code configuration.",
+        "A project root is required for project-scoped Claude Code configuration.",
       );
     }
     return path.resolve(input.projectRoot, ".mcp.json");
@@ -571,8 +608,11 @@ function resolveTargetPath(
     input.homeDirectory.trim().length === 0
   ) {
     throw new Error(
-      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : "Codex"} configuration.`,
+      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : harness === "codex" ? "Codex" : "Claude Code"} configuration.`,
     );
+  }
+  if (harness === "claude-code") {
+    return path.resolve(input.homeDirectory, ".claude.json");
   }
   if (harness === "antigravity") {
     return path.resolve(
@@ -589,13 +629,13 @@ function resolveSteeringTargetPath(
   harness: Harness,
   input: ProposeHarnessConfigurationsInput,
 ): string {
-  if (harness === "claude-code") {
+  if (harness === "claude-code-project") {
     if (
       input.projectRoot === undefined ||
       input.projectRoot.trim().length === 0
     ) {
       throw new Error(
-        "A project root is required for Claude Code configuration.",
+        "A project root is required for project-scoped Claude Code configuration.",
       );
     }
     return path.resolve(input.projectRoot, "AGENTS.md");
@@ -605,8 +645,11 @@ function resolveSteeringTargetPath(
     input.homeDirectory.trim().length === 0
   ) {
     throw new Error(
-      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : "Codex"} configuration.`,
+      `A home directory is required for ${harness === "antigravity" ? "Antigravity" : harness === "codex" ? "Codex" : "Claude Code"} configuration.`,
     );
+  }
+  if (harness === "claude-code") {
+    return path.resolve(input.homeDirectory, ".claude", "CLAUDE.md");
   }
   if (harness === "antigravity") {
     return path.resolve(input.homeDirectory, ".gemini", "instructions.md");
@@ -692,7 +735,7 @@ function isFileSystemError(error: unknown, code: string): boolean {
 }
 
 function buildMcpEnv(
-  harness: "claude-code" | "antigravity",
+  harness: "claude-code" | "claude-code-project" | "antigravity",
   environment?: Readonly<Record<string, string | undefined>>,
 ): Record<string, string> {
   const env: Record<string, string> = {

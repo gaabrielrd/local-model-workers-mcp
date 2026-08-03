@@ -82,13 +82,14 @@ local-model-workers-mcp configure-harness --target all --project-root "$PWD"
 local-model-workers-mcp configure-harness --target cancel
 ```
 
-Claude Code uses the project-scoped `.mcp.json` `mcpServers` format. Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`.
+Claude Code supports global user-scoped configuration (`~/.claude.json`) for automatic activation across all active projects, as well as project-scoped configuration (`.mcp.json`). Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`.
 
 Every harness also receives a prompt steering instruction file that directs the
 agent to offload repository work to the local MCP tools (`explore_repository`,
 `search_semantic`, `query_code_graph`, `summarize_module`, and `propose_tests`):
 
-- Claude Code: `AGENTS.md` in the project root.
+- Claude Code Global: `~/.claude/CLAUDE.md`.
+- Claude Code Project: `AGENTS.md` in the project root.
 - Codex: `~/.codex/instructions.md`.
 - Antigravity: `~/.gemini/instructions.md`.
 

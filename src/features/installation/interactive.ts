@@ -217,11 +217,25 @@ export async function runInteractiveSetup(
       const selection = await selectOptions({
         prompt: "Select target harnesses (space to toggle, enter to confirm):",
         options: [
-          { label: "Claude Code", value: "claude-code" },
-          { label: "Codex", value: "codex" },
-          { label: "Antigravity", value: "antigravity" },
+          {
+            label:
+              "Claude Code Global (~/.claude.json — active in all projects)",
+            value: "claude-code",
+          },
+          {
+            label: "Codex Global (~/.codex/config.toml)",
+            value: "codex",
+          },
+          {
+            label: "Antigravity Global (~/.gemini/config/mcp_config.json)",
+            value: "antigravity",
+          },
+          {
+            label: "Claude Code Project Local (.mcp.json)",
+            value: "claude-code-project",
+          },
         ],
-        initial: ["claude-code", "codex"],
+        initial: ["claude-code", "codex", "antigravity"],
         write: io.write,
         input: inputStream,
       });
@@ -417,6 +431,8 @@ function stringOpt(
 function isHarnessSelection(value: string): boolean {
   return (
     value === "claude-code" ||
+    value === "claude-code-global" ||
+    value === "claude-code-project" ||
     value === "codex" ||
     value === "antigravity" ||
     value === "all" ||
@@ -428,6 +444,9 @@ function isHarnessSelection(value: string): boolean {
 function harnessesFromSelection(selection: string): readonly Harness[] {
   if (selection === "cancel") {
     return [];
+  }
+  if (selection === "claude-code-global") {
+    return ["claude-code"];
   }
   if (selection === "all") {
     return ["claude-code", "codex", "antigravity"];

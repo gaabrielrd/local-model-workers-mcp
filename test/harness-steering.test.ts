@@ -26,6 +26,7 @@ import {
   proposeGlobalPreferences,
   proposeHarnessConfigurations,
   runInstallationCommand,
+  type Harness,
   type InstallationCommandIo,
 } from "../src/features/installation/index.js";
 
@@ -114,7 +115,7 @@ void test("applying a proposal writes steering instruction files atomically", as
   }
 
   const claude = await readFile(
-    path.join(fixture.project, "AGENTS.md"),
+    path.join(fixture.home, ".claude", "CLAUDE.md"),
     "utf8",
   );
   const codex = await readFile(
@@ -162,7 +163,7 @@ void test("preserves user instructions outside the managed markers", async (t) =
     "utf8",
   );
   const [proposal] = await proposeHarnessConfigurations({
-    selection: "claude-code",
+    selection: "claude-code-project",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
@@ -186,7 +187,7 @@ void test("preserves user instructions outside the managed markers", async (t) =
   );
 
   const [again] = await proposeHarnessConfigurations({
-    selection: "claude-code",
+    selection: "claude-code-project",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
@@ -204,7 +205,7 @@ void test("replaces a stale managed block and keeps surrounding user text", asyn
     "utf8",
   );
   const [proposal] = await proposeHarnessConfigurations({
-    selection: "claude-code",
+    selection: "claude-code-project",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
@@ -231,7 +232,7 @@ void test("flags unbalanced steering markers as malformed and refuses to write",
     "utf8",
   );
   const [proposal] = await proposeHarnessConfigurations({
-    selection: "claude-code",
+    selection: "claude-code-project",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
@@ -341,11 +342,12 @@ void test("resolves steering paths portably across platforms", async (t) => {
     homeDirectory: fixture.home,
   });
   assert.equal(proposals.length, 3);
-  const expected = {
-    "claude-code": path.join(fixture.project, "AGENTS.md"),
+  const expected: Record<Harness, string> = {
+    "claude-code": path.join(fixture.home, ".claude", "CLAUDE.md"),
+    "claude-code-project": path.join(fixture.project, "AGENTS.md"),
     codex: path.join(fixture.home, ".codex", "instructions.md"),
     antigravity: path.join(fixture.home, ".gemini", "instructions.md"),
-  } as const;
+  };
   for (const proposal of proposals) {
     assert.equal(proposal.steering.target_path, expected[proposal.harness]);
     assert.equal(path.isAbsolute(proposal.steering.target_path), true);

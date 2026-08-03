@@ -21,7 +21,7 @@ diagnostics use a protocol-safe channel and must never contain protected or
 repository content.
 
 The executable and confirmed configuration assistant are implemented. Claude
-Code 2.1.204 uses a project `.mcp.json` entry:
+Code uses global `~/.claude.json` or project `.mcp.json` entries:
 
 ```json
 {

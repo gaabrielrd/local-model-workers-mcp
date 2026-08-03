@@ -65,6 +65,7 @@ async function configureHarness(
 ): Promise<number> {
   assertAllowedOptions(options, [
     "target",
+    "scope",
     "project-root",
     "home",
     "command",
@@ -74,9 +75,19 @@ async function configureHarness(
   const selection = requiredOption(options, "target");
   if (!isHarnessSelection(selection)) {
     throw new Error(
-      "Target must be claude-code, codex, antigravity, all, both, or cancel.",
+      "Target must be claude-code, claude-code-project, codex, antigravity, all, both, or cancel.",
     );
   }
+  const rawScope = stringOption(options, "scope");
+  if (
+    rawScope !== undefined &&
+    rawScope !== "global" &&
+    rawScope !== "project" &&
+    rawScope !== "both"
+  ) {
+    throw new Error("Option --scope must be global, project, or both.");
+  }
+  const scope = rawScope;
   const executableCommand = stringOption(options, "command");
   const projectRoot =
     stringOption(options, "project-root") ?? io.cwd ?? process.cwd();
@@ -89,6 +100,7 @@ async function configureHarness(
   );
   const proposals = await proposeHarnessConfigurations({
     selection,
+    ...(scope === undefined ? {} : { scope }),
     projectRoot,
     homeDirectory,
     environment: io.environment ?? process.env,
@@ -325,6 +337,8 @@ function positiveIntegerOption(
 function isHarnessSelection(value: string): value is HarnessSelection {
   return (
     value === "claude-code" ||
+    value === "claude-code-global" ||
+    value === "claude-code-project" ||
     value === "codex" ||
     value === "antigravity" ||
     value === "all" ||

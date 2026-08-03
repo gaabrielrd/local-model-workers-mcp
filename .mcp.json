@@ -4,7 +4,8 @@
       "command": "local-model-workers-mcp",
       "args": [],
       "env": {
-        "LMW_LM_STUDIO_BASE_URL": "http://localhost:1234/v1"
+        "LMW_LM_STUDIO_BASE_URL": "http://pc-gabriel.local:1234/v1",
+        "LMW_ALLOWED_MODELS": "[\"qwen/qwen3.5-9b\",\"google/gemma-4-12b-qat\"]"
       }
     }
   }

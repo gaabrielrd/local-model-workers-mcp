@@ -147,7 +147,7 @@ void test("requires exact confirmation and writes secret-safe harness files", as
     assert.equal(result.outcome, "written");
   }
 
-  const claudePath = path.join(fixture.project, ".mcp.json");
+  const claudePath = path.join(fixture.home, ".claude.json");
   const codexPath = path.join(fixture.home, ".codex", "config.toml");
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
@@ -190,7 +190,7 @@ void test("preserves unrelated compatible Claude and Codex configuration", async
     'model = "approved-model"\n\n[mcp_servers.other]\ncommand = "other"\n',
   );
   const proposals = await proposeHarnessConfigurations({
-    selection: "both",
+    selection: ["claude-code-project", "codex"],
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
@@ -233,7 +233,7 @@ void test("redacts conflicting content and rejects malformed or stale harness fi
     }),
   );
   const [conflict] = await proposeHarnessConfigurations({
-    selection: "claude-code",
+    selection: "claude-code-project",
     projectRoot: fixture.project,
   });
   assert.ok(conflict);
@@ -389,7 +389,7 @@ void test("interactive setup command creates harness and global preference files
     io,
   );
   assert.equal(exitCode, 0);
-  const claudePath = path.join(fixture.project, ".mcp.json");
+  const claudePath = path.join(fixture.home, ".claude.json");
   const codexPath = path.join(fixture.home, ".codex", "config.toml");
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
