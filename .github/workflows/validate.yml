@@ -33,11 +33,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24.18.0
+          registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
       - run: npm ci
       - run: npm run build
@@ -55,3 +57,12 @@ jobs:
           files: local-model-workers-mcp-*.tgz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to npm registry
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            npm publish --access public || echo "npm publish skipped or already published"
+          else
+            echo "NPM_TOKEN not set; skipping public npm publish"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

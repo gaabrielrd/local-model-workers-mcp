@@ -55,9 +55,7 @@ Local qualification is green as of 2026-08-03:
   vision probes; Nomic Embed returned 768-dimensional embeddings;
 - the production dependency audit reports no known vulnerabilities.
 
-The package is private and is not published to the public npm registry. It is
-distributed as an installable tarball attached to the
-[latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
+The package is published under the open MIT license on npm as [`local-model-workers-mcp`](https://www.npmjs.com/package/local-model-workers-mcp) as well as attached as a release tarball to the [latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
 
 The server exposes exactly fourteen MCP tools:
 
@@ -97,21 +95,25 @@ See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 
 ### 1. Installation
 
-The package is not on the public npm registry. Install (or update) it from the
-latest GitHub Release using the attached tarball:
+Install globally from npm:
+
+```sh
+npm install --global local-model-workers-mcp
+```
+
+Or run interactive setup directly without global installation via `npx`:
+
+```sh
+npx local-model-workers-mcp setup
+```
+
+Alternatively, install directly from the latest GitHub Release:
 
 ```sh
 # Resolve the asset URL of the latest release and install it globally
 TARBALL_URL="$(curl -fsSL https://api.github.com/repos/gaabrielrd/local-model-workers-mcp/releases/latest \
   | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).assets[0].browser_download_url")"
 npm install --global "$TARBALL_URL"
-```
-
-Or, for the current release specifically:
-
-```sh
-npm install --global \
-  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v2.0.0/local-model-workers-mcp-2.0.0.tgz
 ```
 
 To update, repeat the same command after a new release is published. There is no

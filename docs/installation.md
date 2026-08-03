@@ -10,8 +10,15 @@ Node.js 24.18.x and npm 11.x and fully qualifies macOS first. Linux and Windows
 receive basic install, startup, and configuration-read smoke coverage during
 release qualification.
 
-The release channel remains a local npm package candidate until Task 015 passes.
-Build and inspect it without publishing:
+The package is published on the public npm registry under the open MIT license. You can install it globally or run it zero-install via `npx`:
+
+```sh
+npm install --global local-model-workers-mcp
+# or setup interactively without global install:
+npx local-model-workers-mcp setup
+```
+
+To build and inspect locally from source:
 
 ```sh
 npm ci

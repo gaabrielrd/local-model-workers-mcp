@@ -1,15 +1,42 @@
 {
   "name": "local-model-workers-mcp",
   "version": "2.0.0",
-  "private": true,
-  "description": "Local MCP server for bounded repository work delegated to LM Studio.",
+  "description": "Local Model Workers MCP server for bounded repository exploration, code graph queries, type/lint fixes, and test proposals delegated to local LLMs (LM Studio, Ollama, vLLM, LocalAI).",
+  "license": "MIT",
+  "author": "Gabriel Rodriguez",
+  "homepage": "https://github.com/gaabrielrd/local-model-workers-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaabrielrd/local-model-workers-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gaabrielrd/local-model-workers-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "lm-studio",
+    "ollama",
+    "vllm",
+    "localai",
+    "local-llm",
+    "claude-code",
+    "codex",
+    "cursor",
+    "vscode",
+    "neovim"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "local-model-workers-mcp": "./dist/cli/index.js"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "npm run clean && tsc -p tsconfig.build.json && node scripts/set-executable.mjs",
