@@ -4,73 +4,70 @@
 
 ## Vision
 
-Move simple workloads from expensive frontier AI models to free, local models.
-Each phase is independently releasable and builds on the previous.
+Move heavy code understanding and mechanical edit workloads from expensive cloud models to fast, free, local models. Local Model Workers MCP operates as the local security and validation boundary, empowering AI coding assistants across all major IDEs.
 
-## Phase 1 — V1.0 (Completed)
+---
 
-Bounded repository exploration and test proposals delegated to LM Studio.
+## Phase 1 to Phase 6 — V1.0 to V2.0 (Completed)
 
-- 6 MCP tools: `explore_repository`, `propose_tests`, `check_health`,
-  `get_config`, `validate_config`, `update_config`
-- Read-only repository access with content filtering
-- Task lifecycle with concurrency, timeout, cancellation, and retry
-- Interactive setup for Claude Code, Codex, and Antigravity
-- CI/CD with automated GitHub releases
+Releases 1.0.0 through 2.0.0 delivered a complete, 14-tool local offloading engine:
 
-## Phase 2 — V1.5: Read offloading and semantic analysis (Completed)
+- **14 MCP Tools**: `explore_repository`, `propose_tests`, `check_health`, `get_config`, `validate_config`, `update_config`, `query_code_graph`, `search_semantic`, `summarize_module`, `fix_lint_violations`, `fix_type_errors`, `generate_docs_patch`, `auto_validate_tests`, `get_offload_stats`
+- **Multi-Provider Engine**: LM Studio, Ollama, vLLM, and LocalAI with priority routing and transient failover
+- **Multi-Language AST Support**: Tree-sitter parsers for TypeScript, Python, Go, Rust, Java, and C#
+- **Reactive Incremental Indexing**: File-hash vector updates for `search_semantic`
+- **Smart Context Routing**: Dynamic model selection based on context length (>16k tokens) and task capability
+- **Autonomous Hybrid Loop**: Isolated temporary repository copy test execution in `auto_validate_tests`
+- **Observability & Analytics**: Historical weekly, monthly, and lifetime token offload statistics (`get_offload_stats`)
+- **Extended IDE & Harness Setup**: Claude Code, Codex, Antigravity, Cursor, VS Code (Roo Code / Cline), and Neovim (Avante)
 
-Reduce input tokens consumed by frontier models when understanding repositories.
+---
 
-- **Embedding inference**: `/v1/embeddings` adapter for the LM Studio client
-- **Vector index**: in-memory nearest-neighbor search with file persistence
-- **Semantic search tool** (`search_semantic`): natural language repository search
-- **Code graph** (`query_code_graph`): AST-based symbol extraction via tree-sitter
-- **Module summarization** (`summarize_module`): cached, structured file summaries
-- **Harness prompt steering**: managed instruction files (`AGENTS.md`,
-  `.codex/instructions.md`, `.gemini/instructions.md`) directing harnesses to
-  proactively use MCP capabilities, with optional `steering_prompt` directives
+## Phase 7 — V3.0: High-Performance Architecture, Advanced Offloading & Ecosystem Maturity (Planned)
 
-## Phase 3 — V2.0: Repetitive write offloading (Completed)
+Version 3.0 focuses on multi-repository intelligence, enterprise-grade stability, context distillation, and seamless developer environment support.
 
-Move mechanical code tasks to local models.
+### 1. Advanced Intelligence & New Features
 
-- **Lint fix tool** (`fix_lint_violations`): generate validated patches from lint output
-- **Documentation generation** (`generate_docs_patch`): inline and markdown docs
-- **Multi-model routing**: map task types to specialized models via configuration
+- **Multi-Repository Cross-Referencing**:
+  Query code graphs (`query_code_graph`) and perform semantic searches (`search_semantic`) across multiple dependent local workspace repositories simultaneously.
+- **Intelligent Context Distillation & Prompt Compression**:
+  Automatically prune redundant AST nodes, dead code comments, and repeated signatures before sending context to local models, reducing prompt token count by up to 40% and accelerating local inference speed.
+- **Semantic Code Diff Analysis (`analyze_diff`)**:
+  New MCP tool that analyzes git commit history, pull request diffs, and local branch changes using local models to generate human-readable summaries, architectural impact reports, and potential regression alerts.
+- **Streaming Tool Call Progress**:
+  Stream intermediate local model thoughts and token generation status in real time to supported client harnesses over transport-neutral progress notifications.
+- **Custom Post-Processing Hooks**:
+  User-defined local scripts executed immediately after patch generation for custom formatting, security policy checks, or lint validations before proposals are returned to the client.
 
-## Phase 4 — V3.0: Autonomous hybrid loop (Completed)
+### 2. Improved Stability & Reliability
 
-Frontier model as architect/reviewer; local models handle iterative execution.
+- **Circuit Breaker & Endpoint Resiliency**:
+  Automated circuit breaking for local model endpoints. If a local provider experiences high latency or repeated HTTP timeouts, inference automatically degrades gracefully to alternate local providers or returns fallback hints without crashing active tasks.
+- **SQLite / Embedded Vector Storage (`sqlite-vec`)**:
+  Upgrade `InMemoryVectorIndex` to an embedded SQLite-backed vector storage option with zero cold-start latency, instant persistence, and scalable vector retrieval for 100k+ file codebases.
+- **Daemon Process Supervision & Zero-Leak Memory Management**:
+  Built-in memory monitoring and child worker process supervision to ensure long-running stdio MCP server sessions maintain a minimal memory footprint without memory leaks.
+- **Hardware-Aware Concurrency Control**:
+  Dynamic rate limiting and concurrency tuning based on real-time GPU/CPU utilization and VRAM metrics exposed by Ollama and LM Studio.
 
-- **Auto-validate test loop** (`auto_validate_tests`): sandbox-based iterative
-  test generation with real execution feedback
-- **Multi-provider engine**: Ollama, vLLM, and LocalAI adapters with health-based
-  failover — implemented in Task 025
+### 3. Expanded Ecosystem & Harness Support
 
-## Phase 5 — V3.5: Dynamic routing, multi-language AST & ecosystem expansion
+- **JetBrains IDE Suite Support**:
+  Interactive setup support for IntelliJ IDEA, PyCharm, WebStorm, GoLand, and CLion via `.idea` MCP configuration adapters and steering prompt rules.
+- **Containerized Execution & WSL2 Native Setup**:
+  Official Docker containerized server image (`ghcr.io/gaabrielrd/local-model-workers-mcp`) and WSL2 setup scripts for Windows developers using Linux containers.
+- **Live Hot-Reloadable Configuration**:
+  File-watcher integration that reloads configuration changes instantly without requiring an MCP server process restart.
+- **Workspace Profiles & Multi-Preset Modes**:
+  Instant switching between development, security auditing, refactoring, and documentation presets via `update_config`.
 
-Refine code intelligence, routing, and developer experience across local environments.
-
-- **Reactive incremental indexing**: file-hash-based incremental updates for `search_semantic`
-- **Expanded AST grammars**: Tree-sitter support for Go, Rust, Java, and C# in `query_code_graph`
-- **Smart context & task routing**: dynamic model selection based on context window size and task capability (e.g. fast embedding models vs. heavy reasoning models)
-- **Type fix tool** (`fix_type_errors`): generate validated, unapplied patches from `tsc` or `mypy` error outputs
-- **Expanded IDE & harness setup**: automated setup support for Cursor, VS Code (Roo Code / Continue / Cline), and Neovim (Avante.nvim)
-
-## Phase 6 — V4.0: Token offload observability & model quality benchmarking
-
-Provide historical visibility into local offloading gains and model output quality.
-
-- **Historical token offload statistics tool** (`get_offload_stats`): track and persist local token savings aggregated by week, month, and lifetime (over time) without sending data off-device
-- **Coverage delta reporting**: estimate and report test coverage improvements within `auto_validate_tests`
-- **Local model quality benchmarks**: automated test suite evaluating local model performance (Qwen, Llama, DeepSeek R1 local) on patch generation and code exploration tasks
+---
 
 ## Non-scope (all phases)
 
-- Cloud provider inference (OpenAI, Anthropic, Google)
-- Repository writes by the MCP server (except V3.0 temporary sandbox)
-- Graphical interface or web application
-- Multi-user administration or public network exposure
-- Persistent task execution state between sessions (aggregated operational token metrics are persisted locally strictly for historical statistics reporting)
+- Cloud provider inference APIs (OpenAI, Anthropic, Google)
+- Direct repository writes by the MCP server outside temporary auto-validate sandboxes
+- Graphical desktop interface or web applications
+- Multi-user remote hosting or public network exposure
 
