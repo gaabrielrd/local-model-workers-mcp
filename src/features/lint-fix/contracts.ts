@@ -40,7 +40,7 @@ export interface LintViolation {
 export const FixedViolationSchema = z
   .object({
     file: z.string().trim().min(1).max(4_096),
-    line: z.number().int().min(1),
+    line: z.number().int().min(1).max(10_000_000),
     rule_id: z.string().trim().min(1).max(512),
   })
   .strict();
@@ -48,7 +48,7 @@ export const FixedViolationSchema = z
 export const UnfixedViolationSchema = z
   .object({
     file: z.string().trim().min(1).max(4_096),
-    line: z.number().int().min(1),
+    line: z.number().int().min(1).max(10_000_000),
     rule_id: z.string().trim().min(1).max(512),
     reason: z.string().trim().min(1).max(2_000),
   })

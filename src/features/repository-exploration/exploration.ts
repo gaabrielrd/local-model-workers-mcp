@@ -48,8 +48,8 @@ const BoundedPathSchema = z.string().trim().min(1).max(4_096);
 const ProposedEvidenceSchema = z
   .object({
     path: BoundedPathSchema,
-    start_line: z.number().int().positive(),
-    end_line: z.number().int().positive(),
+    start_line: z.number().int().min(1).max(10_000_000),
+    end_line: z.number().int().min(1).max(10_000_000),
     explanation: BoundedTextSchema,
   })
   .strict();

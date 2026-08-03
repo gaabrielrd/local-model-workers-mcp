@@ -362,6 +362,29 @@ void test("lets an explicit embedding routing entry override the legacy embeddin
   assert.equal(resolveModelForTask(snapshot, "embedding"), "qwen/test-model");
 });
 
+void test("auto-detects an embedding model from allowed_models when embedding routing is unconfigured", async (t) => {
+  const fixture = await createFixture(t);
+  const environment = {
+    ...protectedEnvironment,
+    LMW_ALLOWED_MODELS:
+      '["google/gemma-4-12b-qat","qwen/qwen3.5-9b","text-embedding-nomic-embed-text-v1.5"]',
+  };
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "google/gemma-4-12b-qat",
+  });
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+
+  assert.equal(
+    resolveModelForTask(snapshot, "embedding"),
+    "text-embedding-nomic-embed-text-v1.5",
+  );
+});
+
 void test("rejects routing entries that reference unauthorized models", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({

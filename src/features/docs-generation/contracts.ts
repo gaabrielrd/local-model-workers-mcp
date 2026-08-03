@@ -86,9 +86,9 @@ export type GeneratedDocs = z.infer<typeof GeneratedDocsSchema>;
 export const DocsPatchFileSchema = z
   .object({
     path: z.string().trim().min(1).max(4_096),
-    additions: z.number().int().min(0),
-    deletions: z.number().int().min(0),
-    changed_lines: z.number().int().min(0),
+    additions: z.number().int().min(0).max(10_000_000),
+    deletions: z.number().int().min(0).max(10_000_000),
+    changed_lines: z.number().int().min(0).max(10_000_000),
   })
   .strict();
 
@@ -98,7 +98,7 @@ export const GenerateDocsPatchResultSchema = z
   .object({
     patch: z.string().max(DOCS_GENERATION_MAX_INPUT_BYTES),
     files: z.array(DocsPatchFileSchema).max(DOCS_GENERATION_MAX_FILES),
-    changed_lines: z.number().int().min(0),
+    changed_lines: z.number().int().min(0).max(10_000_000),
     summary: z.string().trim().min(1).max(8_000),
   })
   .strict();

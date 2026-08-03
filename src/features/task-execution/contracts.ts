@@ -76,8 +76,8 @@ export type LocalizedText = z.infer<typeof LocalizedTextSchema>;
 export const EvidenceSchema = z
   .object({
     path: z.string().trim().min(1),
-    start_line: z.number().int().positive(),
-    end_line: z.number().int().positive(),
+    start_line: z.number().int().min(1).max(10_000_000),
+    end_line: z.number().int().min(1).max(10_000_000),
     explanation: LocalizedTextSchema,
   })
   .strict()

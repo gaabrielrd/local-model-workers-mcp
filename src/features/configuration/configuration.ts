@@ -466,10 +466,19 @@ export function resolveModelForTask(
   configuration: EffectiveConfiguration,
   taskType: ModelTaskType,
 ): string {
-  return (
-    configuration.lm_studio.model_routing?.[taskType] ??
-    configuration.lm_studio.default_model
-  );
+  const configured = configuration.lm_studio.model_routing?.[taskType];
+  if (configured !== undefined) {
+    return configured;
+  }
+  if (taskType === "embedding") {
+    const autoEmbeddingModel = configuration.lm_studio.allowed_models.find(
+      (model) => /embed|nomic|bge|e5|gte|minilm/i.test(model) && model !== "*",
+    );
+    if (autoEmbeddingModel !== undefined) {
+      return autoEmbeddingModel;
+    }
+  }
+  return configuration.lm_studio.default_model;
 }
 
 async function readProjectPreferences(

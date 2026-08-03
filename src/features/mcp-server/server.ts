@@ -704,11 +704,15 @@ async function safeToolCall(
         isError: true,
       };
     }
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "The tool request could not be completed safely.";
     return {
       content: [
         {
           type: "text",
-          text: "The tool request could not be completed safely.",
+          text: message,
         },
       ],
       isError: true,

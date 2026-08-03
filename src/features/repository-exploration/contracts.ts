@@ -141,7 +141,7 @@ export interface ReadSnippetInput {
 export const ReadSnippetInputSchema = z
   .object({
     path: z.string().min(1).max(4_096),
-    start_line: z.number().int().min(1).optional(),
+    start_line: z.number().int().min(1).max(10_000_000).optional(),
     line_count: z
       .number()
       .int()

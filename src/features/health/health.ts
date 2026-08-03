@@ -148,7 +148,11 @@ export async function checkHealth(
 
   const availableModels = new Set(models);
   const defaultModel = runtime.effective.lm_studio.default_model;
-  const defaultModelCheck: ModelHealthCheck = availableModels.has(defaultModel)
+  const isDefaultHealthy =
+    defaultModel === "*"
+      ? availableModels.size > 0
+      : availableModels.has(defaultModel);
+  const defaultModelCheck: ModelHealthCheck = isDefaultHealthy
     ? { ...HEALTHY, model: defaultModel }
     : {
         status: "unhealthy",
@@ -156,14 +160,17 @@ export async function checkHealth(
         model: defaultModel,
       };
   const allowedModelChecks = runtime.effective.lm_studio.allowed_models.map(
-    (model): ModelHealthCheck =>
-      availableModels.has(model)
+    (model): ModelHealthCheck => {
+      const isHealthy =
+        model === "*" ? availableModels.size > 0 : availableModels.has(model);
+      return isHealthy
         ? { ...HEALTHY, model }
         : {
             status: "unhealthy",
             code: "allowed_model_unavailable",
             model,
-          },
+          };
+    },
   );
 
   const healthy =

@@ -250,6 +250,31 @@ void test("fails multi-provider health when configured authentication is not enf
   assert.equal(result.authentication.code, "authentication_not_enforced");
 });
 
+void test("reports healthy when default_model and allowed_models use wildcard '*'", async () => {
+  const customConfig = configuration();
+  const wildcardConfig: EffectiveConfiguration = {
+    ...customConfig,
+    lm_studio: {
+      ...customConfig.lm_studio,
+      default_model: "*",
+      allowed_models: ["*"],
+    },
+  };
+  const result = await checkHealth({
+    loadConfiguration: () =>
+      Promise.resolve({
+        effective: wildcardConfig,
+        bearer_token: "fixture-health-token",
+      }),
+    clientFactory: () =>
+      fakeClient({ models: ["any/loaded-model"], auth: true }),
+  });
+
+  assert.equal(result.status, "healthy");
+  assert.equal(result.default_model?.status, "healthy");
+  assert.equal(result.allowed_models?.[0]?.status, "healthy");
+});
+
 function loadConfiguration() {
   return () =>
     Promise.resolve({

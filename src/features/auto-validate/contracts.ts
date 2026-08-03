@@ -41,9 +41,9 @@ export type AutoValidatePhase = z.infer<typeof AutoValidatePhaseSchema>;
 
 export const TestRunSummarySchema = z
   .object({
-    passed: z.number().int().nonnegative(),
-    failed: z.number().int().nonnegative(),
-    errors: z.number().int().nonnegative(),
+    passed: z.number().int().min(0).max(10_000_000),
+    failed: z.number().int().min(0).max(10_000_000),
+    errors: z.number().int().min(0).max(10_000_000),
   })
   .strict();
 
@@ -57,11 +57,11 @@ export interface AutoValidateProgressEvent {
 
 export const AutoValidateAttemptSchema = z
   .object({
-    iteration: z.number().int().positive(),
+    iteration: z.number().int().min(1).max(10_000),
     patch: z.string(),
     affected_files: z.array(z.string().trim().min(1)),
     passed: z.boolean(),
-    exit_code: z.number().int().nullable(),
+    exit_code: z.number().int().min(-1_000).max(1_000).nullable(),
     timed_out: z.boolean(),
     test_results: TestRunSummarySchema,
     apply_error: z.string().max(4_000).optional(),
@@ -86,8 +86,8 @@ export const AutoValidateResultSchema = z
   .object({
     status: AutoValidateStatusSchema,
     test_command: z.string(),
-    iteration_count: z.number().int().nonnegative(),
-    max_iterations: z.number().int().positive(),
+    iteration_count: z.number().int().min(0).max(10_000),
+    max_iterations: z.number().int().min(1).max(10_000),
     attempts: z.array(AutoValidateAttemptSchema),
     patch: z.string(),
     test_results: TestRunSummarySchema.optional(),
