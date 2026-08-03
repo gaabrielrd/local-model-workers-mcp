@@ -15,6 +15,7 @@ import { PatchPolicyError } from "../test-proposal/index.js";
 
 import {
   FixLintViolationsInputSchema,
+  FixTypeErrorsInputSchema,
   LINT_FIX_CONTEXT_RADIUS,
   LINT_FIX_MAX_CHANGED_LINES,
   LINT_FIX_MAX_SOURCE_LINES_PER_FILE,
@@ -24,7 +25,7 @@ import {
   type LintViolation,
   type UnfixedViolation,
 } from "./contracts.js";
-import { detectLinter, parseLintOutput } from "./parsers.js";
+import { detectLinter, parseLintOutput, parseTypeOutput } from "./parsers.js";
 import { validateLintPatch } from "./patch-policy.js";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -247,6 +248,166 @@ export async function fixLintViolations(
   return reconcile(contexts, unfixed, response.output, validatedPatch);
 }
 
+export async function fixTypeErrors(
+  options: FixLintViolationsOptions,
+): Promise<FixLintViolationsResult> {
+  const input = parseTypeInput(options.input);
+  const collector = await (
+    options.collectorFactory ?? createOutboundContextCollector
+  )({
+    repositoryRoot: input.repository_root,
+    goal: "Fix reported compiler type errors.",
+  });
+
+  const raw = parseTypeOutput(input.type_output, input.checker);
+  if (raw.length === 0) {
+    throw new LintFixError(
+      "invalid_lint_output",
+      "No type errors could be parsed from the output.",
+    );
+  }
+  const violations = dedupeViolations(
+    normalizeViolations(raw, input.repository_root),
+  );
+
+  const grouped = groupByFile(violations);
+  const fileOrder = [...grouped.keys()];
+  const selectedFiles = fileOrder.slice(0, input.max_files);
+  const cappedFiles = fileOrder.slice(input.max_files);
+
+  const unfixed: UnfixedViolation[] = [];
+  for (const file of cappedFiles) {
+    for (const violation of grouped.get(file) ?? []) {
+      unfixed.push({
+        file: violation.file,
+        line: violation.line,
+        rule_id: violation.rule_id,
+        reason: "max_files_exceeded",
+      });
+    }
+  }
+
+  const acceptedFiles: string[] = [];
+  for (const file of selectedFiles) {
+    const assessed = await collector.assessPath(file);
+    if (assessed.accepted) {
+      acceptedFiles.push(file);
+    } else {
+      for (const violation of grouped.get(file) ?? []) {
+        unfixed.push({
+          file: violation.file,
+          line: violation.line,
+          rule_id: violation.rule_id,
+          reason: assessed.reason ?? "content_filtered",
+        });
+      }
+    }
+  }
+
+  const contexts: FileContext[] = [];
+  for (const file of acceptedFiles) {
+    const context = await readFileContext(
+      options.repositoryRead,
+      file,
+      grouped.get(file) ?? [],
+    );
+    if (context === undefined) {
+      for (const violation of grouped.get(file) ?? []) {
+        unfixed.push({
+          file: violation.file,
+          line: violation.line,
+          rule_id: violation.rule_id,
+          reason: "file_unreadable",
+        });
+      }
+      continue;
+    }
+    contexts.push(context);
+  }
+
+  if (contexts.length === 0) {
+    return {
+      patch: "",
+      fixed_violations: [],
+      unfixed_violations: unfixed,
+      summary: "No fixable files were available.",
+    };
+  }
+
+  const outbound = {
+    task: "fix_type_errors",
+    checker: input.checker,
+    constraints: {
+      max_files: input.max_files,
+      max_changed_lines: LINT_FIX_MAX_CHANGED_LINES,
+      context_radius: LINT_FIX_CONTEXT_RADIUS,
+    },
+    files: contexts.map((context) => ({
+      file: context.file,
+      start_line: context.start_line,
+      end_line: context.end_line,
+      fingerprint: context.fingerprint,
+      violations: context.violations.map((violation) => ({
+        line: violation.line,
+        column: violation.column,
+        rule_id: violation.rule_id,
+        severity: violation.severity,
+        message: violation.message,
+      })),
+      source_excerpt: context.content,
+    })),
+  };
+
+  const response = await options.inference.inferStructured({
+    model: options.model,
+    messages: [
+      { role: "system", content: systemProtocol },
+      { role: "user", content: JSON.stringify(outbound) },
+    ],
+    output_name: "type_fix",
+    output_schema: RemoteLintFixSchema,
+    max_tokens: 12_000,
+    timeout_ms: DEFAULT_TIMEOUT_MS,
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+  });
+
+  const violationLines = new Map(
+    contexts.map((context) => [
+      context.file,
+      context.violations.map((violation) => violation.line),
+    ]),
+  );
+  let validatedPatch: string;
+  try {
+    const validated = await validateLintPatch({
+      patch: response.output.patch,
+      repositoryRoot: input.repository_root,
+      allowedFiles: contexts.map((context) => context.file),
+      violationLines,
+      maxFiles: input.max_files,
+      maxChangedLines: LINT_FIX_MAX_CHANGED_LINES,
+      ...(options.inspectPath === undefined
+        ? {}
+        : { inspectPath: options.inspectPath }),
+    });
+    validatedPatch = validated.patch;
+  } catch (error: unknown) {
+    if (error instanceof PatchPolicyError) {
+      return policyFailure(contexts, unfixed, error.message);
+    }
+    throw error;
+  }
+
+  if (!(await sourcesUnchanged(options.repositoryRead, contexts))) {
+    throw new LintFixError(
+      "invalid_evidence",
+      "A source file changed before the fix could be delivered.",
+    );
+  }
+
+  return reconcile(contexts, unfixed, response.output, validatedPatch);
+}
+
 function parseInput(
   input: unknown,
 ): z.infer<typeof FixLintViolationsInputSchema> {
@@ -255,6 +416,19 @@ function parseInput(
     throw new LintFixError(
       "invalid_request",
       "The fix_lint_violations input is invalid.",
+    );
+  }
+  return parsed.data;
+}
+
+function parseTypeInput(
+  input: unknown,
+): z.infer<typeof FixTypeErrorsInputSchema> {
+  const parsed = FixTypeErrorsInputSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new LintFixError(
+      "invalid_request",
+      "The fix_type_errors input is invalid.",
     );
   }
   return parsed.data;

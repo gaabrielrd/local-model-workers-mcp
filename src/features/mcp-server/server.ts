@@ -31,7 +31,9 @@ import {
   type ProviderRouterPort,
 } from "../model-inference/index.js";
 import {
+  GetOffloadStatsInputSchema,
   createOperationalLogStore,
+  getOffloadStats,
   resolveOperationalLogDirectory,
   type OperationalEventRecorder,
 } from "../operational-logging/index.js";
@@ -69,8 +71,10 @@ import {
 } from "../module-summary/index.js";
 import {
   FixLintViolationsInputSchema,
+  FixTypeErrorsInputSchema,
   LintFixError,
   fixLintViolations,
+  fixTypeErrors,
 } from "../lint-fix/index.js";
 import {
   DocsGenerationError,
@@ -432,6 +436,32 @@ export function createMcpServer(
           });
         }),
     );
+
+    server.registerTool(
+      TOOL_NAMES.fixTypeErrors,
+      {
+        title: "Fix type errors",
+        description:
+          "Return a locally validated unified diff that fixes compiler/type-checker errors (tsc, mypy) without writing.",
+        inputSchema: FixTypeErrorsInputSchema,
+        annotations: { readOnlyHint: true, destructiveHint: false },
+      },
+      async (request, context) =>
+        safeToolCall(async () => {
+          const parsedInput = FixTypeErrorsInputSchema.parse(request);
+          const dependencies = await taskDependencies(
+            runtime,
+            parsedInput.repository_root,
+          );
+          return await fixTypeErrors({
+            input: parsedInput,
+            inference: dependencies.inference,
+            repositoryRead: dependencies.repositoryRead,
+            model: resolveModelForTask(dependencies.configuration, "lint_fix"),
+            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+          });
+        }),
+    );
   }
 
   if (featureEnabled(runtime, "docs")) {
@@ -516,6 +546,29 @@ export function createMcpServer(
             configuration.lm_studio.default_model,
           ),
         };
+      }),
+  );
+
+  server.registerTool(
+    TOOL_NAMES.getOffloadStats,
+    {
+      title: "Get token offload statistics",
+      description:
+        "Return weekly, monthly, and lifetime token savings and queries offloaded to local models.",
+      inputSchema: GetOffloadStatsInputSchema,
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async (request) =>
+      safeToolCall(async () => {
+        const parsedInput = GetOffloadStatsInputSchema.parse(request);
+        const logDir =
+          parsedInput.log_directory ??
+          resolveOperationalLogDirectory(
+            runtime.platform,
+            runtime.homeDirectory,
+            runtime.environment,
+          );
+        return await getOffloadStats(logDir);
       }),
   );
 

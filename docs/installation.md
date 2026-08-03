@@ -17,7 +17,7 @@ Build and inspect it without publishing:
 npm ci
 npm run validate
 npm pack
-npm install --global ./local-model-workers-mcp-1.2.0.tgz
+npm install --global ./local-model-workers-mcp-2.0.0.tgz
 local-model-workers-mcp --version
 ```
 

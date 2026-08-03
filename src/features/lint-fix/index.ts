@@ -2,6 +2,7 @@ export {
   FixedViolationSchema,
   FixLintViolationsInputSchema,
   FixLintViolationsResultSchema,
+  FixTypeErrorsInputSchema,
   LINT_FIX_CONTEXT_RADIUS,
   LINT_FIX_DEFAULT_MAX_FILES,
   LINT_FIX_MAX_CHANGED_LINES,
@@ -14,6 +15,7 @@ export {
   type FixedViolation,
   type FixLintViolationsInput,
   type FixLintViolationsResult,
+  type FixTypeErrorsInput,
   type LintFixErrorCode,
   type LinterName,
   type LintViolation,
@@ -25,6 +27,7 @@ export {
   parseEslint,
   parseLintOutput,
   parseRuff,
+  parseTypeOutput,
 } from "./parsers.js";
 export {
   validateLintPatch,
@@ -33,4 +36,8 @@ export {
   type ValidatedLintPatch,
   type ValidateLintPatchInput,
 } from "./patch-policy.js";
-export { fixLintViolations, type FixLintViolationsOptions } from "./fix.js";
+export {
+  fixLintViolations,
+  fixTypeErrors,
+  type FixLintViolationsOptions,
+} from "./fix.js";

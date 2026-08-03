@@ -120,6 +120,13 @@ export class InMemoryVectorIndex implements VectorIndex {
     );
   }
 
+  public getKnownPaths(): Promise<readonly string[]> {
+    const paths = Array.from(
+      new Set(this.entries.map((entry) => entry.relativePath)),
+    );
+    return Promise.resolve(paths);
+  }
+
   public clear(): Promise<void> {
     this.entries = [];
     return Promise.resolve();

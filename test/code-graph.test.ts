@@ -164,3 +164,49 @@ void test("unsupported file extensions return empty symbols without crashing", (
   const symbols = parseSourceSymbols("styles.css", "body { color: red; }");
   assert.equal(symbols.length, 0);
 });
+
+void test("parse Go, Rust, Java, and C# files with symbols and export status", () => {
+  const goFixture = `
+package main
+import "fmt"
+type User struct {}
+func ExportedFunc() {}
+func unexportedFunc() {}
+`;
+  const goSymbols = parseSourceSymbols("main.go", goFixture);
+  assert.ok(goSymbols.some((s) => s.name === "User" && s.exported));
+  assert.ok(goSymbols.some((s) => s.name === "ExportedFunc" && s.exported));
+  assert.ok(goSymbols.some((s) => s.name === "unexportedFunc" && !s.exported));
+
+  const rustFixture = `
+use std::collections::HashMap;
+pub struct Config {}
+pub fn run() {}
+fn internal() {}
+`;
+  const rustSymbols = parseSourceSymbols("lib.rs", rustFixture);
+  assert.ok(rustSymbols.some((s) => s.name === "Config" && s.exported));
+  assert.ok(rustSymbols.some((s) => s.name === "run" && s.exported));
+  assert.ok(rustSymbols.some((s) => s.name === "internal" && !s.exported));
+
+  const javaFixture = `
+import java.util.List;
+public class AppService {
+  public void execute() {}
+  private void helper() {}
+}
+`;
+  const javaSymbols = parseSourceSymbols("AppService.java", javaFixture);
+  assert.ok(javaSymbols.some((s) => s.name === "AppService" && s.exported));
+  assert.ok(javaSymbols.some((s) => s.name === "execute" && s.exported));
+
+  const csFixture = `
+using System;
+public class OrderProcessor {
+  public void ProcessOrder() {}
+}
+`;
+  const csSymbols = parseSourceSymbols("OrderProcessor.cs", csFixture);
+  assert.ok(csSymbols.some((s) => s.name === "OrderProcessor" && s.exported));
+  assert.ok(csSymbols.some((s) => s.name === "ProcessOrder" && s.exported));
+});

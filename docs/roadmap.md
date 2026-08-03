@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-03
 
 ## Vision
 
@@ -31,7 +31,7 @@ Reduce input tokens consumed by frontier models when understanding repositories.
   `.codex/instructions.md`, `.gemini/instructions.md`) directing harnesses to
   proactively use MCP capabilities, with optional `steering_prompt` directives
 
-## Phase 3 — V2.0: Repetitive write offloading
+## Phase 3 — V2.0: Repetitive write offloading (Completed)
 
 Move mechanical code tasks to local models.
 
@@ -39,7 +39,7 @@ Move mechanical code tasks to local models.
 - **Documentation generation** (`generate_docs_patch`): inline and markdown docs
 - **Multi-model routing**: map task types to specialized models via configuration
 
-## Phase 4 — V3.0: Autonomous hybrid loop
+## Phase 4 — V3.0: Autonomous hybrid loop (Completed)
 
 Frontier model as architect/reviewer; local models handle iterative execution.
 
@@ -48,10 +48,29 @@ Frontier model as architect/reviewer; local models handle iterative execution.
 - **Multi-provider engine**: Ollama, vLLM, and LocalAI adapters with health-based
   failover — implemented in Task 025
 
+## Phase 5 — V3.5: Dynamic routing, multi-language AST & ecosystem expansion
+
+Refine code intelligence, routing, and developer experience across local environments.
+
+- **Reactive incremental indexing**: file-hash-based incremental updates for `search_semantic`
+- **Expanded AST grammars**: Tree-sitter support for Go, Rust, Java, and C# in `query_code_graph`
+- **Smart context & task routing**: dynamic model selection based on context window size and task capability (e.g. fast embedding models vs. heavy reasoning models)
+- **Type fix tool** (`fix_type_errors`): generate validated, unapplied patches from `tsc` or `mypy` error outputs
+- **Expanded IDE & harness setup**: automated setup support for Cursor, VS Code (Roo Code / Continue / Cline), and Neovim (Avante.nvim)
+
+## Phase 6 — V4.0: Token offload observability & model quality benchmarking
+
+Provide historical visibility into local offloading gains and model output quality.
+
+- **Historical token offload statistics tool** (`get_offload_stats`): track and persist local token savings aggregated by week, month, and lifetime (over time) without sending data off-device
+- **Coverage delta reporting**: estimate and report test coverage improvements within `auto_validate_tests`
+- **Local model quality benchmarks**: automated test suite evaluating local model performance (Qwen, Llama, DeepSeek R1 local) on patch generation and code exploration tasks
+
 ## Non-scope (all phases)
 
 - Cloud provider inference (OpenAI, Anthropic, Google)
 - Repository writes by the MCP server (except V3.0 temporary sandbox)
 - Graphical interface or web application
 - Multi-user administration or public network exposure
-- Persistent task memory between sessions
+- Persistent task execution state between sessions (aggregated operational token metrics are persisted locally strictly for historical statistics reporting)
+

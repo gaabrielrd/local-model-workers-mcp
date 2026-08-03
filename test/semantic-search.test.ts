@@ -165,3 +165,87 @@ void test("respects top_k limit", async () => {
 
   assert.equal(result.results.length, 5);
 });
+
+void test("incremental sync skips unmodified files and updates modified/deleted files", async () => {
+  let embedCalls = 0;
+  const vectorIndex = new InMemoryVectorIndex();
+
+  const inference: ModelInferencePort = {
+    listModels: () => Promise.resolve({ models: [MODEL] }),
+    isAuthenticationEnforced: () => Promise.resolve(true),
+    inferStructured: () => Promise.reject(new Error("not used")),
+    embedText: (request) => {
+      embedCalls += 1;
+      const inputs =
+        typeof request.input === "string" ? [request.input] : request.input;
+      return Promise.resolve({
+        model: request.model,
+        embeddings: inputs.map(() => [0.2, 0.2, 0.2]),
+        usage: { prompt_tokens: 5, total_tokens: 5 },
+      });
+    },
+  };
+
+  // Initial index pass with 2 files
+  const initialRepo = fakeRepoRead({
+    "file1.ts": "const a = 1;",
+    "file2.ts": "const b = 2;",
+  });
+
+  await executeSemanticSearch({
+    input: { query: "a", repository_root: "/repo", reindex: true },
+    inference,
+    vectorIndex,
+    repositoryRead: initialRepo,
+    embeddingModel: MODEL,
+  });
+
+  const initialEmbedCalls = embedCalls;
+  assert.ok(initialEmbedCalls > 1); // 1 query + 2 files (or 1 batch)
+  assert.equal((await vectorIndex.getKnownPaths()).length, 2);
+
+  // Second pass: file1.ts unchanged, file2.ts modified, file3.ts added, old files deleted
+  const secondRepo = fakeRepoRead({
+    "file1.ts": "const a = 1;", // unchanged
+    "file2.ts": "const b = 99;", // modified
+    "file3.ts": "const c = 3;", // new
+  });
+
+  const secondPassStartCalls = embedCalls;
+
+  await executeSemanticSearch({
+    input: { query: "a", repository_root: "/repo", reindex: true },
+    inference,
+    vectorIndex,
+    repositoryRead: secondRepo,
+    embeddingModel: MODEL,
+  });
+
+  const callsInSecondPass = embedCalls - secondPassStartCalls;
+  // Second pass should only embed query + file2.ts + file3.ts (skipping file1.ts)
+  assert.ok(callsInSecondPass <= 3);
+
+  const knownPaths = await vectorIndex.getKnownPaths();
+  assert.equal(knownPaths.length, 3);
+  assert.ok(knownPaths.includes("file1.ts"));
+  assert.ok(knownPaths.includes("file2.ts"));
+  assert.ok(knownPaths.includes("file3.ts"));
+
+  // Third pass: delete file3.ts
+  const thirdRepo = fakeRepoRead({
+    "file1.ts": "const a = 1;",
+    "file2.ts": "const b = 99;",
+  });
+
+  await executeSemanticSearch({
+    input: { query: "a", repository_root: "/repo", reindex: true },
+    inference,
+    vectorIndex,
+    repositoryRead: thirdRepo,
+    embeddingModel: MODEL,
+  });
+
+  const updatedPaths = await vectorIndex.getKnownPaths();
+  assert.equal(updatedPaths.length, 2);
+  assert.ok(!updatedPaths.includes("file3.ts"));
+});

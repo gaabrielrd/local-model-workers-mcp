@@ -17,6 +17,7 @@ import {
   OPERATIONAL_LOG_RETENTION_MS,
   OperationalEventSchema,
   createOperationalLogStore,
+  getOffloadStats,
   inspectOperationalLogs,
   resolveOperationalLogDirectory,
 } from "../src/features/operational-logging/index.js";
@@ -276,3 +277,46 @@ function configuration(): EffectiveConfiguration {
     },
   };
 }
+
+void test("getOffloadStats calculates weekly, monthly, and lifetime token savings", async (t) => {
+  const directory = await fixture(t);
+  const nowMs = NOW;
+  let id = 0;
+  const store = createOperationalLogStore({
+    directory,
+    now: () => nowMs,
+    createId: () => `stat-id-${id++}`,
+  });
+
+  const eventRecent: TaskTerminalMetadata = {
+    task_id: "recent-1",
+    started_at_ms: nowMs - 1_000,
+    ended_at_ms: nowMs,
+    duration_ms: 1_000,
+    model: "qwen/qwen3.5-9b",
+    status: "completed",
+    error_code: null,
+  };
+
+  const eventOld: TaskTerminalMetadata = {
+    task_id: "old-1",
+    started_at_ms: nowMs - 15 * 24 * 60 * 60 * 1_000 - 1_000,
+    ended_at_ms: nowMs - 15 * 24 * 60 * 60 * 1_000,
+    duration_ms: 1_000,
+    model: "qwen/qwen3.5-9b",
+    status: "completed",
+    error_code: null,
+  };
+
+  await store.record(eventRecent);
+  await store.record(eventOld);
+
+  const stats = await getOffloadStats(directory, nowMs);
+  assert.equal(stats.lifetime.queries_offloaded, 2);
+  assert.equal(stats.lifetime.tokens_saved, 6000);
+  assert.equal(stats.weekly.queries_offloaded, 1);
+  assert.equal(stats.weekly.tokens_saved, 3000);
+  assert.equal(stats.monthly.queries_offloaded, 2);
+  assert.equal(stats.monthly.tokens_saved, 6000);
+  assert.match(stats.summary, /Token offload statistics:/);
+});

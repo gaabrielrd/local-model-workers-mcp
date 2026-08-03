@@ -1,14 +1,14 @@
 # Implementation plan
 
-**Status:** V1 Tasks 001-015 implemented; V1.5 Tasks 016-020 and 026 implemented; V2.0 Tasks 021-022 implemented; V3.0 roadmap approved  
+**Status:** V1 Tasks 001-015 implemented; V1.5 Tasks 016-020 and 026 implemented; V2.0 Tasks 021-023 implemented; V3.0 Tasks 024-025 implemented; V3.5 Tasks 027-031 implemented; V4.0 Tasks 032-033 implemented  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-03
 
 ## Objective
 
-Deliver the complete V1 of Local Model Workers MCP as an installable local
-server for Claude Code and Codex. The server must delegate bounded repository
-exploration and test proposals to LM Studio while retaining all filesystem,
+Deliver the complete V1-V4.0 of Local Model Workers MCP as an installable local
+server for Claude Code, Codex, Antigravity, Cursor, VS Code, and Neovim. The server delegates bounded repository
+exploration, code graph, semantic search, module summarization, lint fixes, type fixes, test proposals, doc generation, auto-validation, and offload statistics to local model providers (LM Studio, Ollama, vLLM, LocalAI) while retaining all filesystem,
 configuration, validation, concurrency, logging, and approval authority on the
 developer's machine.
 
@@ -20,12 +20,12 @@ must finish with its own acceptance criteria, tests, documentation, and
 
 The implementation must:
 
-- expose exactly the six tools approved in RF-02 over local MCP `stdio`;
+- expose exactly the 14 tools approved in RF-02 & PRD over local MCP `stdio`;
 - read repositories only through root-scoped list, search, and snippet
   operations;
 - prevent sensitive, ignored, binary, excluded, or out-of-root content from
-  reaching LM Studio;
-- use HTTP with optional Bearer authentication to an allowlisted LM Studio model
+  reaching local model providers;
+- use HTTP with optional Bearer authentication to an allowlisted model
   on a trusted private network;
 - isolate tasks and enforce context, exploration, patch, queue, processing,
   cancellation, retry, and global concurrency limits;
@@ -33,9 +33,9 @@ The implementation must:
   diff for test proposals;
 - resolve protected, global, and project configuration and allow only confirmed,
   revision-controlled project updates;
-- retain metadata-only operational logs for seven days;
-- install without silently overwriting Claude Code or Codex configuration;
-- validate V1 on macOS and run basic portability checks on Linux and Windows.
+- retain metadata-only operational logs for seven days and expose `get_offload_stats`;
+- install without silently overwriting harness configurations (Claude Code, Codex, Antigravity, Cursor, VS Code, Neovim);
+- validate V1-V4.0 on macOS and run basic portability checks on Linux and Windows.
 
 The [PRD](../../prd.md), not this summary, is authoritative when wording differs.
 
@@ -59,75 +59,65 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 - Technical contracts and documentation are written in English. Human-facing
   explanations follow the request language, including Portuguese scenarios.
 
-## Information gaps to resolve
+### Overview
 
-These gaps do not reopen approved product scope, but code must not proceed past
-the owning task without resolving them:
-
-| Gap | Owning task | Required outcome |
-| --- | --- | --- |
-| Node.js version, module format, test runner, MCP SDK, schema validation, build and lint tools | [Task 001](001-project-foundation.md) | Pinned toolchain and ADR |
-| Response envelope and error-code catalog | [Task 002](002-core-contracts.md) | Versioned internal contracts |
-| Config filenames, platform locations, environment variables, fields, units, defaults and maxima | [Tasks 003-004](003-configuration-loading.md) | Documented schema and redacted example |
-| Sensitive-file and binary classification policy | [Task 006](006-content-filtering.md) | Fail-closed classifier with fixtures |
-| LM Studio API endpoints, streaming choice and structured-output protocol | [Task 007](007-lm-studio-and-health.md) | Compatibility contract and adapter tests |
-| Cross-process locking and abandoned-owner recovery | [Task 009](009-global-concurrency.md) | ADR and deterministic integration tests |
-| Harness configuration formats and supported versions | [Task 014](014-installation-and-harnesses.md) | Versioned installation adapters |
-| Package name and release distribution mechanics | [Task 014](014-installation-and-harnesses.md) | Installable artifact and rollback-safe setup |
-
-## Non-scope
-
-The plan does not add native harness subagents, multiple internal workers,
-cross-task result consolidation, repository writes, patch application, command
-or test execution by the MCP server, production-code changes, dependency
-installation inside target repositories, creation of missing test
-infrastructure, browser/GUI/mobile tests, calls to real third-party services,
-team administration, shared multi-user hosting, public-network exposure,
-certificate or reverse-proxy management, container-first installation,
-automatic updates, a graphical interface, persistent task memory, or formal
-language support beyond the Python and TypeScript release fixtures.
-
-## Target solution
-
-The application is organized by product capability under `src/features`.
-Each feature exports only its public API through `index.ts`. MCP transport,
-LM Studio HTTP, filesystem, Git, clock, process, configuration persistence, and
-logging remain behind adapters.
-
-The delivery sequence builds rules before orchestration:
-
-1. establish a reproducible toolchain;
-2. define stable contracts and configuration;
-3. implement the local repository and inference boundaries;
-4. implement task lifecycle and cross-process capacity;
-5. build exploration and test-proposal use cases;
-6. add privacy-preserving operations;
-7. compose the six MCP tools;
-8. package, install, and qualify the release.
+| Task | Scope | Primary outcome | Status |
+| --- | --- | --- | --- |
+| 001 | Repository boundary | Canonical path isolation and error model | Completed |
+| 002 | Read capability | Root-scoped directory list, search, snippet | Completed |
+| 003 | Configuration engine | Protected/global/project config and mutations | Completed |
+| 004 | Admin MCP tools | `check_health`, `get_config`, `validate_config`, `update_config` | Completed |
+| 005 | Security filter | Content filter and outbound data collector | Completed |
+| 006 | Remote client | HTTP inference client for LM Studio | Completed |
+| 007 | Inference provider | Model router, retry, timeout, cancellation | Completed |
+| 008 | Work manager | Isolated tasks, snapshots, lifecycle state | Completed |
+| 009 | Exploration engine | Exploration strategy and interactive loop | Completed |
+| 010 | Exploration MCP tool | `explore_repository` MCP tool | Completed |
+| 011 | Test proposal engine | Diff parser, policy validator, proposer | Completed |
+| 012 | Test proposal tool | `propose_tests` MCP tool | Completed |
+| 013 | Operational logging | 7-day metadata log store and cleanup | Completed |
+| 014 | Harness setup | Interactive installer for Claude Code & Codex | Completed |
+| 015 | Release audit | Metrics, traceability, portability checks | Completed |
+| 016 | Embedding inference | `/v1/embeddings` adapter in LM Studio client | Completed |
+| 017 | Vector index | In-memory vector index with persistence | Completed |
+| 018 | Semantic search tool | `search_semantic` MCP tool | Completed |
+| 019 | Code graph | AST symbol extraction & `query_code_graph` tool | Completed |
+| 020 | Module summary | `summarize_module` MCP tool | Completed |
+| 021 | Lint fix tool | `fix_lint_violations` MCP tool | Completed |
+| 022 | Doc generation | `generate_docs_patch` MCP tool | Completed |
+| 023 | Multi-model routing | Model routing based on task type | Completed |
+| 024 | Auto-validate loop | `auto_validate_tests` MCP tool with sandbox | Completed |
+| 025 | Multi-provider engine | Ollama, vLLM, LocalAI adapters with failover | Completed |
+| 026 | Prompt steering | Harness instruction files & steering hooks | Completed |
+| 027 | Reactive indexing | File-hash incremental updates for `search_semantic` | Completed |
+| 028 | Multi-lang AST | Tree-sitter grammars (Go, Rust, Java, C#) | Completed |
+| 029 | Smart context routing | Context-length dynamic model selection | Completed |
+| 030 | Type fix tool | `fix_type_errors` MCP tool for `tsc` and `mypy` | Completed |
+| 031 | Extended IDE setup | Automated setup for Cursor, VS Code, Neovim | Completed |
+| 032 | Token offload stats | `get_offload_stats` MCP tool (week, month, lifetime) | Completed |
+| 033 | Coverage & quality | Quality benchmarks script & coverage reporting | Completed |
 
 ## Sequential tasks
 
+### Phase 1 — Foundation (V1)
+
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
-| 001 | [Project foundation](001-project-foundation.md) | Reproducible package, build and validation | — |
-| 002 | [Core contracts](002-core-contracts.md) | Uniform states, errors and response types | 001 |
-| 003 | [Configuration loading](003-configuration-loading.md) | Protected/global/project resolution and redaction | 001-002 |
-| 004 | [Configuration mutation](004-configuration-mutation.md) | Validate and atomic revisioned project updates | 003 |
-| 005 | [Repository path sandbox](005-repository-path-sandbox.md) | Root-scoped read-only operations | 001-002 |
-| 006 | [Content filtering](006-content-filtering.md) | Git, secrets, binary, ignore and budget controls | 005 |
-| 007 | [LM Studio and health](007-lm-studio-and-health.md) | Authenticated inference adapter and diagnostics | 002-003 |
-| 008 | [Task lifecycle](008-task-lifecycle.md) | Isolation, timeout, cancellation and retry | 002-003, 007 |
-| 009 | [Global concurrency](009-global-concurrency.md) | Cross-process limit and queue | 008 |
-| 010 | [Repository exploration](010-repository-exploration.md) | Verified structured exploration | 006-009 |
-| 011 | [Test proposal](011-test-proposal.md) | Validated test-only unified diff | 006-010 |
-| 012 | [Operational logging](012-operational-logging.md) | Metadata-only logs and retention | 002, 008 |
-| 013 | [MCP stdio server](013-mcp-stdio-server.md) | Six composed tools and progress | 004, 007, 010-012 |
-| 014 | [Installation and harnesses](014-installation-and-harnesses.md) | Installable CLI and safe harness setup | 003-004, 013 |
-| 015 | [Release qualification](015-release-qualification.md) | Cross-platform and V1 success evidence | 001-014 |
-
-Within each phase, tasks are sequential even where dependencies would allow
-parallel work. This keeps one feature increment active at a time and makes
-failures attributable.
+| 001 | [Repository boundary](001-repository-boundary.md) | Canonical path isolation and error model | - |
+| 002 | [Read capability](002-read-capability.md) | Root-scoped directory list, search, snippet | 001 |
+| 003 | [Configuration engine](003-configuration-engine.md) | Protected/global/project config and mutations | 001 |
+| 004 | [Admin MCP tools](004-admin-mcp-tools.md) | `check_health`, `get_config`, `validate_config`, `update_config` | 002-003 |
+| 005 | [Security filter](005-security-filter.md) | Content filter and outbound data collector | 001-002 |
+| 006 | [Remote client](006-remote-client.md) | HTTP inference client for LM Studio | - |
+| 007 | [Inference provider](007-inference-provider.md) | Model router, retry, timeout, cancellation | 006 |
+| 008 | [Work manager](008-work-manager.md) | Isolated tasks, snapshots, lifecycle state | 001 |
+| 009 | [Exploration engine](009-exploration-engine.md) | Exploration strategy and interactive loop | 002, 005, 007-008 |
+| 010 | [Exploration MCP tool](010-exploration-mcp-tool.md) | `explore_repository` MCP tool | 004, 009 |
+| 011 | [Test proposal engine](011-test-proposal-engine.md) | Diff parser, policy validator, proposer | 002, 005, 007-008 |
+| 012 | [Test proposal tool](012-test-proposal-tool.md) | `propose_tests` MCP tool | 004, 011 |
+| 013 | [Operational logging](013-operational-logging.md) | 7-day metadata log store and cleanup | 008 |
+| 014 | [Harness setup](014-harness-setup.md) | Interactive installer for Claude Code & Codex | 003-004 |
+| 015 | [Release audit](015-release-audit.md) | Metrics, traceability, portability checks | 001-014 |
 
 ### Phase 2 — Read offloading and semantic analysis (V1.5)
 
@@ -154,6 +144,24 @@ failures attributable.
 | --- | --- | --- | --- |
 | 024 | [Auto-validate loop](024-auto-validate-loop.md) | `auto_validate_tests` MCP tool with sandbox | 011, 023 |
 | 025 | [Multi-provider engine](025-multi-provider-engine.md) | Ollama, vLLM, LocalAI adapters with failover | 007, 023 |
+
+### Phase 5 — Dynamic routing & multi-language AST (V3.5)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 027 | [Reactive incremental indexing](027-reactive-incremental-indexing.md) | File-hash incremental updates for `search_semantic` | 017-018 |
+| 028 | [Multi-language AST grammars](028-multi-language-ast-grammars.md) | Tree-sitter parsers (Go, Rust, Java, C#) for `query_code_graph` | 019 |
+| 029 | [Smart context & task routing](029-smart-context-and-task-routing.md) | Task-based and context-length dynamic model selection | 023, 025 |
+| 030 | [Type fix tool](030-type-fix-tool.md) | `fix_type_errors` MCP tool for `tsc` and `mypy` patches | 011, 021 |
+| 031 | [Extended IDE setup](031-extended-ide-and-harness-setup.md) | Automated setup for Cursor, VS Code, and Neovim | 014, 026 |
+
+### Phase 6 — Offload observability & quality benchmarks (V4.0)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 032 | [Token offload statistics tool](032-token-offload-statistics-tool.md) | `get_offload_stats` MCP tool with time-series aggregation (week, month, lifetime) | 012, 013 |
+| 033 | [Coverage delta & quality benchmarks](033-coverage-delta-and-model-benchmarks.md) | Automated test coverage reporting in sandbox and local model benchmarks | 024, 025 |
+
 
 ## Global completion rule
 

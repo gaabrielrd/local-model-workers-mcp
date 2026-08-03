@@ -28,6 +28,22 @@ export type FixLintViolationsInput = z.infer<
   typeof FixLintViolationsInputSchema
 >;
 
+export const FixTypeErrorsInputSchema = z
+  .object({
+    repository_root: z.string().trim().min(1).max(4_096),
+    type_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
+    checker: z.enum(["tsc", "mypy", "pyright", "auto"]).default("auto"),
+    max_files: z
+      .number()
+      .int()
+      .min(1)
+      .max(LINT_FIX_MAX_FILES)
+      .default(LINT_FIX_DEFAULT_MAX_FILES),
+  })
+  .strict();
+
+export type FixTypeErrorsInput = z.infer<typeof FixTypeErrorsInputSchema>;
+
 export interface LintViolation {
   readonly file: string;
   readonly line: number;

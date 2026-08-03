@@ -303,6 +303,7 @@ void test("advertises only selected feature tools plus administrative tools", as
       ...FEATURE_TOOL_NAMES.docs,
       TOOL_NAMES.checkHealth,
       TOOL_NAMES.getConfig,
+      TOOL_NAMES.getOffloadStats,
       TOOL_NAMES.updateConfig,
       TOOL_NAMES.validateConfig,
     ].sort(),

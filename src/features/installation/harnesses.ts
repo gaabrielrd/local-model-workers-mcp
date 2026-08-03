@@ -19,7 +19,13 @@ const FORWARDED_ENVIRONMENT_NAMES = [
 ] as const;
 
 export type Harness =
-  "claude-code" | "claude-code-project" | "codex" | "antigravity";
+  | "claude-code"
+  | "claude-code-project"
+  | "codex"
+  | "antigravity"
+  | "cursor"
+  | "vscode"
+  | "neovim";
 export type HarnessSelection =
   Harness | "claude-code-global" | "all" | "both" | "cancel";
 export type InstallationState =
@@ -120,7 +126,14 @@ function expandSelection(
   if (selection === "claude-code-global") {
     base = ["claude-code"];
   } else if (selection === "all") {
-    base = ["claude-code", "codex", "antigravity"];
+    base = [
+      "claude-code",
+      "codex",
+      "antigravity",
+      "cursor",
+      "vscode",
+      "neovim",
+    ];
   } else if (selection === "both") {
     base = ["claude-code", "codex"];
   } else {
@@ -291,20 +304,18 @@ async function inspectHarnessFile(
   environment?: Readonly<Record<string, string | undefined>>,
 ): Promise<ProposedFile> {
   const currentContents = await readOptionalFile(targetPath);
-  return harness === "claude-code" ||
-    harness === "claude-code-project" ||
-    harness === "antigravity"
-    ? inspectJsonMcpConfiguration(
+  return harness === "codex"
+    ? inspectCodexConfiguration(currentContents, command)
+    : inspectJsonMcpConfiguration(
         harness,
         currentContents,
         command,
         environment,
-      )
-    : inspectCodexConfiguration(currentContents, command);
+      );
 }
 
 function inspectJsonMcpConfiguration(
-  harness: "claude-code" | "claude-code-project" | "antigravity",
+  harness: Exclude<Harness, "codex">,
   currentContents: string | undefined,
   command: string,
   environment?: Readonly<Record<string, string | undefined>>,
@@ -370,7 +381,13 @@ function inspectJsonMcpConfiguration(
       ? "Claude Code (Global)"
       : harness === "claude-code-project"
         ? "Claude Code (Project)"
-        : "Antigravity";
+        : harness === "antigravity"
+          ? "Antigravity"
+          : harness === "cursor"
+            ? "Cursor"
+            : harness === "vscode"
+              ? "VS Code"
+              : "Neovim";
   return {
     state: existingEntry === undefined ? "compatible" : "conflicting",
     applicable: true,
@@ -603,6 +620,44 @@ function resolveTargetPath(
     }
     return path.resolve(input.projectRoot, ".mcp.json");
   }
+  if (harness === "cursor") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".cursor", "mcp.json");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error("A home directory is required for Cursor configuration.");
+    }
+    return path.resolve(input.homeDirectory, ".cursor", "mcp.json");
+  }
+  if (harness === "vscode") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".vscode", "mcp.json");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error(
+        "A home directory is required for VS Code configuration.",
+      );
+    }
+    return path.resolve(input.homeDirectory, ".vscode", "mcp.json");
+  }
+  if (harness === "neovim") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".neovim", "mcp.json");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error("A home directory is required for Neovim configuration.");
+    }
+    return path.resolve(input.homeDirectory, ".config", "nvim", "mcp.json");
+  }
   if (
     input.homeDirectory === undefined ||
     input.homeDirectory.trim().length === 0
@@ -639,6 +694,49 @@ function resolveSteeringTargetPath(
       );
     }
     return path.resolve(input.projectRoot, "AGENTS.md");
+  }
+  if (harness === "cursor") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".cursor", "rules", "mcp.md");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error("A home directory is required for Cursor configuration.");
+    }
+    return path.resolve(input.homeDirectory, ".cursor", "rules", "mcp.md");
+  }
+  if (harness === "vscode") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".vscode", "instructions.md");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error(
+        "A home directory is required for VS Code configuration.",
+      );
+    }
+    return path.resolve(input.homeDirectory, ".vscode", "instructions.md");
+  }
+  if (harness === "neovim") {
+    if (input.scope === "project" && input.projectRoot) {
+      return path.resolve(input.projectRoot, ".neovim", "instructions.md");
+    }
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error("A home directory is required for Neovim configuration.");
+    }
+    return path.resolve(
+      input.homeDirectory,
+      ".config",
+      "nvim",
+      "instructions.md",
+    );
   }
   if (
     input.homeDirectory === undefined ||
@@ -735,7 +833,7 @@ function isFileSystemError(error: unknown, code: string): boolean {
 }
 
 function buildMcpEnv(
-  harness: "claude-code" | "claude-code-project" | "antigravity",
+  harness: Exclude<Harness, "codex">,
   environment?: Readonly<Record<string, string | undefined>>,
 ): Record<string, string> {
   const env: Record<string, string> = {

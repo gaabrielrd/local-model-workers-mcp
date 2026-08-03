@@ -1,7 +1,8 @@
 # Local Model Workers MCP
 
-Local Model Workers MCP is a local MCP server that lets Claude Code, Codex, and
-Antigravity delegate repository exploration, semantic search, code queries, and
+Local Model Workers MCP is a local MCP server that lets Claude Code, Codex,
+Antigravity, Cursor, VS Code (Roo Code / Cline), and Neovim (Avante) delegate
+repository exploration, semantic search, multi-language code queries, type & lint fixes, and
 test proposals to local models served by LM Studio, Ollama, vLLM, or LocalAI
 on another machine in a private local network.
 
@@ -12,8 +13,7 @@ patch, or runs a project command.
 
 ## Project status
 
-Release `1.2.0` implements the approved V1 scope, the V1.5 read-offloading
-phase, the V2.0 write-offloading phase, the V2.1 auto-validate phase, interactive feature selection, multi-provider engine, and out-of-the-box MCP harness setup.
+Release `2.0.0` implements the complete V1-V4.0 scope, including multi-provider engine, auto-validation, reactive incremental indexing, multi-language AST grammars (TS/JS, Python, Go, Rust, Java, C#), context-aware model routing, compiler type error fixes (`fix_type_errors`), token offload statistics tracking over time (`get_offload_stats`), and extended IDE setup.
 The implementation includes:
 
 - layered, revision-controlled configuration with atomic writes;
@@ -25,8 +25,8 @@ The implementation includes:
 - repository-free health diagnostics and model availability checks;
 - isolated task lifecycles with cross-process FIFO capacity;
 - bounded repository exploration and validated test-only patch proposals;
-- metadata-only operational logging with seven-day retention;
-- confirmed Claude Code, Codex, and Antigravity harness configuration via an
+- metadata-only operational logging with seven-day retention and time-series token offload statistics (`get_offload_stats`);
+- confirmed Claude Code, Codex, Antigravity, Cursor, VS Code, and Neovim harness configuration via an
   interactive checkbox selector (arrow keys, `Space` to toggle, `Enter` to
   confirm) in the `setup`/`init` assistant, with a `--target` flag for scripts;
 - selectable MCP feature groups during `setup`/`init` (`exploration`, `tests`,
@@ -34,7 +34,7 @@ The implementation includes:
   scripts;
 - managed prompt-steering instruction files that direct harnesses to the MCP
   tools, with an optional custom `steering_prompt` preference;
-- validated lint-fix patches and documentation patches returned as unapplied
+- validated lint-fix patches, type-fix patches (`fix_type_errors` for `tsc` & `mypy`), and documentation patches returned as unapplied
   unified diffs, so write-heavy mechanical tasks stay on the developer's side
   of the boundary;
 - an auto-validate test loop that iterates test generation in an isolated
@@ -43,12 +43,12 @@ The implementation includes:
   proven green;
 - a protocol-clean MCP v2 server over `stdio`.
 
-Local qualification is green as of 2026-08-02:
+Local qualification is green as of 2026-08-03:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 312 automated tests;
+  typechecking, build, and all 321 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
-  isolated prefix, starts the packaged MCP server, and verifies all twelve tools;
+  isolated prefix, starts the packaged MCP server, and verifies all 14 tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
   using `authentication: none` / `not_configured`;
 - Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and
@@ -58,25 +58,23 @@ Local qualification is green as of 2026-08-02:
 The package is private and is not published to the public npm registry. It is
 distributed as an installable tarball attached to the
 [latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
-The remaining release gates are complete twelve-tool scenarios through real
-Claude Code and Codex sessions, plus successful remote Linux and Windows
-portability jobs. See [release qualification](docs/release-qualification.md)
-for evidence and the remaining procedure.
 
-The server exposes exactly twelve MCP tools:
+The server exposes exactly fourteen MCP tools:
 
 - `auto_validate_tests`
-- `explore_repository`
-- `propose_tests`
 - `check_health`
+- `explore_repository`
+- `fix_lint_violations`
+- `fix_type_errors`
+- `generate_docs_patch`
 - `get_config`
-- `validate_config`
-- `update_config`
+- `get_offload_stats`
+- `propose_tests`
 - `query_code_graph`
 - `search_semantic`
 - `summarize_module`
-- `fix_lint_violations`
-- `generate_docs_patch`
+- `update_config`
+- `validate_config`
 
 See [prd.md](prd.md) for the complete requirements and acceptance criteria.
 
@@ -113,7 +111,7 @@ Or, for the current release specifically:
 
 ```sh
 npm install --global \
-  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v1.2.0/local-model-workers-mcp-1.2.0.tgz
+  https://github.com/gaabrielrd/local-model-workers-mcp/releases/download/v2.0.0/local-model-workers-mcp-2.0.0.tgz
 ```
 
 To update, repeat the same command after a new release is published. There is no

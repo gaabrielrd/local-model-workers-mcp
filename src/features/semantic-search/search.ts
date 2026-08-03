@@ -150,25 +150,30 @@ export async function reindexRepository(
     onProgress,
   } = options;
 
-  await vectorIndex.clear();
-
   // Root directory listing
   const listing = await repositoryRead.listDirectory({});
-  const filesToIndex: string[] = [];
+  const currentRepoFiles = new Set<string>();
 
   for (const entry of listing.entries) {
     if (entry.kind === "file") {
-      filesToIndex.push(entry.path);
+      currentRepoFiles.add(entry.path);
     }
   }
 
+  // Prune index entries for files no longer present in the repository
+  const knownPaths = await vectorIndex.getKnownPaths();
+  for (const knownPath of knownPaths) {
+    if (!currentRepoFiles.has(knownPath)) {
+      await vectorIndex.removeFile(knownPath);
+    }
+  }
+
+  const filesToIndex = Array.from(currentRepoFiles);
   let processed = 0;
+
   for (const relativePath of filesToIndex) {
     signal?.throwIfAborted();
     processed += 1;
-    onProgress?.(
-      `Indexing file ${processed}/${filesToIndex.length}: ${relativePath}`,
-    );
 
     try {
       const snippet = await repositoryRead.readSnippet({
@@ -179,14 +184,30 @@ export async function reindexRepository(
 
       const content = snippet.content;
       if (content.trim().length === 0) {
+        await vectorIndex.removeFile(relativePath);
         continue;
       }
 
       const contentHash = createHash("sha256").update(content).digest("hex");
+      const isStale = await vectorIndex.isStale(relativePath, contentHash);
+      if (!isStale) {
+        onProgress?.(
+          `Skipping unchanged file ${processed}/${filesToIndex.length}: ${relativePath}`,
+        );
+        continue;
+      }
+
+      // File is new or modified: remove previous entries before re-embedding
+      await vectorIndex.removeFile(relativePath);
+
       const chunks = chunkText(content);
       if (chunks.length === 0) {
         continue;
       }
+
+      onProgress?.(
+        `Indexing file ${processed}/${filesToIndex.length}: ${relativePath}`,
+      );
 
       const chunkTexts = chunks.map((c) => c.text);
       const embedResult = await inference.embedText({

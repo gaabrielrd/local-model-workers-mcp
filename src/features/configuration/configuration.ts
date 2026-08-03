@@ -462,13 +462,30 @@ export async function getConfig(
   });
 }
 
+export interface ResolveModelOptions {
+  readonly contextTokenCount?: number | undefined;
+}
+
 export function resolveModelForTask(
   configuration: EffectiveConfiguration,
   taskType: ModelTaskType,
+  options?: ResolveModelOptions,
 ): string {
   const configured = configuration.lm_studio.model_routing?.[taskType];
   if (configured !== undefined) {
     return configured;
+  }
+  if (
+    options?.contextTokenCount !== undefined &&
+    options.contextTokenCount > 16_384
+  ) {
+    const largeContextModel = configuration.lm_studio.allowed_models.find(
+      (model) =>
+        /long|128k|64k|32k|large|qwen|deepseek/i.test(model) && model !== "*",
+    );
+    if (largeContextModel !== undefined) {
+      return largeContextModel;
+    }
   }
   if (taskType === "embedding") {
     const autoEmbeddingModel = configuration.lm_studio.allowed_models.find(

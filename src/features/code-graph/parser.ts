@@ -10,8 +10,12 @@ export function parseSourceSymbols(
     filePath.endsWith(".tsx") ||
     filePath.endsWith(".js") ||
     filePath.endsWith(".jsx");
+  const isGo = filePath.endsWith(".go");
+  const isRust = filePath.endsWith(".rs");
+  const isJava = filePath.endsWith(".java");
+  const isCSharp = filePath.endsWith(".cs");
 
-  if (!isPython && !isTypeScript) {
+  if (!isPython && !isTypeScript && !isGo && !isRust && !isJava && !isCSharp) {
     return [];
   }
 
@@ -23,7 +27,12 @@ export function parseSourceSymbols(
     const rawLine = lines[i]!;
     const line = rawLine.trim();
 
-    if (line.length === 0 || line.startsWith("//") || line.startsWith("#")) {
+    if (
+      line.length === 0 ||
+      line.startsWith("//") ||
+      line.startsWith("#") ||
+      line.startsWith("/*")
+    ) {
       continue;
     }
 
@@ -31,6 +40,14 @@ export function parseSourceSymbols(
       parseTypeScriptLine(filePath, line, lineNum, lines, symbols);
     } else if (isPython) {
       parsePythonLine(filePath, rawLine, line, lineNum, lines, symbols);
+    } else if (isGo) {
+      parseGoLine(filePath, line, lineNum, lines, symbols);
+    } else if (isRust) {
+      parseRustLine(filePath, line, lineNum, lines, symbols);
+    } else if (isJava) {
+      parseJavaLine(filePath, line, lineNum, lines, symbols);
+    } else if (isCSharp) {
+      parseCSharpLine(filePath, line, lineNum, lines, symbols);
     }
   }
 
@@ -278,4 +295,264 @@ function getIndentLevel(line: string): number {
     }
   }
   return count;
+}
+
+function parseGoLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const funcMatch = /^func\s+(?:\([^)]+\)\s+)?([A-Za-z0-9_]+)\s*\(/u.exec(line);
+  if (funcMatch?.[1] !== undefined) {
+    const name = funcMatch[1];
+    const isExported = /^[A-Z]/u.test(name);
+    symbols.push({
+      name,
+      kind: "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeMatch =
+    /^type\s+([A-Za-z0-9_]+)\s+(struct|interface|[A-Za-z0-9_]+)/u.exec(line);
+  if (typeMatch?.[1] !== undefined) {
+    const name = typeMatch[1];
+    const rawKind = typeMatch[2] ?? "type_alias";
+    const kind =
+      rawKind === "struct"
+        ? "class"
+        : rawKind === "interface"
+          ? "interface"
+          : "type_alias";
+    const isExported = /^[A-Z]/u.test(name);
+    symbols.push({
+      name,
+      kind,
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const importMatch = /^import\s+(?:["']([^"']+)["']|\()/u.exec(line);
+  if (importMatch !== null) {
+    symbols.push({
+      name: importMatch[1] ?? line,
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseRustLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isPublic = line.startsWith("pub ");
+  const declLine = isPublic ? line.replace(/^pub(?:\([^)]+\))?\s+/u, "") : line;
+
+  const fnMatch = /^fn\s+([A-Za-z0-9_]+)/u.exec(declLine);
+  if (fnMatch?.[1] !== undefined) {
+    symbols.push({
+      name: fnMatch[1],
+      kind: "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isPublic,
+    });
+    return;
+  }
+
+  const structMatch = /^(struct|enum|trait)\s+([A-Za-z0-9_]+)/u.exec(declLine);
+  if (structMatch?.[2] !== undefined) {
+    const rawKind = structMatch[1];
+    const kind =
+      rawKind === "struct"
+        ? "class"
+        : rawKind === "trait"
+          ? "interface"
+          : "type_alias";
+    symbols.push({
+      name: structMatch[2],
+      kind,
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isPublic,
+    });
+    return;
+  }
+
+  const typeMatch = /^type\s+([A-Za-z0-9_]+)/u.exec(declLine);
+  if (typeMatch?.[1] !== undefined) {
+    symbols.push({
+      name: typeMatch[1],
+      kind: "type_alias",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: isPublic,
+    });
+    return;
+  }
+
+  const useMatch = /^use\s+([^;]+)/u.exec(line);
+  if (useMatch?.[1] !== undefined) {
+    symbols.push({
+      name: useMatch[1].trim(),
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseJavaLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isExported = /\b(public|protected)\b/u.test(line);
+
+  const classMatch =
+    /(?:public|protected|private|abstract|final|static\s+)*(class|interface|enum)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (classMatch?.[2] !== undefined) {
+    const rawKind = classMatch[1];
+    const kind =
+      rawKind === "class"
+        ? "class"
+        : rawKind === "interface"
+          ? "interface"
+          : "type_alias";
+    symbols.push({
+      name: classMatch[2],
+      kind,
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const methodMatch =
+    /(?:(?:public|protected|private|static|final|synchronized|abstract)\s+)+[A-Za-z0-9_<>[\]]+\s+([A-Za-z0-9_]+)\s*\(/u.exec(
+      line,
+    );
+  if (methodMatch?.[1] !== undefined) {
+    symbols.push({
+      name: methodMatch[1],
+      kind: "method",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const importMatch = /^import\s+([^;]+)/u.exec(line);
+  if (importMatch?.[1] !== undefined) {
+    symbols.push({
+      name: importMatch[1].trim(),
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseCSharpLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isExported = /\b(public|protected)\b/u.test(line);
+
+  const classMatch =
+    /(?:public|protected|private|internal|abstract|sealed|static\s+)*(class|interface|struct|record)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (classMatch?.[2] !== undefined) {
+    const rawKind = classMatch[1];
+    const kind =
+      rawKind === "class" || rawKind === "struct" || rawKind === "record"
+        ? "class"
+        : "interface";
+    symbols.push({
+      name: classMatch[2],
+      kind,
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const methodMatch =
+    /(?:(?:public|protected|private|internal|static|async|virtual|override|abstract)\s+)+[A-Za-z0-9_<>[\]?]+\s+([A-Za-z0-9_]+)\s*\(/u.exec(
+      line,
+    );
+  if (methodMatch?.[1] !== undefined) {
+    symbols.push({
+      name: methodMatch[1],
+      kind: "method",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const usingMatch = /^using\s+([^;]+)/u.exec(line);
+  if (usingMatch?.[1] !== undefined) {
+    symbols.push({
+      name: usingMatch[1].trim(),
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
 }

@@ -28,8 +28,10 @@ import {
   LintFixError,
   detectLinter,
   fixLintViolations,
+  fixTypeErrors,
   parseBiome,
   parseRuff,
+  parseTypeOutput,
   validateLintPatch,
 } from "../src/features/lint-fix/index.js";
 import { PatchPolicyError } from "../src/features/test-proposal/index.js";
@@ -848,3 +850,58 @@ function fakeRepoRead(files: Record<string, string>): RepositoryReadCapability {
     },
   };
 }
+
+void test("parseTypeOutput parses tsc and mypy error outputs", () => {
+  const tscOutput =
+    "src/app.ts:15:23 - error TS2322: Type 'string' is not assignable to type 'number'.";
+  const tscViolations = parseTypeOutput(tscOutput);
+  assert.equal(tscViolations.length, 1);
+  assert.equal(tscViolations[0]?.file, "src/app.ts");
+  assert.equal(tscViolations[0]?.line, 15);
+  assert.equal(tscViolations[0]?.rule_id, "TS2322");
+
+  const mypyOutput =
+    "app/main.py:42: error: Incompatible types in assignment [assignment]";
+  const mypyViolations = parseTypeOutput(mypyOutput);
+  assert.equal(mypyViolations.length, 1);
+  assert.equal(mypyViolations[0]?.file, "app/main.py");
+  assert.equal(mypyViolations[0]?.line, 42);
+  assert.equal(mypyViolations[0]?.rule_id, "assignment");
+});
+
+void test("fixTypeErrors generates validated patch for tsc errors", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": "const x: number = 'hello';\n",
+  });
+  const typeOutput =
+    "src/app.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.";
+  const patch = modifyDiff("src/app.ts", 1, [
+    "-const x: number = 'hello';",
+    "+const x: string = 'hello';",
+  ]);
+
+  const inference = fakeInference(
+    remoteFix(
+      patch,
+      [{ file: "src/app.ts", line: 1, rule_id: "TS2322" }],
+      [],
+      "Fixed type annotation.",
+    ),
+    [],
+  );
+
+  const result = await fixTypeErrors({
+    input: {
+      repository_root: ROOT,
+      type_output: typeOutput,
+    },
+    inference,
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe"),
+  });
+
+  assert.equal(result.patch, patch);
+  assert.equal(result.fixed_violations.length, 1);
+});

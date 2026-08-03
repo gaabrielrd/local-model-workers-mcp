@@ -59,6 +59,7 @@ export interface VectorIndex {
   ): Promise<readonly VectorSearchResult[]>;
   removeFile(relativePath: string): Promise<void>;
   isStale(relativePath: string, currentContentHash: string): Promise<boolean>;
+  getKnownPaths(): Promise<readonly string[]>;
   clear(): Promise<void>;
   size(): number;
   save(): Promise<void>;

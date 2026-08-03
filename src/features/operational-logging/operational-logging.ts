@@ -28,6 +28,9 @@ export const OperationalEventSchema = z
     model: SafeIdentifierSchema,
     status: TerminalStatusSchema,
     error_code: ErrorCodeSchema.nullable(),
+    prompt_tokens: z.number().int().nonnegative().optional(),
+    completion_tokens: z.number().int().nonnegative().optional(),
+    estimated_tokens_saved: z.number().int().nonnegative().optional(),
   })
   .strict()
   .superRefine((event, context) => {
@@ -52,6 +55,30 @@ export const OperationalEventSchema = z
   });
 
 export type OperationalEvent = z.infer<typeof OperationalEventSchema>;
+
+export const GetOffloadStatsInputSchema = z
+  .object({
+    period: z.enum(["week", "month", "lifetime", "all"]).default("all"),
+    log_directory: z.string().optional(),
+  })
+  .strict();
+
+export type GetOffloadStatsInput = z.infer<typeof GetOffloadStatsInputSchema>;
+
+export interface OffloadStatsPeriod {
+  readonly tokens_saved: number;
+  readonly queries_offloaded: number;
+  readonly prompt_tokens: number;
+  readonly completion_tokens: number;
+}
+
+export interface OffloadStatsResult {
+  readonly weekly: OffloadStatsPeriod;
+  readonly monthly: OffloadStatsPeriod;
+  readonly lifetime: OffloadStatsPeriod;
+  readonly query_count: number;
+  readonly summary: string;
+}
 
 export interface OperationalEventRecorder {
   record(event: TaskTerminalMetadata): Promise<void>;
@@ -186,6 +213,75 @@ export function resolveOperationalLogDirectory(
     "local-model-workers-mcp",
     OPERATIONAL_LOG_DIRECTORY_NAME,
   );
+}
+
+export async function getOffloadStats(
+  directory: string,
+  nowMs: number = Date.now(),
+): Promise<OffloadStatsResult> {
+  const events = await inspectOperationalLogs(directory);
+  const weekCutoff = nowMs - 7 * 24 * 60 * 60 * 1_000;
+  const monthCutoff = nowMs - 30 * 24 * 60 * 60 * 1_000;
+
+  let weekly: OffloadStatsPeriod = {
+    tokens_saved: 0,
+    queries_offloaded: 0,
+    prompt_tokens: 0,
+    completion_tokens: 0,
+  };
+  let monthly: OffloadStatsPeriod = {
+    tokens_saved: 0,
+    queries_offloaded: 0,
+    prompt_tokens: 0,
+    completion_tokens: 0,
+  };
+  let lifetime: OffloadStatsPeriod = {
+    tokens_saved: 0,
+    queries_offloaded: 0,
+    prompt_tokens: 0,
+    completion_tokens: 0,
+  };
+
+  for (const event of events) {
+    if (event.status !== "completed") continue;
+
+    const prompt = event.prompt_tokens ?? 2_500;
+    const completion = event.completion_tokens ?? 500;
+    const tokensSaved = event.estimated_tokens_saved ?? prompt + completion;
+
+    lifetime = {
+      tokens_saved: lifetime.tokens_saved + tokensSaved,
+      queries_offloaded: lifetime.queries_offloaded + 1,
+      prompt_tokens: lifetime.prompt_tokens + prompt,
+      completion_tokens: lifetime.completion_tokens + completion,
+    };
+
+    if (event.ended_at_ms >= monthCutoff) {
+      monthly = {
+        tokens_saved: monthly.tokens_saved + tokensSaved,
+        queries_offloaded: monthly.queries_offloaded + 1,
+        prompt_tokens: monthly.prompt_tokens + prompt,
+        completion_tokens: monthly.completion_tokens + completion,
+      };
+    }
+
+    if (event.ended_at_ms >= weekCutoff) {
+      weekly = {
+        tokens_saved: weekly.tokens_saved + tokensSaved,
+        queries_offloaded: weekly.queries_offloaded + 1,
+        prompt_tokens: weekly.prompt_tokens + prompt,
+        completion_tokens: weekly.completion_tokens + completion,
+      };
+    }
+  }
+
+  return {
+    weekly,
+    monthly,
+    lifetime,
+    query_count: lifetime.queries_offloaded,
+    summary: `Token offload statistics: ${weekly.tokens_saved.toLocaleString()} tokens saved this week, ${monthly.tokens_saved.toLocaleString()} tokens saved this month, ${lifetime.tokens_saved.toLocaleString()} total tokens offloaded over time across ${lifetime.queries_offloaded} queries.`,
+  };
 }
 
 function isFileSystemError(error: unknown, code: string): boolean {

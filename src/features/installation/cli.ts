@@ -75,7 +75,7 @@ async function configureHarness(
   const selection = requiredOption(options, "target");
   if (!isHarnessSelection(selection)) {
     throw new Error(
-      "Target must be claude-code, claude-code-project, codex, antigravity, all, both, or cancel.",
+      "Target must be claude-code, claude-code-project, codex, antigravity, cursor, vscode, neovim, all, both, or cancel.",
     );
   }
   const rawScope = stringOption(options, "scope");
@@ -341,6 +341,9 @@ function isHarnessSelection(value: string): value is HarnessSelection {
     value === "claude-code-project" ||
     value === "codex" ||
     value === "antigravity" ||
+    value === "cursor" ||
+    value === "vscode" ||
+    value === "neovim" ||
     value === "all" ||
     value === "both" ||
     value === "cancel"

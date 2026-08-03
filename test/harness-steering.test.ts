@@ -53,7 +53,7 @@ void test("proposes prompt steering instructions for every supported harness", a
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
-  assert.equal(proposals.length, 3);
+  assert.equal(proposals.length, 6);
   for (const proposal of proposals) {
     assert.equal(proposal.steering.state, "fresh");
     assert.equal(proposal.steering.applicable, true);
@@ -142,11 +142,25 @@ void test("applying a proposal writes steering instruction files atomically", as
   });
   assert.deepEqual(
     again.map((proposal) => proposal.state),
-    ["identical", "identical", "identical"],
+    [
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+    ],
   );
   assert.deepEqual(
     again.map((proposal) => proposal.steering.state),
-    ["identical", "identical", "identical"],
+    [
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+      "identical",
+    ],
   );
   for (const proposal of again) {
     const result = await applyHarnessConfiguration({ proposal });
@@ -341,12 +355,15 @@ void test("resolves steering paths portably across platforms", async (t) => {
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
   });
-  assert.equal(proposals.length, 3);
+  assert.equal(proposals.length, 6);
   const expected: Record<Harness, string> = {
     "claude-code": path.join(fixture.home, ".claude", "CLAUDE.md"),
     "claude-code-project": path.join(fixture.project, "AGENTS.md"),
     codex: path.join(fixture.home, ".codex", "instructions.md"),
     antigravity: path.join(fixture.home, ".gemini", "instructions.md"),
+    cursor: path.join(fixture.home, ".cursor", "rules", "mcp.md"),
+    vscode: path.join(fixture.home, ".vscode", "instructions.md"),
+    neovim: path.join(fixture.home, ".config", "nvim", "instructions.md"),
   };
   for (const proposal of proposals) {
     assert.equal(proposal.steering.target_path, expected[proposal.harness]);

@@ -232,3 +232,72 @@ function malformed(): LintFixError {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+export function parseTypeOutput(
+  output: string,
+  checker: "tsc" | "mypy" | "pyright" | "auto" = "auto",
+): LintViolation[] {
+  const lines = output.split("\n");
+  const violations: LintViolation[] = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.length === 0) continue;
+
+    if (checker === "tsc" || checker === "auto") {
+      const tscMatch =
+        /^([^\s:(]+)(?:\((\d+),(\d+)\)|:(\d+):(\d+))\s*(?:-\s*)?error\s+(TS\d+):\s*(.+)$/u.exec(
+          line,
+        );
+      if (tscMatch !== null) {
+        const file = tscMatch[1]!;
+        const lineNum = parseInt(tscMatch[2] ?? tscMatch[4] ?? "1", 10);
+        const colNum = parseInt(tscMatch[3] ?? tscMatch[5] ?? "1", 10);
+        const ruleId = tscMatch[6]!;
+        const msg = tscMatch[7]!;
+        violations.push({
+          file,
+          line: lineNum,
+          column: colNum,
+          rule_id: ruleId,
+          severity: "error",
+          message: msg,
+        });
+        continue;
+      }
+    }
+
+    if (checker === "mypy" || checker === "pyright" || checker === "auto") {
+      const mypyMatch =
+        /^([^\s:]+):(\d+)(?::(\d+))?:\s*(error|warning):\s*(.+?)(?:\s*\[([a-z0-9_-]+)\])?$/u.exec(
+          line,
+        );
+      if (mypyMatch !== null) {
+        const file = mypyMatch[1]!;
+        const lineNum = parseInt(mypyMatch[2]!, 10);
+        const colNum = parseInt(mypyMatch[3] ?? "1", 10);
+        const sev = mypyMatch[4]!;
+        const msg = mypyMatch[5]!;
+        const ruleId = mypyMatch[6] ?? "type-error";
+        violations.push({
+          file,
+          line: lineNum,
+          column: colNum,
+          rule_id: ruleId,
+          severity: sev,
+          message: msg,
+        });
+        continue;
+      }
+    }
+  }
+
+  if (violations.length === 0) {
+    throw new LintFixError(
+      "invalid_lint_output",
+      "No type checker errors recognized in output.",
+    );
+  }
+
+  return violations;
+}

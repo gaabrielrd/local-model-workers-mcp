@@ -63,6 +63,9 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
       ["claude-code", "fresh"],
       ["codex", "fresh"],
       ["antigravity", "fresh"],
+      ["cursor", "fresh"],
+      ["vscode", "fresh"],
+      ["neovim", "fresh"],
     ],
   );
   await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
@@ -72,6 +75,48 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
   await assert.rejects(
     access(path.join(fixture.home, ".gemini", "config", "mcp_config.json")),
   );
+  await assert.rejects(access(path.join(fixture.home, ".cursor", "mcp.json")));
+  await assert.rejects(access(path.join(fixture.home, ".vscode", "mcp.json")));
+  await assert.rejects(
+    access(path.join(fixture.home, ".config", "nvim", "mcp.json")),
+  );
+});
+
+void test("proposes and applies harness configuration for cursor, vscode, and neovim", async (t) => {
+  const fixture = await createFixture(t);
+  const proposals = await proposeHarnessConfigurations({
+    selection: ["cursor", "vscode", "neovim"],
+    scope: "project",
+    projectRoot: fixture.project,
+    homeDirectory: fixture.home,
+  });
+
+  assert.equal(proposals.length, 3);
+  for (const proposal of proposals) {
+    const result = await applyHarnessConfiguration({
+      proposal,
+      confirmation: { approved: true, proposal_id: proposal.proposal_id },
+    });
+    assert.equal(result.outcome, "written");
+  }
+
+  const cursorContent = await readFile(
+    path.join(fixture.project, ".cursor", "mcp.json"),
+    "utf8",
+  );
+  assert.match(cursorContent, /local-model-workers/);
+
+  const vscodeContent = await readFile(
+    path.join(fixture.project, ".vscode", "mcp.json"),
+    "utf8",
+  );
+  assert.match(vscodeContent, /local-model-workers/);
+
+  const neovimContent = await readFile(
+    path.join(fixture.project, ".neovim", "mcp.json"),
+    "utf8",
+  );
+  assert.match(neovimContent, /local-model-workers/);
 });
 
 void test("accepts an explicit harness array selection", async (t) => {

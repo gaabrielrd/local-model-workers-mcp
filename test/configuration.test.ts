@@ -385,6 +385,35 @@ void test("auto-detects an embedding model from allowed_models when embedding ro
   );
 });
 
+void test("resolveModelForTask routes to large-context model when contextTokenCount exceeds threshold", async (t) => {
+  const fixture = await createFixture(t);
+  const environment = {
+    ...protectedEnvironment,
+    LMW_ALLOWED_MODELS:
+      '["qwen/test-model","qwen/qwen2.5-coder-32b-instruct-128k"]',
+  };
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+  });
+
+  const snapshot = await getEffectiveConfiguration({
+    ...fixture.input(),
+    environment,
+  });
+
+  assert.equal(
+    resolveModelForTask(snapshot, "exploration", { contextTokenCount: 5_000 }),
+    "qwen/test-model",
+  );
+  assert.equal(
+    resolveModelForTask(snapshot, "exploration", {
+      contextTokenCount: 20_000,
+    }),
+    "qwen/qwen2.5-coder-32b-instruct-128k",
+  );
+});
+
 void test("rejects routing entries that reference unauthorized models", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({

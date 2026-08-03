@@ -231,6 +231,19 @@ export async function runInteractiveSetup(
             value: "antigravity",
           },
           {
+            label: "Cursor (~/.cursor/mcp.json or .cursor/mcp.json)",
+            value: "cursor",
+          },
+          {
+            label:
+              "VS Code / Roo Code / Cline (~/.vscode/mcp.json or .vscode/mcp.json)",
+            value: "vscode",
+          },
+          {
+            label: "Neovim / Avante (~/.config/nvim/mcp.json)",
+            value: "neovim",
+          },
+          {
             label: "Claude Code Project Local (.mcp.json)",
             value: "claude-code-project",
           },
