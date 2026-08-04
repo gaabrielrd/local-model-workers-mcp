@@ -13,6 +13,21 @@ import {
   InferenceError,
 } from "../src/features/model-inference/index.js";
 
+/**
+ * Wraps globalThis.fetch to send `Connection: close` on every request.
+ * This prevents undici from pooling keep-alive connections to the fake HTTP
+ * server used in tests, which would cause `server.close()` to hang on Windows
+ * because the pooled connection is still open when teardown runs.
+ */
+const noKeepAliveFetch: typeof globalThis.fetch = (input, init?) =>
+  globalThis.fetch(input, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      connection: "close",
+    },
+  });
+
 const TOKEN = "fixture-bearer-value";
 const MODEL = "qwen/fixture-model";
 const OutputSchema = z.object({ ok: z.literal(true) }).strict();
@@ -53,7 +68,11 @@ void test("omits Authorization when optional authentication is not configured", 
     }
     json(response, 200, completedResponse());
   });
-  const client = createLmStudioClient({ baseUrl, allowedModels: [MODEL] });
+  const client = createLmStudioClient({
+    baseUrl,
+    allowedModels: [MODEL],
+    fetch: noKeepAliveFetch,
+  });
 
   assert.deepEqual((await client.inferStructured(inferenceRequest())).output, {
     ok: true,
@@ -109,6 +128,7 @@ void test("detects enforced authentication without exposing either token", async
     baseUrl,
     bearerToken: "wrong-secret-value",
     allowedModels: [MODEL],
+    fetch: noKeepAliveFetch,
   });
   let caught: unknown;
   try {
@@ -269,6 +289,7 @@ void test("fails closed on malformed, oversized, and partial responses", async (
         bearerToken: TOKEN,
         allowedModels: [MODEL],
         maxResponseBytes: 1_000,
+        fetch: noKeepAliveFetch,
       });
 
       await assert.rejects(
@@ -289,6 +310,7 @@ function configuredClient(baseUrl: string) {
     baseUrl,
     bearerToken: TOKEN,
     allowedModels: [MODEL],
+    fetch: noKeepAliveFetch,
   });
 }
 
@@ -426,6 +448,7 @@ function embeddingClient(baseUrl: string) {
     baseUrl,
     bearerToken: TOKEN,
     allowedModels: [MODEL, EMBEDDING_MODEL],
+    fetch: noKeepAliveFetch,
   });
 }
 
@@ -491,6 +514,7 @@ void test("embedText: rejects unauthorized model", async (t) => {
   const client = createLmStudioClient({
     baseUrl,
     allowedModels: [MODEL],
+    fetch: noKeepAliveFetch,
   });
 
   await assert.rejects(
@@ -599,6 +623,7 @@ void test("embedText: oversized response is rejected", async (t) => {
     bearerToken: TOKEN,
     allowedModels: [MODEL, EMBEDDING_MODEL],
     maxResponseBytes: 1_000,
+    fetch: noKeepAliveFetch,
   });
 
   await assert.rejects(
@@ -620,6 +645,7 @@ void test("embedText: omits Authorization when no token configured", async (t) =
   const client = createLmStudioClient({
     baseUrl,
     allowedModels: [EMBEDDING_MODEL],
+    fetch: noKeepAliveFetch,
   });
 
   await client.embedText(embeddingRequest());
