@@ -13,12 +13,12 @@ import test from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
-import { resolveGlobalPreferencesPath } from "../src/features/configuration/index.js";
+import { resolveGlobalPreferencesPath } from "../../src/features/configuration/index.js";
 import {
   createMcpApplicationRuntime,
   FEATURE_TOOL_NAMES,
   TOOL_NAMES,
-} from "../src/features/mcp-server/index.js";
+} from "../../src/features/mcp-server/index.js";
 
 const MODEL = "qwen/fixture-model";
 const TOKEN = "mcp-fixture-token";

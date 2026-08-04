@@ -11,7 +11,7 @@ import { z } from "zod";
 import {
   createLmStudioClient,
   InferenceError,
-} from "../src/features/model-inference/index.js";
+} from "../../src/features/model-inference/index.js";
 
 /**
  * Wraps globalThis.fetch to send `Connection: close` on every request.
