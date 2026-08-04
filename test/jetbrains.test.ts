@@ -173,7 +173,13 @@ void test("proposes and applies jetbrains config without overwriting existing en
   assert.equal(proposal.state, "compatible");
   assert.equal(
     proposal.target_path,
-    path.join(fixture.home, ".config", "JetBrains", "AIAssistant", "mcp.json"),
+    path.posix.join(
+      fixture.home,
+      ".config",
+      "JetBrains",
+      "AIAssistant",
+      "mcp.json",
+    ),
   );
   assert.equal(
     proposal.steering.target_path,

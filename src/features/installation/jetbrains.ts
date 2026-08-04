@@ -194,5 +194,5 @@ function joinPlatform(
 ): (...parts: readonly string[]) => string {
   return platform === "win32"
     ? (...parts: readonly string[]) => path.win32.join(...parts)
-    : (...parts: readonly string[]) => path.join(...parts);
+    : (...parts: readonly string[]) => path.posix.join(...parts);
 }
