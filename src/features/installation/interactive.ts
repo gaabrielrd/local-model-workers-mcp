@@ -307,6 +307,7 @@ export async function runInteractiveSetup(
       projectRoot: projRoot,
       homeDirectory: homeDir,
       environment: effectiveEnv,
+      enabledFeatures,
     });
 
     for (const proposal of harnessProposals) {

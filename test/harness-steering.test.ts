@@ -389,6 +389,22 @@ void test("builds deterministic steering blocks and sanitizes marker lines", () 
   assert.match(custom.block, /Always verify with propose_tests\./);
 });
 
+void test("builds steering instructions customized to enabled feature groups", () => {
+  const explorationOnly = buildSteeringInstructions({
+    enabled_features: ["exploration"],
+  });
+  assert.match(explorationOnly.block, /explore_repository/);
+  assert.doesNotMatch(explorationOnly.block, /propose_tests/);
+  assert.doesNotMatch(explorationOnly.block, /fix_lint_violations/);
+
+  const lintOnly = buildSteeringInstructions({
+    enabled_features: ["lint"],
+  });
+  assert.match(lintOnly.block, /fix_lint_violations/);
+  assert.match(lintOnly.block, /fix_type_errors/);
+  assert.doesNotMatch(lintOnly.block, /explore_repository/);
+});
+
 void test("resolves steering_prompt from global and project preferences", async (t) => {
   const fixture = await createConfigurationFixture(t);
   await fixture.writeGlobal({

@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { writeConfigurationFileAtomically } from "../configuration/index.js";
+import {
+  writeConfigurationFileAtomically,
+  type FeatureGroup,
+} from "../configuration/index.js";
 import {
   STEERING_MARKER_END,
   STEERING_MARKER_START,
@@ -43,6 +46,7 @@ export interface HarnessConfigurationProposal {
   readonly command: string;
   readonly steering: HarnessSteeringPlan;
   readonly steeringPrompt?: string | undefined;
+  readonly enabledFeatures?: readonly FeatureGroup[] | undefined;
 }
 
 export interface HarnessSteeringPlan {
@@ -67,6 +71,7 @@ export interface ProposeHarnessConfigurationsInput {
   readonly command?: string;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly steeringPrompt?: string;
+  readonly enabledFeatures?: readonly FeatureGroup[] | undefined;
 }
 
 export interface ApplyHarnessConfigurationInput {
@@ -107,6 +112,7 @@ export async function proposeHarnessConfigurations(
         command,
         environment,
         input.steeringPrompt,
+        input.enabledFeatures,
       );
     }),
   );
@@ -174,6 +180,7 @@ export async function applyHarnessConfiguration(
     input.proposal.command,
     input.environment,
     input.proposal.steeringPrompt,
+    input.proposal.enabledFeatures,
   );
   if (current.proposal_id !== input.proposal.proposal_id) {
     throw new Error("The harness configuration changed after the proposal.");
@@ -238,6 +245,7 @@ async function proposeOne(
   command: string,
   environment?: Readonly<Record<string, string | undefined>>,
   steeringPrompt?: string,
+  enabledFeatures?: readonly FeatureGroup[],
 ): Promise<HarnessConfigurationProposal> {
   const proposedFile = await inspectHarnessFile(
     harness,
@@ -247,9 +255,14 @@ async function proposeOne(
   );
   const steeringFile = await inspectSteeringFile(
     steeringTargetPath,
-    buildSteeringInstructions(
-      steeringPrompt === undefined ? {} : { custom_directives: steeringPrompt },
-    ),
+    buildSteeringInstructions({
+      ...(steeringPrompt === undefined
+        ? {}
+        : { custom_directives: steeringPrompt }),
+      ...(enabledFeatures === undefined
+        ? {}
+        : { enabled_features: enabledFeatures }),
+    }),
   );
   const expectedRevision = revision(proposedFile.currentContents);
   const proposedRevision = revision(proposedFile.proposedContents);
@@ -262,6 +275,7 @@ async function proposeOne(
       steeringTargetPath,
       command,
       steeringPrompt,
+      enabledFeatures,
       expectedRevision,
       proposedRevision,
       steeringExpectedRevision,
@@ -284,6 +298,7 @@ async function proposeOne(
     preview: Object.freeze([...proposedFile.preview, ...steeringFile.preview]),
     command,
     ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
+    ...(enabledFeatures === undefined ? {} : { enabledFeatures }),
     steering: Object.freeze({
       target_path: steeringTargetPath,
       state: steeringFile.state,

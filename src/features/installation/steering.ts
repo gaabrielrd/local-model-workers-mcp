@@ -1,16 +1,20 @@
 import { z } from "zod";
 
+import { FEATURE_GROUPS, type FeatureGroup } from "../configuration/index.js";
+
 export const STEERING_MARKER_START = "# local-model-workers-mcp:start";
 export const STEERING_MARKER_END = "# local-model-workers-mcp:end";
 
 export const HarnessSteeringConfigSchema = z
   .object({
     custom_directives: z.string().trim().min(1).max(2_000).optional(),
+    enabled_features: z.array(z.enum(FEATURE_GROUPS)).optional(),
   })
   .strict();
 
 export interface HarnessSteeringConfig {
   readonly custom_directives?: string | undefined;
+  readonly enabled_features?: readonly FeatureGroup[] | undefined;
 }
 
 export interface SteeringInstructions {
@@ -21,13 +25,36 @@ export interface SteeringInstructions {
 export function buildSteeringInstructions(
   input: HarnessSteeringConfig = {},
 ): SteeringInstructions {
-  const directives: string[] = [
-    "Use `explore_repository` for goal-directed repository exploration instead of scanning raw files directly.",
-    "Use `search_semantic` for natural-language code search.",
-    "Use `query_code_graph` for symbol, caller, dependency, and export queries.",
-    "Use `summarize_module` for structured file or directory summaries.",
-    "Use `propose_tests` when generating or verifying unit tests.",
-  ];
+  const features = input.enabled_features ?? FEATURE_GROUPS;
+  const directives: string[] = [];
+
+  if (features.includes("exploration")) {
+    directives.push(
+      "Use `explore_repository` for goal-directed repository exploration instead of scanning raw files directly.",
+      "Use `search_semantic` for natural-language code search.",
+      "Use `query_code_graph` for symbol, caller, dependency, and export queries.",
+      "Use `summarize_module` for structured file or directory summaries.",
+    );
+  }
+  if (features.includes("tests")) {
+    directives.push(
+      "Use `propose_tests` when generating unit test proposals.",
+      "Use `auto_validate_tests` to generate and run unit tests iteratively in an isolated sandbox.",
+    );
+  }
+  if (features.includes("docs")) {
+    directives.push(
+      "Use `generate_docs_patch` for documentation proposals.",
+      "Use `analyze_diff` for semantic git commit diff summaries and architectural impact analysis.",
+    );
+  }
+  if (features.includes("lint")) {
+    directives.push(
+      "Use `fix_lint_violations` to repair linter errors.",
+      "Use `fix_type_errors` to repair compiler and type checker errors.",
+    );
+  }
+
   const custom = sanitizeCustomDirectives(input.custom_directives);
   if (custom !== undefined) {
     directives.push(custom);
