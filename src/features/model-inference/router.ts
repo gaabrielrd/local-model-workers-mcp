@@ -1,3 +1,4 @@
+import { CircuitBreaker } from "./circuit-breaker.js";
 import {
   InferenceError,
   type EmbeddingRequest,
@@ -16,6 +17,7 @@ const DEFAULT_RECHECK_INTERVAL_MS = 60_000;
 export interface ProviderRouterOptions {
   readonly adapters: readonly ProviderAdapter[];
   readonly recheckIntervalMs?: number;
+  readonly failureThreshold?: number;
   readonly now?: () => number;
 }
 
@@ -45,6 +47,16 @@ export function createProviderRouter(
       { status: "unknown", models: [], lastCheckedAt: null },
     ]),
   );
+  const breakers = new Map<string, CircuitBreaker>(
+    adapters.map((adapter) => [
+      adapter.provider.name,
+      new CircuitBreaker({
+        failureThreshold: options.failureThreshold ?? 5,
+        cooldownMs: recheckIntervalMs,
+        now,
+      }),
+    ]),
+  );
 
   const refreshOne = async (
     adapter: ProviderAdapter,
@@ -52,12 +64,14 @@ export function createProviderRouter(
   ): Promise<void> => {
     try {
       const catalog = await adapter.listModels(requestOptions);
+      breakers.get(adapter.provider.name)?.recordSuccess();
       status.set(adapter.provider.name, {
         status: "healthy",
         models: Object.freeze([...catalog.models]),
         lastCheckedAt: now(),
       });
     } catch (error: unknown) {
+      breakers.get(adapter.provider.name)?.recordFailure();
       status.set(adapter.provider.name, {
         status: "unhealthy",
         models: [],
@@ -99,8 +113,10 @@ export function createProviderRouter(
   const candidatesForModel = (model: string): readonly ProviderAdapter[] =>
     adapters.filter((adapter) => {
       const current = status.get(adapter.provider.name);
+      const breaker = breakers.get(adapter.provider.name);
       return (
         current?.status === "healthy" &&
+        (breaker === undefined || breaker.allowRequest()) &&
         current.models.includes(model) &&
         (adapter.provider.allowed_models.includes("*") ||
           adapter.provider.allowed_models.includes(model))
@@ -130,12 +146,15 @@ export function createProviderRouter(
     let lastTransient: InferenceError | undefined;
     for (const adapter of candidates) {
       try {
-        return await operation(adapter);
+        const result = await operation(adapter);
+        breakers.get(adapter.provider.name)?.recordSuccess();
+        return result;
       } catch (error: unknown) {
         if (!(error instanceof InferenceError) || !error.retryable) {
           throw error;
         }
         lastTransient = error;
+        breakers.get(adapter.provider.name)?.recordFailure();
         status.set(adapter.provider.name, {
           status: "unhealthy",
           models: [],

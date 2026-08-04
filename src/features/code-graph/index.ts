@@ -10,3 +10,9 @@ export {
 } from "./contracts.js";
 export { parseSourceSymbols } from "./parser.js";
 export { InMemoryCodeGraph } from "./graph.js";
+export { MultiRepoCodeGraph } from "./multi-repo-graph.js";
+export {
+  distillContext,
+  type DistillOptions,
+  type DistillResult,
+} from "./context-distiller.js";

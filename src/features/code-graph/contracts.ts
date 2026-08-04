@@ -36,6 +36,10 @@ export const CodeGraphQueryInputSchema = z
     query: z.string().trim(),
     query_type: z.enum(["symbol", "callers", "dependencies", "exports"]),
     file_filter: z.string().trim().optional(),
+    additional_repositories: z
+      .array(z.string().trim().min(1).max(4_096))
+      .max(10)
+      .optional(),
   })
   .strict();
 

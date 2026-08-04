@@ -65,3 +65,4 @@ export {
   type TaskTerminalMetadata,
   type TaskWorkOutcome,
 } from "./runtime.js";
+export { getHardwareConcurrency } from "./hardware-concurrency.js";

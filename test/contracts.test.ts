@@ -35,6 +35,7 @@ const identity = {
 
 void test("only approved tool names exist", () => {
   assert.deepEqual(Object.values(TOOL_NAMES).sort(), [
+    "analyze_diff",
     "auto_validate_tests",
     "check_health",
     "explore_repository",

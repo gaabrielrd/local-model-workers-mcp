@@ -1,4 +1,5 @@
 import os from "node:os";
+import path from "node:path";
 
 import {
   McpServer,
@@ -55,8 +56,8 @@ import {
 } from "../auto-validate/index.js";
 import {
   executeSemanticSearch,
-  InMemoryVectorIndex,
   SemanticSearchInputSchema,
+  SqliteVectorIndex,
   type VectorIndex,
 } from "../semantic-search/index.js";
 import {
@@ -81,6 +82,7 @@ import {
   GenerateDocsPatchInputSchema,
   generateDocsPatch,
 } from "../docs-generation/index.js";
+import { AnalyzeDiffInputSchema, analyzeDiff } from "../diff-analysis/index.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -300,7 +302,17 @@ export function createMcpServer(
   }
 
   if (featureEnabled(runtime, "exploration")) {
-    const sharedVectorIndex: VectorIndex = new InMemoryVectorIndex();
+    const vectorDbPath = path.join(
+      resolveOperationalLogDirectory(
+        runtime.platform,
+        runtime.homeDirectory,
+        runtime.environment,
+      ),
+      "vector-index.sqlite",
+    );
+    const sharedVectorIndex: VectorIndex = new SqliteVectorIndex({
+      persistencePath: vectorDbPath,
+    });
 
     server.registerTool(
       TOOL_NAMES.searchSemantic,
@@ -490,6 +502,33 @@ export function createMcpServer(
               "docs_generation",
             ),
             signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+          });
+        }),
+    );
+
+    server.registerTool(
+      TOOL_NAMES.analyzeDiff,
+      {
+        title: "Analyze diff",
+        description:
+          "Perform semantic analysis of git commit diffs, generating human-readable summaries and architectural impact reports.",
+        inputSchema: AnalyzeDiffInputSchema,
+        annotations: { readOnlyHint: true, destructiveHint: false },
+      },
+      async (request) =>
+        safeToolCall(async () => {
+          const parsedInput = AnalyzeDiffInputSchema.parse(request);
+          const dependencies = await taskDependencies(
+            runtime,
+            parsedInput.repository_root,
+          );
+          return await analyzeDiff({
+            input: parsedInput,
+            inference: dependencies.inference,
+            model: resolveModelForTask(
+              dependencies.configuration,
+              "docs_generation",
+            ),
           });
         }),
     );

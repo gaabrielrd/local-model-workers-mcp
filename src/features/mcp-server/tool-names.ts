@@ -1,4 +1,5 @@
 export const TOOL_NAMES = Object.freeze({
+  analyzeDiff: "analyze_diff",
   autoValidateTests: "auto_validate_tests",
   checkHealth: "check_health",
   exploreRepository: "explore_repository",
@@ -25,7 +26,7 @@ export const FEATURE_TOOL_NAMES = Object.freeze({
     TOOL_NAMES.summarizeModule,
   ]),
   tests: Object.freeze([TOOL_NAMES.proposeTests, TOOL_NAMES.autoValidateTests]),
-  docs: Object.freeze([TOOL_NAMES.generateDocsPatch]),
+  docs: Object.freeze([TOOL_NAMES.generateDocsPatch, TOOL_NAMES.analyzeDiff]),
   lint: Object.freeze([TOOL_NAMES.fixLintViolations, TOOL_NAMES.fixTypeErrors]),
 } as const);
 
@@ -41,6 +42,7 @@ export const TASK_TOOL_NAMES = Object.freeze([
 export type TaskToolName = (typeof TASK_TOOL_NAMES)[number];
 
 export const NON_TASK_TOOL_NAMES = Object.freeze([
+  TOOL_NAMES.analyzeDiff,
   TOOL_NAMES.checkHealth,
   TOOL_NAMES.fixLintViolations,
   TOOL_NAMES.fixTypeErrors,

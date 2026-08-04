@@ -13,9 +13,19 @@ patch, or runs a project command.
 
 ## Project status
 
-Release `2.0.0` implements the complete V1-V4.0 scope, including multi-provider engine, auto-validation, reactive incremental indexing, multi-language AST grammars (TS/JS, Python, Go, Rust, Java, C#), context-aware model routing, compiler type error fixes (`fix_type_errors`), token offload statistics tracking over time (`get_offload_stats`), and extended IDE setup.
+Release `3.0.0` implements the complete V1-V7.0 scope, including SQLite embedded vector storage (`sqlite-vec`), 3-state circuit breaker endpoint resiliency, multi-repository cross-referencing, intelligent context distillation, semantic diff analysis (`analyze_diff`), Web Streams SSE progress streaming, dynamic configuration profiles, hardware-aware concurrency control, and Docker containerization.
 The implementation includes:
 
+- 15 MCP tools registered across 4 feature groups;
+- persistent `SqliteVectorIndex` built on native `node:sqlite`;
+- automated `CircuitBreaker` state machine (`closed`, `open`, `half-open`);
+- multi-repository cross-referencing via `additional_repositories` in `query_code_graph` and `search_semantic`;
+- AST comment, docstring, and newline context distillation (`distillContext`);
+- new `analyze_diff` tool for git commit diff summaries and architectural impact reports;
+- Web Streams SSE stream parser (`parseSseStream`);
+- preset configuration profiles (`fast`, `thorough`, `balanced`);
+- hardware-aware concurrency scaling based on system RAM and CPU cores;
+- official `Dockerfile` containerization;
 - layered, revision-controlled configuration with atomic writes;
 - canonical read-only repository access and fail-closed outbound filtering;
 - structured inference through LM Studio, Ollama, vLLM, and LocalAI adapters;
@@ -43,12 +53,12 @@ The implementation includes:
   proven green;
 - a protocol-clean MCP v2 server over `stdio`.
 
-Local qualification is green as of 2026-08-03:
+Local qualification is green as of 2026-08-04:
 
 - `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 321 automated tests;
+  typechecking, build, and all 368 automated tests;
 - `npm run release:smoke` produces reproducible tarballs, installs one in an
-  isolated prefix, starts the packaged MCP server, and verifies all 14 tools;
+  isolated prefix, starts the packaged MCP server, and verifies all 15 tools;
 - the compiled MCP reports the real LM Studio instance healthy without a token,
   using `authentication: none` / `not_configured`;
 - Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and

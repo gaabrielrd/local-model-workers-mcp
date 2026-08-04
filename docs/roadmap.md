@@ -8,22 +8,19 @@ Move heavy code understanding and mechanical edit workloads from expensive cloud
 
 ---
 
-## Phase 1 to Phase 6 — V1.0 to V2.0 (Completed)
+## Phase 1 to Phase 7 — V1.0 to V3.0 (Completed)
 
-Releases 1.0.0 through 2.0.0 delivered a complete, 14-tool local offloading engine:
+Releases 1.0.0 through 3.0.0 delivered a complete, 15-tool local offloading engine:
 
-- **14 MCP Tools**: `explore_repository`, `propose_tests`, `check_health`, `get_config`, `validate_config`, `update_config`, `query_code_graph`, `search_semantic`, `summarize_module`, `fix_lint_violations`, `fix_type_errors`, `generate_docs_patch`, `auto_validate_tests`, `get_offload_stats`
-- **Multi-Provider Engine**: LM Studio, Ollama, vLLM, and LocalAI with priority routing and transient failover
-- **Multi-Language AST Support**: Tree-sitter parsers for TypeScript, Python, Go, Rust, Java, and C#
-- **Reactive Incremental Indexing**: File-hash vector updates for `search_semantic`
-- **Smart Context Routing**: Dynamic model selection based on context length (>16k tokens) and task capability
-- **Autonomous Hybrid Loop**: Isolated temporary repository copy test execution in `auto_validate_tests`
-- **Observability & Analytics**: Historical weekly, monthly, and lifetime token offload statistics (`get_offload_stats`)
-- **Extended IDE & Harness Setup**: Claude Code, Codex, Antigravity, Cursor, VS Code (Roo Code / Cline), and Neovim (Avante)
-
----
-
-## Phase 7 — V3.0: High-Performance Architecture, Advanced Offloading & Ecosystem Maturity (Planned)
+- **15 MCP Tools**: `explore_repository`, `propose_tests`, `check_health`, `get_config`, `validate_config`, `update_config`, `query_code_graph`, `search_semantic`, `summarize_module`, `fix_lint_violations`, `fix_type_errors`, `generate_docs_patch`, `analyze_diff`, `auto_validate_tests`, `get_offload_stats`
+- **SQLite Vector Index**: Persistent `SqliteVectorIndex` using built-in `node:sqlite`
+- **Circuit Breaker Resiliency**: Automated 3-state circuit breaker pattern for local model endpoints
+- **Multi-Repository Cross-Referencing**: Cross-repository symbol and vector retrieval (`additional_repositories`)
+- **Intelligent Context Distillation**: Comment, docstring, and newline pruning (`distillContext`)
+- **Streaming & SSE Parsing**: Web Streams-based SSE parser (`parseSseStream`)
+- **Dynamic Configuration & Profiles**: Configuration profile presets (`fast`, `thorough`, `balanced`)
+- **Hardware-Aware Concurrency**: Dynamic task concurrency based on system RAM and CPU core count
+- **Containerization**: Official Docker container setup (`Dockerfile`)
 
 Version 3.0 focuses on multi-repository intelligence, enterprise-grade stability, context distillation, and seamless developer environment support.
 

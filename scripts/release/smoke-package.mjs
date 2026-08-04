@@ -137,6 +137,7 @@ try {
     await client.connect(transport);
     const tools = await client.listTools();
     assert.deepEqual(tools.tools.map((tool) => tool.name).sort(), [
+      "analyze_diff",
       "auto_validate_tests",
       "check_health",
       "explore_repository",

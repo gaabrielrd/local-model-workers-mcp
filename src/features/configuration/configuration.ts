@@ -94,9 +94,14 @@ export const ModelRoutingSchema = z
   })
   .strict();
 
+export const CONFIGURATION_PROFILES = ["fast", "thorough", "balanced"] as const;
+
+export type ConfigurationProfile = (typeof CONFIGURATION_PROFILES)[number];
+
 export const PreferencesSchema = z
   .object({
     schema_version: z.literal(CONFIGURATION_SCHEMA_VERSION),
+    profile: z.enum(CONFIGURATION_PROFILES).optional(),
     default_model: z.string().trim().min(1).max(256).optional(),
     embedding_model: z.string().trim().min(1).max(256).optional(),
     model_routing: ModelRoutingSchema.optional(),

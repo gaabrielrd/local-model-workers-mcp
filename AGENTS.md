@@ -15,10 +15,10 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.0.0 publicado (`main` inclui multi-provider engine, auto-validação, suporte a AST multi-linguagem, roteamento inteligente de contexto, ferramentas `fix_type_errors` e `get_offload_stats`, e setup estendido para Claude Code, Codex, Antigravity, Cursor, VS Code e Neovim).
-- Existem exatamente 14 ferramentas MCP (veja `docs/mcp-tools.md`).
+- Release 3.0.0 publicado (`main` inclui SQLite vector storage, circuit breaker resiliency, multi-repo cross-referencing, context distillation, nova ferramenta `analyze_diff`, suporte a SSE streaming, perfis dinâmicos de configuração, hardware-aware concurrency e containerização Docker).
+- Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
-  e testes (321 no total).
+  e testes (368 no total).
 
 ## Leia primeiro
 

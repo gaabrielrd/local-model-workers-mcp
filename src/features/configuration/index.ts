@@ -12,6 +12,7 @@ export {
 } from "./constants.js";
 export {
   ConfigurationError,
+  CONFIGURATION_PROFILES,
   getConfig,
   getEffectiveConfiguration,
   getProtectedProviderConfigurations,
@@ -21,6 +22,7 @@ export {
   resolveModelForTask,
   type ConfigurationErrorCode,
   type ConfigurationField,
+  type ConfigurationProfile,
   type ConfigurationFileSystem,
   type ConfigurationOrigin,
   type EffectiveConfiguration,

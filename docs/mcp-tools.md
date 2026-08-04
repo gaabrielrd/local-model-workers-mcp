@@ -22,7 +22,7 @@ preference selected during setup:
 | --- | --- |
 | `exploration` | `explore_repository`, `query_code_graph`, `search_semantic`, `summarize_module` |
 | `tests` | `propose_tests`, `auto_validate_tests` |
-| `docs` | `generate_docs_patch` |
+| `docs` | `generate_docs_patch`, `analyze_diff` |
 | `lint` | `fix_lint_violations`, `fix_type_errors` |
 
 Omitting `enabled_features` registers every group for backward compatibility.
@@ -36,12 +36,13 @@ Omitting `enabled_features` registers every group for backward compatibility.
 | `get_offload_stats` | none | Weekly, monthly, and lifetime token savings and queries offloaded; optional `period` and `log_directory` |
 | `validate_config` | `project_root`, `expected_revision`, `changes` | Read-only project proposal validation |
 | `update_config` | validation fields | Atomic write only with matching explicit `confirmation` |
-| `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` |
-| `search_semantic` | `query`, `repository_root` | Ranked embedding search over the local vector index; optional `top_k` and `reindex` |
+| `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` and `additional_repositories` |
+| `search_semantic` | `query`, `repository_root` | Ranked embedding search over the local vector index; optional `top_k`, `reindex`, and `additional_repositories` |
 | `summarize_module` | `repository_root`, `target` | Structured file or directory summaries from code graph metadata and inference; optional `depth` (`shallow`/`deep`) and `force_refresh` |
 | `fix_lint_violations` | `repository_root`, `lint_output` | Validated, unapplied unified diff that fixes only the reported lint violations; optional `linter` (`eslint`/`biome`/`ruff`/`auto`) and `max_files` |
 | `fix_type_errors` | `repository_root`, `type_output` | Validated, unapplied unified diff that fixes compiler/type-checker errors; optional `checker` (`tsc`/`mypy`/`pyright`/`auto`) and `max_files` |
 | `generate_docs_patch` | `repository_root`, `target`, `doc_type` | Validated, unapplied docs-only unified diff (JSDoc/docstring inline comments and/or a `docs/<slug>.md` guide) for public symbols; optional `style` (`jsdoc`/`tsdoc`/`numpy`/`google`) and `force_refresh` |
+| `analyze_diff` | `repository_root` | Semantic analysis of git commit diffs, generating human-readable summaries and architectural impact reports; optional `commit_range` and `file_filter` |
 | `auto_validate_tests` | `goal`, `repository_root` | Iterative test generation executed in an isolated temporary copy until green (or the limit is exhausted); optional `test_command`, `max_iterations`, and `timeout_per_iteration_ms` |
 
 Every input object is strict: unknown fields and invalid bounds are rejected by
@@ -57,7 +58,7 @@ the same final result.
 
 ## Protocol safety
 
-With every feature enabled, the server registers exactly the 14 tools above
+With every feature enabled, the server registers exactly the 15 tools above
 and no resources or prompts. A reduced setup registers only the selected
 feature tools plus the administrative tools.
 It never exposes shell, generic filesystem, generic prompt, command execution,

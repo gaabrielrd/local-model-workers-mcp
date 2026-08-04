@@ -28,6 +28,10 @@ export const SemanticSearchInputSchema = z
     repository_root: z.string().min(1),
     top_k: z.number().int().min(1).max(50).optional(),
     reindex: z.boolean().optional(),
+    additional_repositories: z
+      .array(z.string().trim().min(1).max(4_096))
+      .max(10)
+      .optional(),
   })
   .strict();
 

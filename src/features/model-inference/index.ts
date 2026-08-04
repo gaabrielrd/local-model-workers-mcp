@@ -29,3 +29,9 @@ export { createVllmAdapter } from "./vllm.js";
 export { createLocalAiAdapter } from "./localai.js";
 export { createProviderAdapter } from "./providers.js";
 export { createProviderRouter, type ProviderRouterOptions } from "./router.js";
+export {
+  CircuitBreaker,
+  type CircuitBreakerOptions,
+  type CircuitState,
+} from "./circuit-breaker.js";
+export { parseSseStream } from "./streaming.js";

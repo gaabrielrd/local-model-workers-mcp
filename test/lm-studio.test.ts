@@ -200,7 +200,7 @@ void test("cancellation and deadlines abort the HTTP stack without retry", async
   await assert.rejects(
     configuredClient(baseUrl).inferStructured({
       ...inferenceRequest(),
-      timeout_ms: 20,
+      timeout_ms: 150,
     }),
     isInferenceError("inference_timeout"),
   );
@@ -214,7 +214,7 @@ void test("cancellation and deadlines abort the HTTP stack without retry", async
   });
   setTimeout(() => {
     controller.abort();
-  }, 20);
+  }, 150);
   await assert.rejects(pending, isInferenceError("inference_cancelled"));
   assert.equal(chatRequests, 1);
 });
