@@ -15,7 +15,7 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 3.0.0 publicado (`main` inclui SQLite vector storage, circuit breaker resiliency, multi-repo cross-referencing, context distillation, nova ferramenta `analyze_diff`, suporte a SSE streaming, perfis dinâmicos de configuração, hardware-aware concurrency e containerização Docker).
+- Release 2.1.0 publicado (`main` inclui SQLite vector storage, circuit breaker resiliency, multi-repo cross-referencing, context distillation, nova ferramenta `analyze_diff`, suporte a SSE streaming, perfis dinâmicos de configuração, hardware-aware concurrency e containerização Docker).
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
   e testes (368 no total).

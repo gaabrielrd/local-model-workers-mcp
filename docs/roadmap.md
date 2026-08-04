@@ -8,9 +8,9 @@ Move heavy code understanding and mechanical edit workloads from expensive cloud
 
 ---
 
-## Phase 1 to Phase 7 — V1.0 to V3.0 (Completed)
+## Phase 1 to Phase 7 — V1.0 to V2.1 (Completed)
 
-Releases 1.0.0 through 3.0.0 delivered a complete, 15-tool local offloading engine:
+Releases 1.0.0 through 2.1.0 delivered a complete, 15-tool local offloading engine:
 
 - **15 MCP Tools**: `explore_repository`, `propose_tests`, `check_health`, `get_config`, `validate_config`, `update_config`, `query_code_graph`, `search_semantic`, `summarize_module`, `fix_lint_violations`, `fix_type_errors`, `generate_docs_patch`, `analyze_diff`, `auto_validate_tests`, `get_offload_stats`
 - **SQLite Vector Index**: Persistent `SqliteVectorIndex` using built-in `node:sqlite`

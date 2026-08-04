@@ -13,7 +13,7 @@ patch, or runs a project command.
 
 ## Project status
 
-Release `3.0.0` implements the complete V1-V7.0 scope, including SQLite embedded vector storage (`sqlite-vec`), 3-state circuit breaker endpoint resiliency, multi-repository cross-referencing, intelligent context distillation, semantic diff analysis (`analyze_diff`), Web Streams SSE progress streaming, dynamic configuration profiles, hardware-aware concurrency control, and Docker containerization.
+Release `2.1.0` implements the complete V2.1 scope, including SQLite embedded vector storage (`sqlite-vec`), 3-state circuit breaker endpoint resiliency, multi-repository cross-referencing, intelligent context distillation, semantic diff analysis (`analyze_diff`), Web Streams SSE progress streaming, dynamic configuration profiles, hardware-aware concurrency control, and Docker containerization.
 The implementation includes:
 
 - 15 MCP tools registered across 4 feature groups;
