@@ -215,6 +215,9 @@ void test("cancellation and deadlines abort the HTTP stack without retry", async
     }
     chatRequests += 1;
     response.writeHead(200, { "content-type": "application/json" });
+    request.on("close", () => {
+      response.destroy();
+    });
   });
 
   await assert.rejects(
@@ -352,6 +355,7 @@ async function startFakeServer(
 ): Promise<string> {
   const server = createServer((request, response) => {
     Promise.resolve(handler(request, response)).catch(() => {
+      request.destroy();
       response.destroy();
     });
   });
@@ -580,6 +584,10 @@ void test("embedText: timeout aborts the request", async (t) => {
       return;
     }
     response.writeHead(200, { "content-type": "application/json" });
+    // Do not send body immediately, but listen for socket close/destroy
+    request.on("close", () => {
+      response.destroy();
+    });
   });
   const client = embeddingClient(baseUrl);
 
@@ -596,6 +604,9 @@ void test("embedText: cancellation via AbortSignal propagates", async (t) => {
       return;
     }
     response.writeHead(200, { "content-type": "application/json" });
+    request.on("close", () => {
+      response.destroy();
+    });
   });
   const client = embeddingClient(baseUrl);
   const controller = new AbortController();
