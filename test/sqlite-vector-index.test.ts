@@ -25,42 +25,44 @@ void test("SqliteVectorIndex", async (t) => {
     async () => {
       const dbPath = path.join(tmpDir, "index.db");
       const index = new SqliteVectorIndex({ persistencePath: dbPath });
+      try {
+        await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
+        await index.indexFile("file2.ts", "hash2", [0.8, 0.2, 0]);
+        await index.indexFile("file3.ts", "hash3", [0, 1, 0]);
 
-      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-      await index.indexFile("file2.ts", "hash2", [0.8, 0.2, 0]);
-      await index.indexFile("file3.ts", "hash3", [0, 1, 0]);
+        const results = await index.search([1, 0, 0], 3);
 
-      const results = await index.search([1, 0, 0], 3);
-
-      assert.equal(results.length, 3);
-      assert.equal(results[0]?.path, "file1.ts");
-      assert.equal(results[1]?.path, "file2.ts");
-      assert.equal(results[2]?.path, "file3.ts");
-      assert.ok(
-        results[0] !== undefined &&
-          results[1] !== undefined &&
-          results[2] !== undefined,
-      );
-      assert.ok(results[0].score > results[1].score);
-      assert.ok(results[1].score > results[2].score);
-
-      index.close();
+        assert.equal(results.length, 3);
+        assert.equal(results[0]?.path, "file1.ts");
+        assert.equal(results[1]?.path, "file2.ts");
+        assert.equal(results[2]?.path, "file3.ts");
+        assert.ok(
+          results[0] !== undefined &&
+            results[1] !== undefined &&
+            results[2] !== undefined,
+        );
+        assert.ok(results[0].score > results[1].score);
+        assert.ok(results[1].score > results[2].score);
+      } finally {
+        index.close();
+      }
     },
   );
 
   await t.test("searching with topK=2 returns exactly 2 results", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
+      await index.indexFile("file2.ts", "hash2", [0.8, 0.2, 0]);
+      await index.indexFile("file3.ts", "hash3", [0.5, 0.5, 0]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-    await index.indexFile("file2.ts", "hash2", [0.8, 0.2, 0]);
-    await index.indexFile("file3.ts", "hash3", [0.5, 0.5, 0]);
+      const results = await index.search([1, 0, 0], 2);
 
-    const results = await index.search([1, 0, 0], 2);
-
-    assert.equal(results.length, 2);
-
-    index.close();
+      assert.equal(results.length, 2);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test(
@@ -68,56 +70,59 @@ void test("SqliteVectorIndex", async (t) => {
     async () => {
       const dbPath = path.join(tmpDir, "index.db");
       const index = new SqliteVectorIndex({ persistencePath: dbPath });
+      try {
+        await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
 
-      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-
-      assert.equal(await index.isStale("file1.ts", "hash1"), false);
-      assert.equal(await index.isStale("file1.ts", "hash2"), true);
-      assert.equal(await index.isStale("unknown.ts", "hash1"), true);
-
-      index.close();
+        assert.equal(await index.isStale("file1.ts", "hash1"), false);
+        assert.equal(await index.isStale("file1.ts", "hash2"), true);
+        assert.equal(await index.isStale("unknown.ts", "hash1"), true);
+      } finally {
+        index.close();
+      }
     },
   );
 
   await t.test("removeFile removes all entries for a given path", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0], {
+        chunkOffset: 0,
+        chunkLength: 10,
+      });
+      await index.indexFile("file1.ts", "hash1", [0, 1, 0], {
+        chunkOffset: 10,
+        chunkLength: 10,
+      });
+      await index.indexFile("file2.ts", "hash2", [0, 0, 1]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0], {
-      chunkOffset: 0,
-      chunkLength: 10,
-    });
-    await index.indexFile("file1.ts", "hash1", [0, 1, 0], {
-      chunkOffset: 10,
-      chunkLength: 10,
-    });
-    await index.indexFile("file2.ts", "hash2", [0, 0, 1]);
+      assert.equal(index.size(), 3);
 
-    assert.equal(index.size(), 3);
+      await index.removeFile("file1.ts");
 
-    await index.removeFile("file1.ts");
-
-    assert.equal(index.size(), 1);
-    assert.equal(await index.isStale("file1.ts", "hash1"), true);
-    assert.equal(await index.isStale("file2.ts", "hash2"), false);
-
-    index.close();
+      assert.equal(index.size(), 1);
+      assert.equal(await index.isStale("file1.ts", "hash1"), true);
+      assert.equal(await index.isStale("file2.ts", "hash2"), false);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("clear empties index and size returns 0", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
+      await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-    await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
+      assert.equal(index.size(), 2);
 
-    assert.equal(index.size(), 2);
+      await index.clear();
 
-    await index.clear();
-
-    assert.equal(index.size(), 0);
-
-    index.close();
+      assert.equal(index.size(), 0);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test(
@@ -128,42 +133,46 @@ void test("SqliteVectorIndex", async (t) => {
         persistencePath: dbPath,
         maxEntries: 2,
       });
+      try {
+        await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
+        await delay(10);
+        await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
+        await delay(10);
 
-      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-      await delay(10);
-      await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
-      await delay(10);
+        assert.equal(index.size(), 2);
 
-      assert.equal(index.size(), 2);
+        await index.indexFile("file3.ts", "hash3", [0, 0, 1]);
 
-      await index.indexFile("file3.ts", "hash3", [0, 0, 1]);
+        assert.equal(index.size(), 2);
 
-      assert.equal(index.size(), 2);
-
-      const knownPaths = await index.getKnownPaths();
-      assert.ok(!knownPaths.includes("file1.ts"));
-      assert.ok(knownPaths.includes("file2.ts"));
-      assert.ok(knownPaths.includes("file3.ts"));
-
-      index.close();
+        const knownPaths = await index.getKnownPaths();
+        assert.ok(!knownPaths.includes("file1.ts"));
+        assert.ok(knownPaths.includes("file2.ts"));
+        assert.ok(knownPaths.includes("file3.ts"));
+      } finally {
+        index.close();
+      }
     },
   );
 
   await t.test("SQLite persistence across instances", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index1 = new SqliteVectorIndex({ persistencePath: dbPath });
-
-    await index1.indexFile("file1.ts", "hash1", [1, 0, 0]);
-    await index1.indexFile("file2.ts", "hash2", [0, 1, 0]);
-    index1.close();
+    try {
+      await index1.indexFile("file1.ts", "hash1", [1, 0, 0]);
+      await index1.indexFile("file2.ts", "hash2", [0, 1, 0]);
+    } finally {
+      index1.close();
+    }
 
     const index2 = new SqliteVectorIndex({ persistencePath: dbPath });
-
-    assert.equal(index2.size(), 2);
-    const results = await index2.search([1, 0, 0], 1);
-    assert.equal(results[0]?.path, "file1.ts");
-
-    index2.close();
+    try {
+      assert.equal(index2.size(), 2);
+      const results = await index2.search([1, 0, 0], 1);
+      assert.equal(results[0]?.path, "file1.ts");
+    } finally {
+      index2.close();
+    }
   });
 
   await t.test(
@@ -171,27 +180,28 @@ void test("SqliteVectorIndex", async (t) => {
     async () => {
       const dbPath = path.join(tmpDir, "index.db");
       const index = new SqliteVectorIndex({ persistencePath: dbPath });
+      try {
+        await index.indexFile("large.ts", "hashL", [1, 0, 0], {
+          chunkOffset: 0,
+          chunkLength: 500,
+        });
+        await index.indexFile("large.ts", "hashL", [0.9, 0.1, 0], {
+          chunkOffset: 500,
+          chunkLength: 500,
+        });
+        await index.indexFile("large.ts", "hashL", [0, 0, 1], {
+          chunkOffset: 1000,
+          chunkLength: 500,
+        });
 
-      await index.indexFile("large.ts", "hashL", [1, 0, 0], {
-        chunkOffset: 0,
-        chunkLength: 500,
-      });
-      await index.indexFile("large.ts", "hashL", [0.9, 0.1, 0], {
-        chunkOffset: 500,
-        chunkLength: 500,
-      });
-      await index.indexFile("large.ts", "hashL", [0, 0, 1], {
-        chunkOffset: 1000,
-        chunkLength: 500,
-      });
-
-      const results = await index.search([1, 0, 0]);
-      assert.equal(results.length, 3);
-      assert.equal(results[0]?.chunkOffset, 0);
-      assert.equal(results[1]?.chunkOffset, 500);
-      assert.equal(results[2]?.chunkOffset, 1000);
-
-      index.close();
+        const results = await index.search([1, 0, 0]);
+        assert.equal(results.length, 3);
+        assert.equal(results[0]?.chunkOffset, 0);
+        assert.equal(results[1]?.chunkOffset, 500);
+        assert.equal(results[2]?.chunkOffset, 1000);
+      } finally {
+        index.close();
+      }
     },
   );
 
@@ -216,17 +226,18 @@ void test("SqliteVectorIndex", async (t) => {
     await writeFile(jsonPath, JSON.stringify(mockJson));
 
     const index = await SqliteVectorIndex.migrateFromJson(jsonPath, dbPath);
+    try {
+      assert.equal(index.size(), 1);
+      const knownPaths = await index.getKnownPaths();
+      assert.deepEqual(knownPaths, ["a.ts"]);
 
-    assert.equal(index.size(), 1);
-    const knownPaths = await index.getKnownPaths();
-    assert.deepEqual(knownPaths, ["a.ts"]);
-
-    const results = await index.search([1, 0, 0], 1);
-    assert.equal(results[0]?.path, "a.ts");
-    assert.equal(results[0]?.chunkOffset, 0);
-    assert.equal(results[0]?.chunkLength, 100);
-
-    index.close();
+      const results = await index.search([1, 0, 0], 1);
+      assert.equal(results[0]?.path, "a.ts");
+      assert.equal(results[0]?.chunkOffset, 0);
+      assert.equal(results[0]?.chunkLength, 100);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("corrupt JSON migration file does not crash", async () => {
@@ -236,70 +247,73 @@ void test("SqliteVectorIndex", async (t) => {
     await writeFile(jsonPath, "invalid json { {");
 
     const index = await SqliteVectorIndex.migrateFromJson(jsonPath, dbPath);
-
-    assert.equal(index.size(), 0);
-
-    index.close();
+    try {
+      assert.equal(index.size(), 0);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("empty search returns empty results", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
-
-    const results = await index.search([1, 0, 0], 5);
-
-    assert.deepEqual(results, []);
-
-    index.close();
+    try {
+      const results = await index.search([1, 0, 0], 5);
+      assert.deepEqual(results, []);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("search with topK < 1 returns empty results", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-
-    const results = await index.search([1, 0, 0], 0);
-
-    assert.deepEqual(results, []);
-
-    index.close();
+      const results = await index.search([1, 0, 0], 0);
+      assert.deepEqual(results, []);
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("getKnownPaths returns unique paths", async () => {
     const dbPath = path.join(tmpDir, "index.db");
     const index = new SqliteVectorIndex({ persistencePath: dbPath });
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0], {
+        chunkOffset: 0,
+        chunkLength: 100,
+      });
+      await index.indexFile("file1.ts", "hash1", [0, 1, 0], {
+        chunkOffset: 100,
+        chunkLength: 100,
+      });
+      await index.indexFile("file2.ts", "hash2", [0, 0, 1]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0], {
-      chunkOffset: 0,
-      chunkLength: 100,
-    });
-    await index.indexFile("file1.ts", "hash1", [0, 1, 0], {
-      chunkOffset: 100,
-      chunkLength: 100,
-    });
-    await index.indexFile("file2.ts", "hash2", [0, 0, 1]);
+      const knownPaths = await index.getKnownPaths();
 
-    const knownPaths = await index.getKnownPaths();
-
-    assert.equal(knownPaths.length, 2);
-    assert.ok(knownPaths.includes("file1.ts"));
-    assert.ok(knownPaths.includes("file2.ts"));
-
-    index.close();
+      assert.equal(knownPaths.length, 2);
+      assert.ok(knownPaths.includes("file1.ts"));
+      assert.ok(knownPaths.includes("file2.ts"));
+    } finally {
+      index.close();
+    }
   });
 
   await t.test("in-memory mode works without persistence path", async () => {
     const index = new SqliteVectorIndex();
+    try {
+      await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
+      await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
 
-    await index.indexFile("file1.ts", "hash1", [1, 0, 0]);
-    await index.indexFile("file2.ts", "hash2", [0, 1, 0]);
+      assert.equal(index.size(), 2);
 
-    assert.equal(index.size(), 2);
-
-    const results = await index.search([1, 0, 0], 1);
-    assert.equal(results[0]?.path, "file1.ts");
-
-    index.close();
+      const results = await index.search([1, 0, 0], 1);
+      assert.equal(results[0]?.path, "file1.ts");
+    } finally {
+      index.close();
+    }
   });
 });
