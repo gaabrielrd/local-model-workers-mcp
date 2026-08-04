@@ -35,6 +35,8 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
       selection: "cancel",
       projectRoot: fixture.project,
       homeDirectory: fixture.home,
+      environment: protectedEnvironment,
+      platform: "linux",
     }),
     [],
   );
@@ -43,6 +45,8 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
     selection: "both",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
+    environment: protectedEnvironment,
+    platform: "linux",
   });
   assert.deepEqual(
     proposalsBoth.map((proposal) => [proposal.harness, proposal.state]),
@@ -56,6 +60,8 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
     selection: "all",
     projectRoot: fixture.project,
     homeDirectory: fixture.home,
+    environment: protectedEnvironment,
+    platform: "linux",
   });
   assert.deepEqual(
     proposalsAll.map((proposal) => [proposal.harness, proposal.state]),
@@ -85,8 +91,7 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
     access(
       path.join(
         fixture.home,
-        "Library",
-        "Application Support",
+        ".config",
         "JetBrains",
         "AIAssistant",
         "mcp.json",
