@@ -24,8 +24,21 @@ jobs:
           node-version: 24.18.0
           package-manager-cache: false
       - run: npm ci
-      - run: npm run validate
-      - run: npm run release:smoke
+      - name: Check code formatting
+        run: npm run format:check
+      - name: Run linter
+        run: npm run lint
+      - name: Check architecture boundaries
+        run: npm run check:boundaries
+      - name: Type check
+        run: npm run typecheck
+      - name: Run unit tests
+        run: npm run test:unit
+      - name: Run integration tests
+        if: runner.os != 'Windows'
+        run: npm run test:integration
+      - name: Run smoke tests
+        run: npm run release:smoke
 
   release:
     needs: validate

@@ -41,7 +41,7 @@ void test("the portability workflow validates and installs on all target systems
   assert.match(workflow, /macos-latest/u);
   assert.match(workflow, /ubuntu-latest/u);
   assert.match(workflow, /windows-latest/u);
-  assert.match(workflow, /npm run validate/u);
+  assert.match(workflow, /npm run test:unit/u);
   assert.match(workflow, /npm run release:smoke/u);
 });
 
