@@ -26,6 +26,18 @@ export {
   type SteeringInstructions,
 } from "./steering.js";
 export {
+  describeJetBrainsVersionWarnings,
+  detectJetBrainsIdeVersions,
+  resolveJetBrainsConfigRoot,
+  resolveJetBrainsMcpConfigPath,
+  resolveJetBrainsRulesPath,
+  type DetectJetBrainsIdeVersionsInput,
+  type JetBrainsDirectoryReader,
+  type JetBrainsIdeInstallation,
+  type JetBrainsVersion,
+  JETBRAINS_MIN_MCP_VERSION,
+} from "./jetbrains.js";
+export {
   isInstallationCommand,
   runInstallationCommand,
   type InstallationCommandIo,

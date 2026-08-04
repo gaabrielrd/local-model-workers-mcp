@@ -66,6 +66,7 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
       ["cursor", "fresh"],
       ["vscode", "fresh"],
       ["neovim", "fresh"],
+      ["jetbrains", "fresh"],
     ],
   );
   await assert.rejects(access(path.join(fixture.project, ".mcp.json")));
@@ -79,6 +80,18 @@ void test("proposes cancellation or both harnesses without writing", async (t) =
   await assert.rejects(access(path.join(fixture.home, ".vscode", "mcp.json")));
   await assert.rejects(
     access(path.join(fixture.home, ".config", "nvim", "mcp.json")),
+  );
+  await assert.rejects(
+    access(
+      path.join(
+        fixture.home,
+        "Library",
+        "Application Support",
+        "JetBrains",
+        "AIAssistant",
+        "mcp.json",
+      ),
+    ),
   );
 });
 

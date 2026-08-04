@@ -75,7 +75,7 @@ async function configureHarness(
   const selection = requiredOption(options, "target");
   if (!isHarnessSelection(selection)) {
     throw new Error(
-      "Target must be claude-code, claude-code-project, codex, antigravity, cursor, vscode, neovim, all, both, or cancel.",
+      "Target must be claude-code, claude-code-project, codex, antigravity, cursor, vscode, neovim, jetbrains, all, both, or cancel.",
     );
   }
   const rawScope = stringOption(options, "scope");
@@ -104,6 +104,7 @@ async function configureHarness(
     projectRoot,
     homeDirectory,
     environment: io.environment ?? process.env,
+    platform: io.platform ?? process.platform,
     ...(executableCommand === undefined ? {} : { command: executableCommand }),
     ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
   });
@@ -242,6 +243,9 @@ function printHarnessProposal(
   for (const line of proposal.preview) {
     write(`  ${line}\n`);
   }
+  for (const warning of proposal.warnings) {
+    write(`  warning: ${warning}\n`);
+  }
 }
 
 async function readSteeringPrompt(
@@ -344,6 +348,7 @@ function isHarnessSelection(value: string): value is HarnessSelection {
     value === "cursor" ||
     value === "vscode" ||
     value === "neovim" ||
+    value === "jetbrains" ||
     value === "all" ||
     value === "both" ||
     value === "cancel"

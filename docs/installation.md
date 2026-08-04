@@ -89,7 +89,7 @@ local-model-workers-mcp configure-harness --target all --project-root "$PWD"
 local-model-workers-mcp configure-harness --target cancel
 ```
 
-Claude Code supports global user-scoped configuration (`~/.claude.json`) for automatic activation across all active projects, as well as project-scoped configuration (`.mcp.json`). Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`.
+Claude Code supports global user-scoped configuration (`~/.claude.json`) for automatic activation across all active projects, as well as project-scoped configuration (`.mcp.json`). Antigravity uses the user-scoped `~/.gemini/config/mcp_config.json` `mcpServers` format. Codex uses the user-scoped `~/.codex/config.toml` `[mcp_servers.local-model-workers]` table with `command`, `args`, and `env_vars`. JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, and CLion) share one AI Assistant MCP configuration file — `~/Library/Application Support/JetBrains/AIAssistant/mcp.json` on macOS, `~/.config/JetBrains/AIAssistant/mcp.json` on Linux, and `%APPDATA%\JetBrains\AIAssistant\mcp.json` on Windows — written in the standard `mcpServers` JSON format, so a single `--target jetbrains` registers the server for all five IDEs.
 
 Every harness also receives a prompt steering instruction file that directs the
 agent to offload repository work to the local MCP tools (`explore_repository`,
@@ -99,6 +99,8 @@ agent to offload repository work to the local MCP tools (`explore_repository`,
 - Claude Code Project: `AGENTS.md` in the project root.
 - Codex: `~/.codex/instructions.md`.
 - Antigravity: `~/.gemini/instructions.md`.
+- JetBrains: `.aiassistant/rules/local-model-workers.md` in the project root
+  (register it in Settings > Tools > AI Assistant > Rules).
 
 The managed instruction block is delimited by `# local-model-workers-mcp:start`
 and `# local-model-workers-mcp:end`. Existing user text outside those markers is

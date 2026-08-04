@@ -12,6 +12,12 @@ import {
   buildSteeringInstructions,
   type SteeringInstructions,
 } from "./steering.js";
+import {
+  describeJetBrainsVersionWarnings,
+  detectJetBrainsIdeVersions,
+  resolveJetBrainsMcpConfigPath,
+  resolveJetBrainsRulesPath,
+} from "./jetbrains.js";
 
 const MANAGED_SERVER_NAME = "local-model-workers";
 const DEFAULT_COMMAND = "local-model-workers-mcp";
@@ -28,7 +34,8 @@ export type Harness =
   | "antigravity"
   | "cursor"
   | "vscode"
-  | "neovim";
+  | "neovim"
+  | "jetbrains";
 export type HarnessSelection =
   Harness | "claude-code-global" | "all" | "both" | "cancel";
 export type InstallationState =
@@ -43,6 +50,7 @@ export interface HarnessConfigurationProposal {
   readonly proposal_id: `sha256:${string}`;
   readonly expected_revision: `sha256:${string}`;
   readonly preview: readonly string[];
+  readonly warnings: readonly string[];
   readonly command: string;
   readonly steering: HarnessSteeringPlan;
   readonly steeringPrompt?: string | undefined;
@@ -70,6 +78,7 @@ export interface ProposeHarnessConfigurationsInput {
   readonly homeDirectory?: string;
   readonly command?: string;
   readonly environment?: Readonly<Record<string, string | undefined>>;
+  readonly platform?: NodeJS.Platform;
   readonly steeringPrompt?: string;
   readonly enabledFeatures?: readonly FeatureGroup[] | undefined;
 }
@@ -100,6 +109,13 @@ export async function proposeHarnessConfigurations(
   const command = normalizeCommand(input.command);
   const harnesses = expandSelection(input.selection, input.scope);
   const environment = input.environment ?? process.env;
+  const platform = input.platform ?? process.platform;
+  const warnings = await resolveWarnings(
+    harnesses,
+    platform,
+    input.homeDirectory,
+    environment,
+  );
 
   return Promise.all(
     harnesses.map(async (harness) => {
@@ -113,9 +129,33 @@ export async function proposeHarnessConfigurations(
         environment,
         input.steeringPrompt,
         input.enabledFeatures,
+        warnings.get(harness) ?? [],
       );
     }),
   );
+}
+
+async function resolveWarnings(
+  harnesses: readonly Harness[],
+  platform: NodeJS.Platform,
+  homeDirectory: string | undefined,
+  environment: Readonly<Record<string, string | undefined>>,
+): Promise<ReadonlyMap<Harness, readonly string[]>> {
+  if (
+    !harnesses.includes("jetbrains") ||
+    homeDirectory === undefined ||
+    homeDirectory.trim().length === 0
+  ) {
+    return new Map();
+  }
+  const installations = await detectJetBrainsIdeVersions({
+    platform,
+    homeDirectory,
+    environment,
+  });
+  return new Map([
+    ["jetbrains", describeJetBrainsVersionWarnings(installations)],
+  ]);
 }
 
 function expandSelection(
@@ -139,6 +179,7 @@ function expandSelection(
       "cursor",
       "vscode",
       "neovim",
+      "jetbrains",
     ];
   } else if (selection === "both") {
     base = ["claude-code", "codex"];
@@ -181,6 +222,7 @@ export async function applyHarnessConfiguration(
     input.environment,
     input.proposal.steeringPrompt,
     input.proposal.enabledFeatures,
+    input.proposal.warnings,
   );
   if (current.proposal_id !== input.proposal.proposal_id) {
     throw new Error("The harness configuration changed after the proposal.");
@@ -246,6 +288,7 @@ async function proposeOne(
   environment?: Readonly<Record<string, string | undefined>>,
   steeringPrompt?: string,
   enabledFeatures?: readonly FeatureGroup[],
+  warnings: readonly string[] = [],
 ): Promise<HarnessConfigurationProposal> {
   const proposedFile = await inspectHarnessFile(
     harness,
@@ -296,6 +339,7 @@ async function proposeOne(
     proposal_id: proposalId,
     expected_revision: expectedRevision,
     preview: Object.freeze([...proposedFile.preview, ...steeringFile.preview]),
+    warnings: Object.freeze([...warnings]),
     command,
     ...(steeringPrompt === undefined ? {} : { steeringPrompt }),
     ...(enabledFeatures === undefined ? {} : { enabledFeatures }),
@@ -402,7 +446,9 @@ function inspectJsonMcpConfiguration(
             ? "Cursor"
             : harness === "vscode"
               ? "VS Code"
-              : "Neovim";
+              : harness === "neovim"
+                ? "Neovim"
+                : "JetBrains (AI Assistant)";
   return {
     state: existingEntry === undefined ? "compatible" : "conflicting",
     applicable: true,
@@ -673,6 +719,21 @@ function resolveTargetPath(
     }
     return path.resolve(input.homeDirectory, ".config", "nvim", "mcp.json");
   }
+  if (harness === "jetbrains") {
+    if (
+      input.homeDirectory === undefined ||
+      input.homeDirectory.trim().length === 0
+    ) {
+      throw new Error(
+        "A home directory is required for JetBrains configuration.",
+      );
+    }
+    return resolveJetBrainsMcpConfigPath({
+      platform: input.platform ?? process.platform,
+      homeDirectory: input.homeDirectory,
+      environment: input.environment ?? process.env,
+    });
+  }
   if (
     input.homeDirectory === undefined ||
     input.homeDirectory.trim().length === 0
@@ -752,6 +813,17 @@ function resolveSteeringTargetPath(
       "nvim",
       "instructions.md",
     );
+  }
+  if (harness === "jetbrains") {
+    if (
+      input.projectRoot === undefined ||
+      input.projectRoot.trim().length === 0
+    ) {
+      throw new Error(
+        "A project root is required for JetBrains steering rules.",
+      );
+    }
+    return resolveJetBrainsRulesPath(input.projectRoot);
   }
   if (
     input.homeDirectory === undefined ||
@@ -859,7 +931,7 @@ function buildMcpEnv(
   if (allowed !== undefined && allowed.length > 0) {
     env.LMW_ALLOWED_MODELS = allowed;
   }
-  if (harness === "antigravity") {
+  if (harness === "antigravity" || harness === "jetbrains") {
     const token = environment?.LMW_LM_STUDIO_BEARER_TOKEN?.trim();
     if (token !== undefined && token.length > 0) {
       env.LMW_LM_STUDIO_BEARER_TOKEN = token;

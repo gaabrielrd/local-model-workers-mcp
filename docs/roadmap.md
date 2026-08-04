@@ -11,10 +11,10 @@ all major IDEs.
 
 ---
 
-## Delivered — v1.0 to v2.2
+## Delivered — v1.0 to v2.3
 
-Releases 1.0.0 through 2.2.0 delivered a complete, 15-tool local offloading
-engine and its operator-grade stability layer:
+Releases 1.0.0 through 2.3.0 delivered a complete, 15-tool local offloading
+engine, its operator-grade stability layer, and the ecosystem harnesses:
 
 - **15 MCP tools** across `exploration`, `tests`, `docs`, and `lint` feature
   groups plus always-on administration tools;
@@ -48,26 +48,26 @@ engine and its operator-grade stability layer:
   Official WSL2 setup scripts for Windows developers running Linux containers,
   complementing the existing `Dockerfile`.
 
----
-
-## Next — v2.3.0 and v2.4.0
-
-V2.3/V2.4 keep turning the offloading engine into a more broadly adopted tool.
-The security boundary is unchanged: the server remains read-only against the
-developer's repository, and every write proposal stays an unapplied, validated
-diff.
-
-Each remaining pillar ships as its own minor release — **v2.3.0** and
-**v2.4.0** — so a feature lands, is qualified (`npm run validate` green), and
-is released before the next pillar starts. Task tracking: docs/tasks 046–048.
-
 ### v2.3.0 — Ecosystem & harnesses
 
 - **JetBrains IDE suite support**:
   Interactive setup support for IntelliJ IDEA, PyCharm, WebStorm, GoLand, and
-  CLion via `.idea` MCP configuration adapters and managed steering prompt
-  rules, matching the existing Claude Code, Codex, Antigravity, Cursor, VS
-  Code, and Neovim flows.
+  CLion via the shared JetBrains AI Assistant MCP configuration and managed
+  steering prompt rules (`.aiassistant/rules/`), matching the existing Claude
+  Code, Codex, Antigravity, Cursor, VS Code, and Neovim flows.
+
+---
+
+## Next — v2.4.0
+
+V2.4 keeps turning the offloading engine into a more broadly adopted tool.
+The security boundary is unchanged: the server remains read-only against the
+developer's repository, and every write proposal stays an unapplied, validated
+diff.
+
+The remaining pillar ships as one minor release — **v2.4.0** — so a feature
+lands, is qualified (`npm run validate` green), and is released before the next
+one starts. Task tracking: docs/tasks 047–048.
 
 ### v2.4.0 — Extensibility & automation
 

@@ -15,17 +15,20 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.2.0 publicado (`main` inclui daemon supervision com recuperação de
-  leak/wedged, hot-reload de configuração via file-watcher, e setup nativo WSL2;
-  mantém SQLite vector storage, circuit breaker resiliency, multi-repo
-  cross-referencing, context distillation, `analyze_diff`, SSE streaming, perfis
-  dinâmicos, hardware-aware concurrency e containerização Docker).
+- Release 2.3.0 publicado (`main` inclui suporte a harness JetBrains — IDEA,
+  PyCharm, WebStorm, GoLand, CLion — via `mcp.json` compartilhado do AI
+  Assistant e regras de steering em `.aiassistant/rules/`, com detecção e
+  aviso de versões não suportadas; mantém daemon supervision, hot-reload de
+  configuração, setup nativo WSL2, SQLite vector storage, circuit breaker
+  resiliency, multi-repo cross-referencing, context distillation, `analyze_diff`,
+  SSE streaming, perfis dinâmicos, hardware-aware concurrency e
+  containerização Docker).
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
-  e testes (398 no total).
-- Roadmap V2.3/V2.4 (veja `docs/roadmap.md` e `docs/tasks/README.md`): cada pilar
-  é entregue como uma release minor própria — **v2.3.0** (suporte a JetBrains),
-  **v2.4.0** (hooks de pós-processamento e perfis de workspace). Tarefas 046-048.
+  e testes (406 no total).
+- Roadmap V2.4 (veja `docs/roadmap.md` e `docs/tasks/README.md`): o pilar restante
+  é entregue como uma release minor própria — **v2.4.0** (hooks de
+  pós-processamento e perfis de workspace). Tarefas 047-048.
 - Versionamento: cada implementação do roadmap vira uma release minor; `main`
   avança o minor a cada pilar concluído com `npm run validate` verde.
 

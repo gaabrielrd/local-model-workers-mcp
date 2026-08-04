@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Status:** Tasks 001-045 implemented (released as v1.0, v1.1, v1.2, v2.0, v2.1, v2.2); Tasks 046-048 planned (v2.3, v2.4)  
+**Status:** Tasks 001-046 implemented (released as v1.0, v1.1, v1.2, v2.0, v2.1, v2.2, v2.3); Tasks 047-048 planned (v2.4)  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-04
 
@@ -109,7 +109,7 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 043 | Daemon supervision | Memory/child-worker supervision & zero-leak recovery | Implemented |
 | 044 | Hot-reload config | File-watcher config/profile reload without restart | Implemented |
 | 045 | WSL2 setup | Official WSL2 setup scripts for Windows/Linux | Implemented |
-| 046 | JetBrains support | Setup for IDEA, PyCharm, WebStorm, GoLand, CLion | Planned |
+| 046 | JetBrains support | Setup for IDEA, PyCharm, WebStorm, GoLand, CLion | Implemented |
 | 047 | Post-processing hooks | User-defined local scripts after patch generation | Planned |
 | 048 | Workspace profiles | Project/workspace presets switchable via `update_config` | Planned |
 
@@ -192,10 +192,11 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 041 | [Hardware-aware concurrency](041-hardware-aware-concurrency.md) | Task concurrency scaled by RAM and CPU cores | 005, 014 |
 | 042 | [Expanded ecosystem](042-expanded-ecosystem.md) | Official `Dockerfile` containerization | 014 |
 
-### Phase 8 — V2.2 roadmap
+### Phase 8 — V2.2/V2.3 roadmap
 
-Tasks 043-045 shipped in v2.2.0 (see [roadmap.md](../roadmap.md)). Remaining
-pillars ship as one minor release each: **046 → v2.3.0**, **047-048 → v2.4.0**.
+Tasks 043-045 shipped in v2.2.0 and task 046 shipped in v2.3.0 (see
+[roadmap.md](../roadmap.md)). Remaining pillars ship as one minor release each:
+**047-048 → v2.4.0**.
 
 | Order | Task | Primary outcome | Depends on | Release |
 | --- | --- | --- | --- | --- |

@@ -244,6 +244,11 @@ export async function runInteractiveSetup(
             value: "neovim",
           },
           {
+            label:
+              "JetBrains IDE Suite (IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion)",
+            value: "jetbrains",
+          },
+          {
             label: "Claude Code Project Local (.mcp.json)",
             value: "claude-code-project",
           },
@@ -307,6 +312,7 @@ export async function runInteractiveSetup(
       projectRoot: projRoot,
       homeDirectory: homeDir,
       environment: effectiveEnv,
+      platform: io.platform ?? process.platform,
       enabledFeatures,
     });
 
@@ -316,6 +322,9 @@ export async function runInteractiveSetup(
       );
       for (const line of proposal.preview) {
         io.write(`  ${line}\n`);
+      }
+      for (const warning of proposal.warnings) {
+        io.write(`  warning: ${warning}\n`);
       }
     }
 
@@ -416,6 +425,14 @@ export async function runInteractiveSetup(
         "  - For Antigravity: server registered in ~/.gemini/config/mcp_config.json.\n",
       );
     }
+    if (targets.includes("jetbrains")) {
+      io.write(
+        "  - For JetBrains IDEs: restart the IDE; AI Assistant reads the shared mcp.json on startup.\n",
+      );
+      io.write(
+        "  - Register the steering rules file in Settings > Tools > AI Assistant > Rules.\n",
+      );
+    }
     io.write("\nMake sure your shell exports the environment variables:\n");
     io.write(`  Enabled MCP features: ${enabledFeatures.join(", ")}\n`);
     io.write(`  export LMW_LM_STUDIO_BASE_URL='${baseUrl}'\n`);
@@ -449,6 +466,10 @@ function isHarnessSelection(value: string): boolean {
     value === "claude-code-project" ||
     value === "codex" ||
     value === "antigravity" ||
+    value === "cursor" ||
+    value === "vscode" ||
+    value === "neovim" ||
+    value === "jetbrains" ||
     value === "all" ||
     value === "both" ||
     value === "cancel"
@@ -463,7 +484,7 @@ function harnessesFromSelection(selection: string): readonly Harness[] {
     return ["claude-code"];
   }
   if (selection === "all") {
-    return ["claude-code", "codex", "antigravity"];
+    return ["claude-code", "codex", "antigravity", "jetbrains"];
   }
   if (selection === "both") {
     return ["claude-code", "codex"];

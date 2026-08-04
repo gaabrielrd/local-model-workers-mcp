@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Product architecture implemented through v2.2.0 (15-tool engine)
+**Status:** Product architecture implemented through v2.3.0 (15-tool engine)
 **Last reviewed:** 2026-08-04
 
 ## Purpose
