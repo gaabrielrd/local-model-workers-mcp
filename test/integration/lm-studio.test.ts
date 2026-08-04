@@ -51,6 +51,10 @@ void test(
             json(response, 200, { data: [{ id: MODEL }] });
             return;
           }
+          if (request.url === "/api/v1/models") {
+            json(response, 200, contextModelsResponse(MODEL, 32_768));
+            return;
+          }
           json(response, 200, completedResponse());
         });
         const client = configuredClient(baseUrl);
@@ -59,12 +63,14 @@ void test(
 
         assert.deepEqual(result.output, { ok: true });
         assert.equal(result.usage.reasoning_tokens, 0);
-        assert.equal(captured.length, 2);
+        assert.equal(captured.length, 3);
         assert.equal(captured[0]?.authorization, `Bearer ${TOKEN}`);
         assert.equal(captured[1]?.authorization, `Bearer ${TOKEN}`);
-        const payload = object(captured[1]?.body);
+        assert.equal(captured[2]?.authorization, `Bearer ${TOKEN}`);
+        const payload = object(captured[2]?.body);
         assert.equal(payload.stream, false);
         assert.equal(payload.reasoning_effort, "none");
+        assert.equal(payload.max_tokens, 100);
         assert.equal(object(payload.response_format).type, "json_schema");
         assert.equal(JSON.stringify(payload).includes(TOKEN), false);
       },
@@ -78,6 +84,10 @@ void test(
           captured.push(await capture(request));
           if (request.url === "/v1/models") {
             json(response, 200, { data: [{ id: MODEL }] });
+            return;
+          }
+          if (request.url === "/api/v1/models") {
+            json(response, 200, contextModelsResponse(MODEL, 32_768));
             return;
           }
           json(response, 200, completedResponse());
@@ -94,7 +104,7 @@ void test(
             ok: true,
           },
         );
-        assert.equal(captured.length, 2);
+        assert.equal(captured.length, 3);
         assert.ok(
           captured.every((request) => request.authorization === undefined),
         );
@@ -193,6 +203,10 @@ void test(
             json(response, 200, { data: [{ id: MODEL }] });
             return;
           }
+          if (request.url === "/api/v1/models") {
+            json(response, 200, contextModelsResponse(MODEL, 32_768));
+            return;
+          }
           chatRequests += 1;
           json(response, chatRequests === 1 ? 503 : 200, completedResponse());
         });
@@ -212,6 +226,10 @@ void test(
           (request, response) => {
             if (request.url === "/v1/models") {
               json(response, 200, { data: [{ id: MODEL }] });
+              return;
+            }
+            if (request.url === "/api/v1/models") {
+              json(response, 200, contextModelsResponse(MODEL, 32_768));
               return;
             }
             chatRequests += 1;
@@ -237,6 +255,10 @@ void test(
             json(response, 200, { data: [{ id: MODEL }] });
             return;
           }
+          if (request.url === "/api/v1/models") {
+            json(response, 200, contextModelsResponse(MODEL, 32_768));
+            return;
+          }
           chatRequests += 1;
           json(response, 503, { error: { message: "later" } });
         });
@@ -256,6 +278,10 @@ void test(
         const baseUrl = await startFakeServer(t, (request, response) => {
           if (request.url === "/v1/models") {
             json(response, 200, { data: [{ id: MODEL }] });
+            return;
+          }
+          if (request.url === "/api/v1/models") {
+            json(response, 200, contextModelsResponse(MODEL, 32_768));
             return;
           }
           chatRequests += 1;
@@ -354,6 +380,121 @@ void test(
         }
       },
     );
+
+    await t.test("clamps max_tokens to the model context window", async (t) => {
+      const fixtures: ReadonlyArray<{
+        readonly name: string;
+        readonly intent: number;
+        readonly contextLength: number;
+        readonly expected: number;
+        readonly v0Fallback?: boolean;
+      }> = [
+        {
+          name: "clamps intent above the loaded context window",
+          intent: 12_000,
+          contextLength: 4_096,
+          expected: 4_096,
+        },
+        {
+          name: "keeps intent below the context window",
+          intent: 12_000,
+          contextLength: 32_768,
+          expected: 12_000,
+        },
+        {
+          name: "falls back to the v0 catalog context",
+          intent: 12_000,
+          contextLength: 8_192,
+          expected: 8_192,
+          v0Fallback: true,
+        },
+      ];
+
+      for (const fixture of fixtures) {
+        await t.test(fixture.name, async (nested) => {
+          const captured: CapturedRequest[] = [];
+          const baseUrl = await startFakeServer(
+            nested,
+            async (request, response) => {
+              captured.push(await capture(request));
+              if (request.url === "/v1/models") {
+                json(response, 200, { data: [{ id: MODEL }] });
+                return;
+              }
+              if (request.url === "/api/v1/models") {
+                if (fixture.v0Fallback === true) {
+                  json(response, 404, { error: { message: "not found" } });
+                  return;
+                }
+                json(
+                  response,
+                  200,
+                  contextModelsResponse(MODEL, fixture.contextLength),
+                );
+                return;
+              }
+              if (request.url === "/api/v0/models") {
+                json(response, 200, {
+                  data: [
+                    { id: MODEL, max_context_length: fixture.contextLength },
+                  ],
+                });
+                return;
+              }
+              json(response, 200, completedResponse());
+            },
+          );
+          const client = configuredClient(baseUrl);
+
+          const result = await client.inferStructured({
+            ...inferenceRequest(),
+            max_tokens: fixture.intent,
+          });
+
+          assert.deepEqual(result.output, { ok: true });
+          assert.equal(
+            object(captured[captured.length - 1]?.body).max_tokens,
+            fixture.expected,
+          );
+        });
+      }
+
+      await t.test(
+        "passes the intent through when the context window is unknown",
+        async (t) => {
+          const captured: CapturedRequest[] = [];
+          const baseUrl = await startFakeServer(
+            t,
+            async (request, response) => {
+              captured.push(await capture(request));
+              if (request.url === "/v1/models") {
+                json(response, 200, { data: [{ id: MODEL }] });
+                return;
+              }
+              if (
+                request.url === "/api/v1/models" ||
+                request.url === "/api/v0/models"
+              ) {
+                json(response, 404, { error: { message: "not found" } });
+                return;
+              }
+              json(response, 200, completedResponse());
+            },
+          );
+          const client = configuredClient(baseUrl);
+
+          await client.inferStructured({
+            ...inferenceRequest(),
+            max_tokens: 12_000,
+          });
+
+          assert.equal(
+            object(captured[captured.length - 1]?.body).max_tokens,
+            12_000,
+          );
+        },
+      );
+    });
 
     await t.test(
       "embedText: single string input returns one embedding vector",
@@ -629,6 +770,20 @@ function completedResponse(content = '{"ok":true}', finishReason = "stop") {
       total_tokens: 8,
       completion_tokens_details: { reasoning_tokens: 0 },
     },
+  };
+}
+
+function contextModelsResponse(model: string, contextLength: number) {
+  return {
+    models: [
+      {
+        key: model,
+        max_context_length: contextLength,
+        loaded_instances: [
+          { id: model, config: { context_length: contextLength } },
+        ],
+      },
+    ],
   };
 }
 

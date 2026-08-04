@@ -28,6 +28,48 @@ const ModelsResponseSchema = z
   })
   .passthrough();
 
+const ModelContextV1Schema = z
+  .object({
+    models: z.array(
+      z
+        .object({
+          key: z.string().trim().min(1).optional(),
+          id: z.string().trim().min(1).optional(),
+          max_context_length: z.number().int().positive().optional(),
+          loaded_instances: z
+            .array(
+              z
+                .object({
+                  id: z.string().trim().min(1),
+                  config: z
+                    .object({
+                      context_length: z.number().int().positive().optional(),
+                    })
+                    .passthrough()
+                    .optional(),
+                })
+                .passthrough(),
+            )
+            .optional(),
+        })
+        .passthrough(),
+    ),
+  })
+  .passthrough();
+
+const ModelContextV0Schema = z
+  .object({
+    data: z.array(
+      z
+        .object({
+          id: z.string().trim().min(1),
+          max_context_length: z.number().int().positive().optional(),
+        })
+        .passthrough(),
+    ),
+  })
+  .passthrough();
+
 const UsageSchema = z
   .object({
     prompt_tokens: z.number().int().nonnegative(),
@@ -243,10 +285,25 @@ async function inferStructured<Output>(
     );
   }
 
+  const contextCatalog = await modelContext(
+    options,
+    {
+      timeout_ms: remainingTime(context),
+      ...(requestInput.signal === undefined
+        ? {}
+        : { signal: requestInput.signal }),
+    },
+    options.bearerToken,
+  );
+  const effectiveMaxTokens = clampMaxTokens(
+    requestInput.max_tokens,
+    contextCatalog.get(requestInput.model),
+  );
+
   const payload = JSON.stringify({
     model: requestInput.model,
     messages: requestInput.messages,
-    max_tokens: requestInput.max_tokens,
+    max_tokens: effectiveMaxTokens,
     temperature: 0,
     stream: false,
     reasoning_effort: "none",
@@ -438,9 +495,10 @@ function parseInferenceResponse<Output>(
     );
   }
   if (choice === undefined || choice.finish_reason !== "stop") {
+    const finishReason = choice?.finish_reason ?? "none";
     throw new InferenceError(
       "incomplete_response",
-      "LM Studio did not return a complete structured response.",
+      `LM Studio did not return a complete structured response (finish_reason: ${finishReason}; requested max_tokens: ${requestInput.max_tokens}; completion_tokens: ${parsed.data.usage.completion_tokens}).`,
     );
   }
 
@@ -684,6 +742,128 @@ function endpoint(baseUrl: URL, relativePath: string): URL {
   const normalized = new URL(baseUrl.toString());
   normalized.pathname = `${normalized.pathname.replace(/\/$/u, "")}/${relativePath}`;
   return normalized;
+}
+
+function restEndpoint(baseUrl: URL, relativePath: string): URL {
+  const normalized = new URL(baseUrl.toString());
+  let path = normalized.pathname.replace(/\/$/u, "");
+  if (path.endsWith("/v1")) {
+    path = path.slice(0, -3);
+  }
+  normalized.pathname = `${path}/${relativePath}`;
+  return normalized;
+}
+
+function clampMaxTokens(
+  intent: number,
+  contextLength: number | undefined,
+): number {
+  if (contextLength === undefined) {
+    return intent;
+  }
+  return Math.min(intent, Math.max(1, Math.trunc(contextLength)));
+}
+
+interface ModelContextEntry {
+  readonly id: string | undefined;
+  readonly key: string | undefined;
+  readonly max_context_length: number | undefined;
+  readonly loaded: { readonly context_length: number | undefined } | undefined;
+}
+
+async function modelContext(
+  options: ValidatedOptions,
+  requestOptions: RequestOptions,
+  token: string | undefined,
+): Promise<ReadonlyMap<string, number>> {
+  const context = requestContext(requestOptions);
+  const v1 = await contextSource(
+    options,
+    context,
+    token,
+    "api/v1/models",
+    (payload) => {
+      const parsed = ModelContextV1Schema.parse(payload);
+      return parsed.models.map((entry) => {
+        const modelId = entry.key ?? entry.id;
+        const loaded =
+          entry.loaded_instances?.find((instance) => instance.id === modelId) ??
+          entry.loaded_instances?.[0];
+        return {
+          id: entry.id,
+          key: entry.key,
+          max_context_length: entry.max_context_length,
+          loaded:
+            loaded?.config === undefined
+              ? undefined
+              : { context_length: loaded.config.context_length },
+        };
+      });
+    },
+  );
+  if (v1 !== null) {
+    return v1;
+  }
+  const v0 = await contextSource(
+    options,
+    context,
+    token,
+    "api/v0/models",
+    (payload) => {
+      const parsed = ModelContextV0Schema.parse(payload);
+      return parsed.data.map((entry) => ({
+        id: entry.id,
+        key: undefined,
+        max_context_length: entry.max_context_length,
+        loaded: undefined,
+      }));
+    },
+  );
+  return v0 ?? new Map<string, number>();
+}
+
+async function contextSource(
+  options: ValidatedOptions,
+  context: RequestContext,
+  token: string | undefined,
+  relativePath: string,
+  parse: (payload: unknown) => readonly ModelContextEntry[],
+): Promise<ReadonlyMap<string, number> | null> {
+  let payload: unknown;
+  try {
+    payload = await requestJson(
+      options,
+      restEndpoint(options.baseUrl, relativePath),
+      { method: "GET" },
+      token,
+      context,
+    );
+  } catch (error: unknown) {
+    if (error instanceof InferenceError && error.code === "model_unavailable") {
+      return null;
+    }
+    return new Map<string, number>();
+  }
+  let entries: readonly ModelContextEntry[];
+  try {
+    entries = parse(payload);
+  } catch {
+    return new Map<string, number>();
+  }
+  const map = new Map<string, number>();
+  for (const entry of entries) {
+    const modelId = entry.key ?? entry.id;
+    const contextLength =
+      entry.loaded?.context_length ?? entry.max_context_length;
+    if (
+      modelId !== undefined &&
+      contextLength !== undefined &&
+      contextLength > 0
+    ) {
+      map.set(modelId, contextLength);
+    }
+  }
+  return map.size > 0 ? map : null;
 }
 
 function invalidConfiguration(message: string): InferenceError {
