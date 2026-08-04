@@ -78,6 +78,10 @@ export class SqliteVectorIndex implements VectorIndex {
   }
 
   private initDatabase(): void {
+    // Use DELETE journal mode to avoid WAL sidecar files (.db-wal, .db-shm)
+    // that remain locked on Windows even after db.close(), which causes
+    // afterEach cleanup (rm) to hang indefinitely in CI.
+    this.db.exec("PRAGMA journal_mode=DELETE");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS vectors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
