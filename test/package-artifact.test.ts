@@ -34,6 +34,7 @@ void test("the package candidate contains only runtime artifacts and documentati
   assert.ok(paths.includes("package.json"));
   assert.ok(paths.includes("README.md"));
   assert.ok(paths.includes("dist/cli/index.js"));
+  assert.ok(paths.includes("scripts/wsl2/setup-wsl2.sh"));
   assert.equal(
     paths.some((filePath) => filePath.startsWith("src/")),
     false,

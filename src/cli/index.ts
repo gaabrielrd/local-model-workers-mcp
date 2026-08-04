@@ -20,7 +20,7 @@ if (arguments_.length > 0) {
 } else {
   try {
     const runtime = await createMcpApplicationRuntime();
-    const application = serveMcpStdio(runtime);
+    const application = serveMcpStdio(runtime, writeDiagnostic);
     const close = (): void => {
       void application.close().finally(() => {
         process.exitCode = 0;

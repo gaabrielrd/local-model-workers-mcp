@@ -1,7 +1,7 @@
 # Architecture
 
-**Status:** Product architecture implemented through the V3.0 multi-provider engine
-**Last reviewed:** 2026-08-02
+**Status:** Product architecture implemented through v2.2.0 (15-tool engine)
+**Last reviewed:** 2026-08-04
 
 ## Purpose
 

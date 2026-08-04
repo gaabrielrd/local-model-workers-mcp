@@ -1,6 +1,6 @@
 {
   "name": "local-model-workers-mcp",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Local Model Workers MCP server for bounded repository exploration, code graph queries, type/lint fixes, and test proposals delegated to local LLMs (LM Studio, Ollama, vLLM, LocalAI).",
   "license": "MIT",
   "author": "Gabriel Rodriguez",
@@ -35,6 +35,7 @@
   },
   "files": [
     "dist",
+    "scripts/wsl2",
     "README.md",
     "LICENSE"
   ],

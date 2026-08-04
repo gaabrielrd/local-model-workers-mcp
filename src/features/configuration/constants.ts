@@ -14,6 +14,13 @@ export const CONFIGURATION_ENVIRONMENT_VARIABLES = {
 
 export const DEFAULT_PROVIDER_RECHECK_INTERVAL_MS = 60_000;
 
+export const BUILT_IN_SUPERVISION = {
+  enabled: true,
+  interval_ms: 30_000,
+  rss_limit_mb: 1_024,
+  event_loop_lag_ms: 2_000,
+} as const;
+
 export const BUILT_IN_LIMITS = {
   max_concurrency: 2,
   queue_timeout_ms: 5 * 60 * 1_000,

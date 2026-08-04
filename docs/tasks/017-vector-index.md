@@ -22,7 +22,7 @@ Implement a local vector index that stores file-level embeddings for a repositor
 
 ## Non-scope
 
-Automatic file watching, real-time reindexing triggers, embedding generation (handled by Task 016), MCP tool exposure, HNSW or ANN algorithms (brute-force cosine is sufficient for V1.5 scale).
+Automatic file watching, real-time reindexing triggers, embedding generation (handled by Task 016), MCP tool exposure, HNSW or ANN algorithms (brute-force cosine is sufficient for v1.1 scale).
 
 ## Implementation outline
 

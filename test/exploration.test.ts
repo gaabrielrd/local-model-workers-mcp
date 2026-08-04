@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ADMINISTRATIVE_MAXIMA,
   BUILT_IN_LIMITS,
+  BUILT_IN_SUPERVISION,
   FIXED_LIMITS,
   type EffectiveConfiguration,
 } from "../src/features/configuration/index.js";
@@ -534,6 +535,12 @@ function configuration(
       context_budget_bytes:
         overrides.contextBytes ?? BUILT_IN_LIMITS.context_budget_bytes,
     },
+    supervision: {
+      enabled: BUILT_IN_SUPERVISION.enabled,
+      interval_ms: BUILT_IN_SUPERVISION.interval_ms,
+      rss_limit_bytes: BUILT_IN_SUPERVISION.rss_limit_mb * 1_024 * 1_024,
+      event_loop_lag_ms: BUILT_IN_SUPERVISION.event_loop_lag_ms,
+    },
     administrative_maxima: ADMINISTRATIVE_MAXIMA,
     fixed_limits: FIXED_LIMITS,
     origins: {
@@ -555,6 +562,10 @@ function configuration(
       "limits.processing_timeout_ms": "built_in",
       "limits.max_exploration_interactions": "built_in",
       "limits.context_budget_bytes": "built_in",
+      "supervision.enabled": "built_in",
+      "supervision.interval_ms": "built_in",
+      "supervision.rss_limit_bytes": "built_in",
+      "supervision.event_loop_lag_ms": "built_in",
       "administrative_maxima.max_concurrency": "protected",
       "administrative_maxima.queue_timeout_ms": "protected",
       "administrative_maxima.processing_timeout_ms": "protected",

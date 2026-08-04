@@ -7,10 +7,13 @@ import test from "node:test";
 import {
   ADMINISTRATIVE_MAXIMA,
   BUILT_IN_LIMITS,
+  BUILT_IN_SUPERVISION,
   ConfigurationError,
   FEATURE_GROUPS,
   getConfig,
   getEffectiveConfiguration,
+  PreferencesSchema,
+  ProjectPreferencesSchema,
   resolveGlobalPreferencesPath,
   resolveModelForTask,
 } from "../src/features/configuration/index.js";
@@ -665,6 +668,92 @@ void test("resolves platform-standard global preference paths without real profi
       environment: { APPDATA: "D:\\Profiles\\tester" },
     }),
     "D:\\Profiles\\tester\\local-model-workers\\preferences.json",
+  );
+});
+
+void test("loads built-in supervision defaults when not configured", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input());
+
+  assert.deepEqual(snapshot.supervision, {
+    enabled: BUILT_IN_SUPERVISION.enabled,
+    interval_ms: BUILT_IN_SUPERVISION.interval_ms,
+    rss_limit_bytes: BUILT_IN_SUPERVISION.rss_limit_mb * 1_024 * 1_024,
+    event_loop_lag_ms: BUILT_IN_SUPERVISION.event_loop_lag_ms,
+  });
+  assert.equal(snapshot.origins["supervision.enabled"], "built_in");
+  assert.equal(snapshot.origins["supervision.interval_ms"], "built_in");
+  assert.equal(snapshot.origins["supervision.rss_limit_bytes"], "built_in");
+  assert.equal(snapshot.origins["supervision.event_loop_lag_ms"], "built_in");
+});
+
+void test("resolves global supervision overrides with a global origin", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    supervision: {
+      enabled: false,
+      interval_ms: 60_000,
+      rss_limit_mb: 2_048,
+      event_loop_lag_ms: 5_000,
+    },
+  });
+
+  const snapshot = await getEffectiveConfiguration(fixture.input());
+
+  assert.deepEqual(snapshot.supervision, {
+    enabled: false,
+    interval_ms: 60_000,
+    rss_limit_bytes: 2_048 * 1_024 * 1_024,
+    event_loop_lag_ms: 5_000,
+  });
+  assert.equal(snapshot.origins["supervision.enabled"], "global");
+  assert.equal(snapshot.origins["supervision.interval_ms"], "global");
+  assert.equal(snapshot.origins["supervision.rss_limit_bytes"], "global");
+  assert.equal(snapshot.origins["supervision.event_loop_lag_ms"], "global");
+});
+
+void test("rejects invalid supervision preferences", () => {
+  assert.throws(
+    () =>
+      PreferencesSchema.parse({
+        schema_version: 1,
+        supervision: { interval_ms: 100 },
+      }),
+    /interval_ms/,
+  );
+  assert.throws(
+    () =>
+      PreferencesSchema.parse({
+        schema_version: 1,
+        supervision: { rss_limit_mb: 32 },
+      }),
+    /rss_limit_mb/,
+  );
+  assert.throws(
+    () =>
+      PreferencesSchema.parse({
+        schema_version: 1,
+        supervision: { unknown_field: true },
+      }),
+    /Unrecognized key/,
+  );
+});
+
+void test("keeps supervision out of project preferences", () => {
+  assert.throws(
+    () =>
+      ProjectPreferencesSchema.parse({
+        schema_version: 1,
+        supervision: { enabled: false },
+      }),
+    /Unrecognized key/,
   );
 });
 

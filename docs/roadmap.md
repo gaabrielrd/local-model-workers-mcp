@@ -1,70 +1,113 @@
 # Roadmap
 
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-04
 
 ## Vision
 
-Move heavy code understanding and mechanical edit workloads from expensive cloud models to fast, free, local models. Local Model Workers MCP operates as the local security and validation boundary, empowering AI coding assistants across all major IDEs.
+Move heavy code understanding and mechanical edit workloads from expensive cloud
+models to fast, free, local models. Local Model Workers MCP operates as the
+local security and validation boundary, empowering AI coding assistants across
+all major IDEs.
 
 ---
 
-## Phase 1 to Phase 7 — V1.0 to V2.1 (Completed)
+## Delivered — v1.0 to v2.2
 
-Releases 1.0.0 through 2.1.0 delivered a complete, 15-tool local offloading engine:
+Releases 1.0.0 through 2.2.0 delivered a complete, 15-tool local offloading
+engine and its operator-grade stability layer:
 
-- **15 MCP Tools**: `explore_repository`, `propose_tests`, `check_health`, `get_config`, `validate_config`, `update_config`, `query_code_graph`, `search_semantic`, `summarize_module`, `fix_lint_violations`, `fix_type_errors`, `generate_docs_patch`, `analyze_diff`, `auto_validate_tests`, `get_offload_stats`
-- **SQLite Vector Index**: Persistent `SqliteVectorIndex` using built-in `node:sqlite`
-- **Circuit Breaker Resiliency**: Automated 3-state circuit breaker pattern for local model endpoints
-- **Multi-Repository Cross-Referencing**: Cross-repository symbol and vector retrieval (`additional_repositories`)
-- **Intelligent Context Distillation**: Comment, docstring, and newline pruning (`distillContext`)
-- **Streaming & SSE Parsing**: Web Streams-based SSE parser (`parseSseStream`)
-- **Dynamic Configuration & Profiles**: Configuration profile presets (`fast`, `thorough`, `balanced`)
-- **Hardware-Aware Concurrency**: Dynamic task concurrency based on system RAM and CPU core count
-- **Containerization**: Official Docker container setup (`Dockerfile`)
+- **15 MCP tools** across `exploration`, `tests`, `docs`, and `lint` feature
+  groups plus always-on administration tools;
+- **SQLite vector storage** — persistent `SqliteVectorIndex` on native
+  `node:sqlite`;
+- **Circuit breaker resiliency** — automated 3-state breaker for model
+  endpoints;
+- **Multi-repository cross-referencing** — symbol and vector retrieval across
+  dependent workspaces (`additional_repositories`);
+- **Intelligent context distillation** — comment, docstring, and newline
+  pruning before inference;
+- **Semantic diff analysis** — `analyze_diff` for commit summaries and
+  architectural impact reports;
+- **Streaming & SSE parsing** — Web Streams SSE parser for progress
+  notifications;
+- **Dynamic configuration profiles** — `fast`, `thorough`, `balanced` presets;
+- **Hardware-aware concurrency** — task concurrency scaled by RAM and CPU cores;
+- **Containerization** — official `Dockerfile`.
 
-Version 3.0 focuses on multi-repository intelligence, enterprise-grade stability, context distillation, and seamless developer environment support.
+### v2.2.0 — Stability & operator experience
 
-### 1. Advanced Intelligence & New Features
-
-- **Multi-Repository Cross-Referencing**:
-  Query code graphs (`query_code_graph`) and perform semantic searches (`search_semantic`) across multiple dependent local workspace repositories simultaneously.
-- **Intelligent Context Distillation & Prompt Compression**:
-  Automatically prune redundant AST nodes, dead code comments, and repeated signatures before sending context to local models, reducing prompt token count by up to 40% and accelerating local inference speed.
-- **Semantic Code Diff Analysis (`analyze_diff`)**:
-  New MCP tool that analyzes git commit history, pull request diffs, and local branch changes using local models to generate human-readable summaries, architectural impact reports, and potential regression alerts.
-- **Streaming Tool Call Progress**:
-  Stream intermediate local model thoughts and token generation status in real time to supported client harnesses over transport-neutral progress notifications.
-- **Custom Post-Processing Hooks**:
-  User-defined local scripts executed immediately after patch generation for custom formatting, security policy checks, or lint validations before proposals are returned to the client.
-
-### 2. Improved Stability & Reliability
-
-- **Circuit Breaker & Endpoint Resiliency**:
-  Automated circuit breaking for local model endpoints. If a local provider experiences high latency or repeated HTTP timeouts, inference automatically degrades gracefully to alternate local providers or returns fallback hints without crashing active tasks.
-- **SQLite / Embedded Vector Storage (`sqlite-vec`)**:
-  Upgrade `InMemoryVectorIndex` to an embedded SQLite-backed vector storage option with zero cold-start latency, instant persistence, and scalable vector retrieval for 100k+ file codebases.
-- **Daemon Process Supervision & Zero-Leak Memory Management**:
-  Built-in memory monitoring and child worker process supervision to ensure long-running stdio MCP server sessions maintain a minimal memory footprint without memory leaks.
-- **Hardware-Aware Concurrency Control**:
-  Dynamic rate limiting and concurrency tuning based on real-time GPU/CPU utilization and VRAM metrics exposed by Ollama and LM Studio.
-
-### 3. Expanded Ecosystem & Harness Support
-
-- **JetBrains IDE Suite Support**:
-  Interactive setup support for IntelliJ IDEA, PyCharm, WebStorm, GoLand, and CLion via `.idea` MCP configuration adapters and steering prompt rules.
-- **Containerized Execution & WSL2 Native Setup**:
-  Official Docker containerized server image (`ghcr.io/gaabrielrd/local-model-workers-mcp`) and WSL2 setup scripts for Windows developers using Linux containers.
-- **Live Hot-Reloadable Configuration**:
-  File-watcher integration that reloads configuration changes instantly without requiring an MCP server process restart.
-- **Workspace Profiles & Multi-Preset Modes**:
-  Instant switching between development, security auditing, refactoring, and documentation presets via `update_config`.
+- **Daemon process supervision**:
+  Built-in memory monitoring and child-worker supervision so long-running
+  `stdio` MCP sessions keep a minimal memory footprint without leaks, with
+  automatic recovery from a wedged worker.
+- **Live hot-reloadable configuration**:
+  File-watcher integration that applies configuration and profile changes
+  instantly without restarting the MCP server process, using atomic swaps that
+  never apply a partial file.
+- **WSL2 native setup**:
+  Official WSL2 setup scripts for Windows developers running Linux containers,
+  complementing the existing `Dockerfile`.
 
 ---
 
-## Non-scope (all phases)
+## Next — v2.3.0 and v2.4.0
+
+V2.3/V2.4 keep turning the offloading engine into a more broadly adopted tool.
+The security boundary is unchanged: the server remains read-only against the
+developer's repository, and every write proposal stays an unapplied, validated
+diff.
+
+Each remaining pillar ships as its own minor release — **v2.3.0** and
+**v2.4.0** — so a feature lands, is qualified (`npm run validate` green), and
+is released before the next pillar starts. Task tracking: docs/tasks 046–048.
+
+### v2.3.0 — Ecosystem & harnesses
+
+- **JetBrains IDE suite support**:
+  Interactive setup support for IntelliJ IDEA, PyCharm, WebStorm, GoLand, and
+  CLion via `.idea` MCP configuration adapters and managed steering prompt
+  rules, matching the existing Claude Code, Codex, Antigravity, Cursor, VS
+  Code, and Neovim flows.
+
+### v2.4.0 — Extensibility & automation
+
+- **Custom post-processing hooks**:
+  User-defined local scripts executed immediately after patch generation for
+  custom formatting, security-policy checks, or lint validation before a
+  proposal is returned to the client. Hooks run only with explicit developer
+  configuration and never alter the repository.
+- **Workspace profiles & multi-preset switching**:
+  Extend the global `fast`/`thorough`/`balanced` presets to project and
+  workspace scope, switchable at runtime via `update_config`, so a repository
+  can move between development, security-audit, refactoring, and documentation
+  modes without a server restart.
+
+### V2.2 non-scope
+
+- Cloud provider inference APIs (OpenAI, Anthropic, Google).
+- Direct repository writes by the MCP server outside temporary auto-validate
+  sandboxes.
+- Public network exposure or multi-user remote hosting.
+- A graphical desktop interface or web application.
+
+---
+
+## Version 3.0 — Candidate direction (not committed)
+
+Direction is under discussion and nothing here is planned for an upcoming
+release:
+
+- Team administration and multi-account isolation for shared LM Studio or vLLM
+  infrastructure.
+- Broader language coverage for the code graph and context distillation.
+- Deeper harness-specific rendering (e.g., IDE inline diff previews) through
+  the MCP SDK's evolving capabilities.
+
+---
+
+## Non-scope (all versions)
 
 - Cloud provider inference APIs (OpenAI, Anthropic, Google)
 - Direct repository writes by the MCP server outside temporary auto-validate sandboxes
 - Graphical desktop interface or web applications
 - Multi-user remote hosting or public network exposure
-

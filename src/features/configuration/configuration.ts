@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   ADMINISTRATIVE_MAXIMA,
   BUILT_IN_LIMITS,
+  BUILT_IN_SUPERVISION,
   CONFIGURATION_ENVIRONMENT_VARIABLES,
   CONFIGURATION_SCHEMA_VERSION,
   DEFAULT_PROVIDER_RECHECK_INTERVAL_MS,
@@ -98,6 +99,15 @@ export const CONFIGURATION_PROFILES = ["fast", "thorough", "balanced"] as const;
 
 export type ConfigurationProfile = (typeof CONFIGURATION_PROFILES)[number];
 
+const SupervisionSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    interval_ms: z.number().int().min(1_000).max(86_400_000).optional(),
+    rss_limit_mb: z.number().int().min(64).max(1_048_576).optional(),
+    event_loop_lag_ms: z.number().int().min(100).max(86_400_000).optional(),
+  })
+  .strict();
+
 export const PreferencesSchema = z
   .object({
     schema_version: z.literal(CONFIGURATION_SCHEMA_VERSION),
@@ -107,12 +117,14 @@ export const PreferencesSchema = z
     model_routing: ModelRoutingSchema.optional(),
     steering_prompt: z.string().trim().min(1).max(2_000).optional(),
     enabled_features: EnabledFeaturesSchema.optional(),
+    supervision: SupervisionSchema.optional(),
     limits: LimitsSchema.optional(),
   })
   .strict();
 
 export const ProjectPreferencesSchema = PreferencesSchema.omit({
   enabled_features: true,
+  supervision: true,
 });
 
 const AllowedModelsSchema = z
@@ -242,6 +254,12 @@ export interface EffectiveConfiguration {
     readonly recheck_interval_ms: number;
   };
   readonly limits: EffectiveLimits;
+  readonly supervision: {
+    readonly enabled: boolean;
+    readonly interval_ms: number;
+    readonly rss_limit_bytes: number;
+    readonly event_loop_lag_ms: number;
+  };
   readonly administrative_maxima: typeof ADMINISTRATIVE_MAXIMA;
   readonly fixed_limits: typeof FIXED_LIMITS;
   readonly origins: Readonly<Record<ConfigurationField, ConfigurationOrigin>>;
@@ -266,6 +284,10 @@ export type ConfigurationField =
   | "limits.processing_timeout_ms"
   | "limits.max_exploration_interactions"
   | "limits.context_budget_bytes"
+  | "supervision.enabled"
+  | "supervision.interval_ms"
+  | "supervision.rss_limit_bytes"
+  | "supervision.event_loop_lag_ms"
   | "administrative_maxima.max_concurrency"
   | "administrative_maxima.queue_timeout_ms"
   | "administrative_maxima.processing_timeout_ms"
@@ -378,6 +400,26 @@ export async function getEffectiveConfiguration(
     globalPreferences?.enabled_features,
     [...FEATURE_GROUPS],
   );
+  const supervisionEnabled = selectValue(
+    undefined,
+    globalPreferences?.supervision?.enabled,
+    BUILT_IN_SUPERVISION.enabled,
+  );
+  const supervisionInterval = selectValue(
+    undefined,
+    globalPreferences?.supervision?.interval_ms,
+    BUILT_IN_SUPERVISION.interval_ms,
+  );
+  const supervisionRssLimitMb = selectValue(
+    undefined,
+    globalPreferences?.supervision?.rss_limit_mb,
+    BUILT_IN_SUPERVISION.rss_limit_mb,
+  );
+  const supervisionLag = selectValue(
+    undefined,
+    globalPreferences?.supervision?.event_loop_lag_ms,
+    BUILT_IN_SUPERVISION.event_loop_lag_ms,
+  );
 
   const origins: Record<ConfigurationField, ConfigurationOrigin> = {
     "lm_studio.base_url": "protected",
@@ -392,6 +434,10 @@ export async function getEffectiveConfiguration(
     "limits.processing_timeout_ms": processingTimeout.origin,
     "limits.max_exploration_interactions": explorationInteractions.origin,
     "limits.context_budget_bytes": contextBudget.origin,
+    "supervision.enabled": supervisionEnabled.origin,
+    "supervision.interval_ms": supervisionInterval.origin,
+    "supervision.rss_limit_bytes": supervisionRssLimitMb.origin,
+    "supervision.event_loop_lag_ms": supervisionLag.origin,
     "administrative_maxima.max_concurrency": "protected",
     "administrative_maxima.queue_timeout_ms": "protected",
     "administrative_maxima.processing_timeout_ms": "protected",
@@ -440,6 +486,12 @@ export async function getEffectiveConfiguration(
       processing_timeout_ms: processingTimeout.value,
       max_exploration_interactions: explorationInteractions.value,
       context_budget_bytes: contextBudget.value,
+    },
+    supervision: {
+      enabled: supervisionEnabled.value,
+      interval_ms: supervisionInterval.value,
+      rss_limit_bytes: supervisionRssLimitMb.value * 1024 * 1024,
+      event_loop_lag_ms: supervisionLag.value,
     },
     administrative_maxima: ADMINISTRATIVE_MAXIMA,
     fixed_limits: FIXED_LIMITS,

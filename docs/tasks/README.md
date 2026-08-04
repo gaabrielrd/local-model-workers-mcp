@@ -1,13 +1,14 @@
 # Implementation plan
 
-**Status:** V1 Tasks 001-015 implemented; V1.5 Tasks 016-020 and 026 implemented; V2.0 Tasks 021-023 implemented; V3.0 Tasks 024-025 implemented; V3.5 Tasks 027-031 implemented; V4.0 Tasks 032-033 implemented  
+**Status:** Tasks 001-045 implemented (released as v1.0, v1.1, v1.2, v2.0, v2.1, v2.2); Tasks 046-048 planned (v2.3, v2.4)  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-04
 
 ## Objective
 
-Deliver the complete V1-V4.0 of Local Model Workers MCP as an installable local
-server for Claude Code, Codex, Antigravity, Cursor, VS Code, and Neovim. The server delegates bounded repository
+Deliver the complete v1.0-v2.4 scope of Local Model Workers MCP as an installable local
+server for Claude Code, Codex, Antigravity, Cursor, VS Code, Neovim, and (v2.3)
+JetBrains IDEs. The server delegates bounded repository
 exploration, code graph, semantic search, module summarization, lint fixes, type fixes, test proposals, doc generation, auto-validation, and offload statistics to local model providers (LM Studio, Ollama, vLLM, LocalAI) while retaining all filesystem,
 configuration, validation, concurrency, logging, and approval authority on the
 developer's machine.
@@ -20,7 +21,7 @@ must finish with its own acceptance criteria, tests, documentation, and
 
 The implementation must:
 
-- expose exactly the 14 tools approved in RF-02 & PRD over local MCP `stdio`;
+- expose exactly the 15 tools approved in RF-02 & PRD over local MCP `stdio`;
 - read repositories only through root-scoped list, search, and snippet
   operations;
 - prevent sensitive, ignored, binary, excluded, or out-of-root content from
@@ -35,7 +36,7 @@ The implementation must:
   revision-controlled project updates;
 - retain metadata-only operational logs for seven days and expose `get_offload_stats`;
 - install without silently overwriting harness configurations (Claude Code, Codex, Antigravity, Cursor, VS Code, Neovim);
-- validate V1-V4.0 on macOS and run basic portability checks on Linux and Windows.
+- validate v1.0-v2.4 on macOS and run basic portability checks on Linux and Windows.
 
 The [PRD](../../prd.md), not this summary, is authoritative when wording differs.
 
@@ -96,10 +97,25 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 031 | Extended IDE setup | Automated setup for Cursor, VS Code, Neovim | Completed |
 | 032 | Token offload stats | `get_offload_stats` MCP tool (week, month, lifetime) | Completed |
 | 033 | Coverage & quality | Quality benchmarks script & coverage reporting | Completed |
+| 034 | SQLite vector storage | Persistent `SqliteVectorIndex` on `node:sqlite` | Completed |
+| 035 | Multi-repo cross-ref | Symbol/vector retrieval across dependent workspaces | Completed |
+| 036 | Context distillation | Comment/docstring/newline pruning before inference | Completed |
+| 037 | Semantic diff analysis | `analyze_diff` commit summaries & impact reports | Completed |
+| 038 | Streaming progress | Web Streams SSE parser & `sendNotification` progress | Completed |
+| 039 | Circuit breaker | 3-state breaker & retry policy for model endpoints | Completed |
+| 040 | Dynamic profiles | `fast`/`thorough`/`balanced` configuration profiles | Completed |
+| 041 | Hardware concurrency | Task concurrency scaled by RAM and CPU cores | Completed |
+| 042 | Expanded ecosystem | Official `Dockerfile` containerization | Completed |
+| 043 | Daemon supervision | Memory/child-worker supervision & zero-leak recovery | Implemented |
+| 044 | Hot-reload config | File-watcher config/profile reload without restart | Implemented |
+| 045 | WSL2 setup | Official WSL2 setup scripts for Windows/Linux | Implemented |
+| 046 | JetBrains support | Setup for IDEA, PyCharm, WebStorm, GoLand, CLion | Planned |
+| 047 | Post-processing hooks | User-defined local scripts after patch generation | Planned |
+| 048 | Workspace profiles | Project/workspace presets switchable via `update_config` | Planned |
 
 ## Sequential tasks
 
-### Phase 1 — Foundation (V1)
+### Phase 1 — Foundation (v1.0)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
@@ -119,7 +135,7 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 014 | [Harness setup](014-harness-setup.md) | Interactive installer for Claude Code & Codex | 003-004 |
 | 015 | [Release audit](015-release-audit.md) | Metrics, traceability, portability checks | 001-014 |
 
-### Phase 2 — Read offloading and semantic analysis (V1.5)
+### Phase 2 — Read offloading and semantic analysis (v1.1)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
@@ -130,7 +146,7 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 020 | [Module summarization](020-module-summarization.md) | `summarize_module` MCP tool | 007, 019 |
 | 026 | [Harness prompt steering](026-harness-prompt-steering.md) | Pre-message hooks and system prompt instructions | 014, 018-019 |
 
-### Phase 3 — Repetitive write offloading (V2.0)
+### Phase 3 — Repetitive write offloading (v1.2)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
@@ -138,14 +154,14 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 022 | [Documentation generation](022-docs-generation-tool.md) | `generate_docs_patch` MCP tool | 011, 020 |
 | 023 | [Multi-model routing](023-multi-model-routing.md) | Task-type to model-id configuration routing | 003-004, 007 |
 
-### Phase 4 — Autonomous hybrid loop (V3.0)
+### Phase 4 — Autonomous hybrid loop (v2.0)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 024 | [Auto-validate loop](024-auto-validate-loop.md) | `auto_validate_tests` MCP tool with sandbox | 011, 023 |
 | 025 | [Multi-provider engine](025-multi-provider-engine.md) | Ollama, vLLM, LocalAI adapters with failover | 007, 023 |
 
-### Phase 5 — Dynamic routing & multi-language AST (V3.5)
+### Phase 5 — Dynamic routing & multi-language AST (v2.1)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
@@ -155,12 +171,40 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 030 | [Type fix tool](030-type-fix-tool.md) | `fix_type_errors` MCP tool for `tsc` and `mypy` patches | 011, 021 |
 | 031 | [Extended IDE setup](031-extended-ide-and-harness-setup.md) | Automated setup for Cursor, VS Code, and Neovim | 014, 026 |
 
-### Phase 6 — Offload observability & quality benchmarks (V4.0)
+### Phase 6 — Offload observability & quality benchmarks (v2.1)
 
 | Order | Task | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 032 | [Token offload statistics tool](032-token-offload-statistics-tool.md) | `get_offload_stats` MCP tool with time-series aggregation (week, month, lifetime) | 012, 013 |
 | 033 | [Coverage delta & quality benchmarks](033-coverage-delta-and-model-benchmarks.md) | Automated test coverage reporting in sandbox and local model benchmarks | 024, 025 |
+
+### Phase 7 — V2.1 feature expansion (v2.1)
+
+| Order | Task | Primary outcome | Depends on |
+| --- | --- | --- | --- |
+| 034 | [SQLite vector storage](034-sqlite-vector-storage.md) | Persistent `SqliteVectorIndex` on `node:sqlite` | 017-018 |
+| 035 | [Multi-repository cross-referencing](035-multi-repository-cross-referencing.md) | Symbol/vector retrieval across dependent workspaces | 017-019 |
+| 036 | [Intelligent context distillation](036-intelligent-context-distillation.md) | Comment/docstring/newline pruning before inference | 019, 029 |
+| 037 | [Semantic code diff analysis](037-semantic-code-diff-analysis.md) | `analyze_diff` commit summaries & architectural impact | 019, 020 |
+| 038 | [Streaming tool-call progress](038-streaming-tool-call-progress.md) | Web Streams SSE parser & `sendNotification` progress | 007 |
+| 039 | [Circuit breaker resiliency](039-circuit-breaker-resiliency.md) | 3-state breaker & retry policy for model endpoints | 007, 025 |
+| 040 | [Dynamic configuration profiles](040-dynamic-configuration-profiles.md) | `fast`/`thorough`/`balanced` configuration profiles | 003, 013 |
+| 041 | [Hardware-aware concurrency](041-hardware-aware-concurrency.md) | Task concurrency scaled by RAM and CPU cores | 005, 014 |
+| 042 | [Expanded ecosystem](042-expanded-ecosystem.md) | Official `Dockerfile` containerization | 014 |
+
+### Phase 8 — V2.2 roadmap
+
+Tasks 043-045 shipped in v2.2.0 (see [roadmap.md](../roadmap.md)). Remaining
+pillars ship as one minor release each: **046 → v2.3.0**, **047-048 → v2.4.0**.
+
+| Order | Task | Primary outcome | Depends on | Release |
+| --- | --- | --- | --- | --- |
+| 043 | [Daemon process supervision](043-daemon-process-supervision.md) | Memory/child-worker supervision, zero-leak recovery | 041 | v2.2.0 |
+| 044 | [Live hot-reload configuration](044-live-hot-reload-configuration.md) | File-watcher config/profile reload without restart | 003, 040 | v2.2.0 |
+| 045 | [WSL2 native setup](045-wsl2-native-setup.md) | Official WSL2 setup scripts for Windows/Linux | 042 | v2.2.0 |
+| 046 | [JetBrains IDE suite](046-jetbrains-ide-suite.md) | Setup for IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion | 031 | v2.3.0 |
+| 047 | [Custom post-processing hooks](047-custom-post-processing-hooks.md) | User-defined local scripts after patch generation | 011, 021 | v2.4.0 |
+| 048 | [Workspace profiles](048-workspace-profiles.md) | Project/workspace presets switchable via `update_config` | 003, 040 | v2.4.0 |
 
 
 ## Global completion rule

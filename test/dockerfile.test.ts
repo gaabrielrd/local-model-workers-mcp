@@ -9,5 +9,5 @@ void test("Dockerfile uses node:24-slim base image", async () => {
 
   assert.ok(content.includes("FROM node:24-slim"));
   assert.ok(content.includes("WORKDIR /app"));
-  assert.ok(content.includes('CMD ["node", "dist/index.js"]'));
+  assert.ok(content.includes('CMD ["node", "dist/cli/index.js"]'));
 });

@@ -57,7 +57,7 @@ Automatic model selection based on benchmarks, load balancing across models, con
 1. Extend configuration schema with `model_routing` section and Zod validation.
 2. Add `resolveModelForTask` to the effective configuration API.
 3. Update `getEffectiveConfiguration` to merge `model_routing` across layers.
-4. Update `explore_repository`, `propose_tests`, and all new V1.5/V2.0 tools to use `resolveModelForTask`.
+4. Update `explore_repository`, `propose_tests`, and all new v1.1/v1.2 tools to use `resolveModelForTask`.
 5. Update `get_config` view to include routing information.
 6. Add validation in `validate_config` for routing model references.
 7. Update configuration documentation.

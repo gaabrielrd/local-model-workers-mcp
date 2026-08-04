@@ -15,10 +15,19 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.1.0 publicado (`main` inclui SQLite vector storage, circuit breaker resiliency, multi-repo cross-referencing, context distillation, nova ferramenta `analyze_diff`, suporte a SSE streaming, perfis dinâmicos de configuração, hardware-aware concurrency e containerização Docker).
+- Release 2.2.0 publicado (`main` inclui daemon supervision com recuperação de
+  leak/wedged, hot-reload de configuração via file-watcher, e setup nativo WSL2;
+  mantém SQLite vector storage, circuit breaker resiliency, multi-repo
+  cross-referencing, context distillation, `analyze_diff`, SSE streaming, perfis
+  dinâmicos, hardware-aware concurrency e containerização Docker).
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
-  e testes (368 no total).
+  e testes (398 no total).
+- Roadmap V2.3/V2.4 (veja `docs/roadmap.md` e `docs/tasks/README.md`): cada pilar
+  é entregue como uma release minor própria — **v2.3.0** (suporte a JetBrains),
+  **v2.4.0** (hooks de pós-processamento e perfis de workspace). Tarefas 046-048.
+- Versionamento: cada implementação do roadmap vira uma release minor; `main`
+  avança o minor a cada pilar concluído com `npm run validate` verde.
 
 ## Leia primeiro
 

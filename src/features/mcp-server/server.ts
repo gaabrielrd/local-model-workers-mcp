@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 
 import {
   McpServer,
@@ -18,6 +19,7 @@ import {
   getConfig,
   getEffectiveConfiguration,
   getProtectedProviderConfigurations,
+  resolveGlobalPreferencesPath,
   resolveModelForTask,
   updateConfig,
   validateConfig,
@@ -83,6 +85,8 @@ import {
   generateDocsPatch,
 } from "../docs-generation/index.js";
 import { AnalyzeDiffInputSchema, analyzeDiff } from "../diff-analysis/index.js";
+import { createProcessSupervisor } from "../process-supervision/index.js";
+import { createConfigurationReloader } from "./config-reload.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
@@ -129,6 +133,8 @@ export interface McpApplicationRuntime {
   readonly platform: NodeJS.Platform;
   readonly homeDirectory: string;
   readonly startupConfiguration: EffectiveConfiguration;
+  currentConfiguration(): EffectiveConfiguration;
+  applyConfiguration(configuration: EffectiveConfiguration): void;
   readonly bearerToken?: string;
   readonly providers: readonly ProtectedProviderConfiguration[];
   readonly inference: ProviderRouterPort;
@@ -146,6 +152,11 @@ export interface McpStdioApplication {
   close(): Promise<void>;
 }
 
+export interface ServerSupervisionPort {
+  readonly taskSignal: () => AbortSignal;
+  readonly registerEvictor: (evictor: () => void | Promise<void>) => void;
+}
+
 export async function createMcpApplicationRuntime(
   input: CreateMcpApplicationRuntimeInput = {},
 ): Promise<McpApplicationRuntime> {
@@ -157,6 +168,7 @@ export async function createMcpApplicationRuntime(
     platform,
     homeDirectory,
   });
+  let currentConfiguration = startupConfiguration;
   const providers = getProtectedProviderConfigurations(environment);
   const inference = createProviderRouter({
     adapters: providers.map((provider) =>
@@ -190,6 +202,10 @@ export async function createMcpApplicationRuntime(
     platform,
     homeDirectory,
     startupConfiguration,
+    currentConfiguration: () => currentConfiguration,
+    applyConfiguration: (configuration: EffectiveConfiguration) => {
+      currentConfiguration = configuration;
+    },
     providers,
     inference,
     ...(bearerToken === undefined || bearerToken.length === 0
@@ -202,12 +218,14 @@ export async function createMcpApplicationRuntime(
 export function createMcpServer(
   runtime: McpApplicationRuntime,
   shutdownSignal: AbortSignal = new AbortController().signal,
+  supervision?: ServerSupervisionPort,
 ): McpServer {
   const server = new McpServer(PACKAGE_INFO, {
     instructions:
       "Use repository tools for bounded read-only analysis. Test proposals are returned as unapplied diffs.",
     capabilities: { tools: {} },
   });
+  const taskSignal = supervision?.taskSignal ?? (() => shutdownSignal);
 
   if (featureEnabled(runtime, "exploration")) {
     server.registerTool(
@@ -231,7 +249,11 @@ export function createMcpServer(
             inference: dependencies.inference,
             coordinator: dependencies.coordinator,
             language: request.language,
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
             onProgress: progressReporter(context),
             onTerminal: (event) => runtime.operationalEvents.record(event),
           });
@@ -261,7 +283,11 @@ export function createMcpServer(
             inference: dependencies.inference,
             coordinator: dependencies.coordinator,
             language: request.language,
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
             onProgress: progressReporter(context),
             onTerminal: (event) => runtime.operationalEvents.record(event),
           });
@@ -290,7 +316,11 @@ export function createMcpServer(
             inference: dependencies.inference,
             coordinator: dependencies.coordinator,
             language: "en",
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
             onIterationProgress: iterationProgressReporter(
               context,
               parsed.max_iterations ?? 3,
@@ -350,12 +380,17 @@ export function createMcpServer(
             vectorIndex: sharedVectorIndex,
             repositoryRead: dependencies.repositoryRead,
             embeddingModel,
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
           });
         }),
     );
 
     const sharedCodeGraph = new InMemoryCodeGraph();
+    supervision?.registerEvictor(() => sharedCodeGraph.clear());
 
     server.registerTool(
       TOOL_NAMES.queryCodeGraph,
@@ -397,6 +432,7 @@ export function createMcpServer(
     );
 
     const sharedSummarizationCache = new InMemorySummarizationCache();
+    supervision?.registerEvictor(() => sharedSummarizationCache.clear());
 
     server.registerTool(
       TOOL_NAMES.summarizeModule,
@@ -425,7 +461,11 @@ export function createMcpServer(
             repositoryRead: dependencies.repositoryRead,
             model,
             cache: sharedSummarizationCache,
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
           });
         }),
     );
@@ -453,7 +493,11 @@ export function createMcpServer(
             inference: dependencies.inference,
             repositoryRead: dependencies.repositoryRead,
             model: resolveModelForTask(dependencies.configuration, "lint_fix"),
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
           });
         }),
     );
@@ -479,7 +523,11 @@ export function createMcpServer(
             inference: dependencies.inference,
             repositoryRead: dependencies.repositoryRead,
             model: resolveModelForTask(dependencies.configuration, "lint_fix"),
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
           });
         }),
     );
@@ -510,7 +558,11 @@ export function createMcpServer(
               dependencies.configuration,
               "docs_generation",
             ),
-            signal: AbortSignal.any([context.mcpReq.signal, shutdownSignal]),
+            signal: AbortSignal.any([
+              context.mcpReq.signal,
+              shutdownSignal,
+              taskSignal(),
+            ]),
           });
         }),
     );
@@ -557,7 +609,7 @@ export function createMcpServer(
         checkHealth({
           loadConfiguration: () =>
             Promise.resolve({
-              effective: runtime.startupConfiguration,
+              effective: runtime.currentConfiguration(),
               ...(runtime.bearerToken === undefined
                 ? {}
                 : { bearer_token: runtime.bearerToken }),
@@ -681,22 +733,148 @@ function featureEnabled(
 
 export function serveMcpStdio(
   runtime: McpApplicationRuntime,
+  writeDiagnostic: (message: string) => void = defaultDiagnosticWriter,
 ): McpStdioApplication {
   const shutdown = new AbortController();
+  const supervisorSignal = createResettableSignal();
+  const evictors = new Set<() => void | Promise<void>>();
+  const handlers = createSupervisionHandlers(
+    writeDiagnostic,
+    evictors,
+    supervisorSignal,
+  );
+  let supervisionConfig = runtime.startupConfiguration.supervision;
+  let supervisor = createSupervisor(supervisionConfig);
+  const reloader = createConfigurationReloader({
+    watchPath: resolveGlobalPreferencesPath({
+      platform: runtime.platform,
+      homeDirectory: runtime.homeDirectory,
+      environment: runtime.environment,
+    }),
+    resolveConfiguration: () =>
+      getEffectiveConfiguration({
+        environment: runtime.environment,
+        platform: runtime.platform,
+        homeDirectory: runtime.homeDirectory,
+      }),
+    initialRevision: runtime.startupConfiguration.revision,
+    writeDiagnostic,
+    onApplied: (configuration) => {
+      runtime.applyConfiguration(configuration);
+      if (!sameSupervision(configuration.supervision, supervisionConfig)) {
+        supervisor?.stop();
+        supervisionConfig = configuration.supervision;
+        supervisor = createSupervisor(supervisionConfig);
+        supervisor?.start();
+      }
+    },
+  });
   const handle: StdioServerHandle = serveStdio(
-    () => createMcpServer(runtime, shutdown.signal),
+    () =>
+      createMcpServer(runtime, shutdown.signal, {
+        taskSignal: () => supervisorSignal.signal,
+        registerEvictor: (evictor) => evictors.add(evictor),
+      }),
     {
       onerror: () => {
         // Protocol errors are intentionally not echoed with request data.
       },
     },
   );
+  reloader.start();
+  supervisor?.start();
   return {
     close: async () => {
+      reloader.stop();
+      supervisor?.stop();
       shutdown.abort();
       await handle.close();
     },
   };
+
+  function createSupervisor(
+    config: EffectiveConfiguration["supervision"],
+  ): ReturnType<typeof createProcessSupervisor> | undefined {
+    if (config?.enabled !== true) return undefined;
+    return createProcessSupervisor({
+      interval_ms: config.interval_ms,
+      rss_limit_bytes: config.rss_limit_bytes,
+      event_loop_lag_ms: config.event_loop_lag_ms,
+      signal: shutdown.signal,
+      onLeak: handlers.onLeak,
+      onWedged: handlers.onWedged,
+    });
+  }
+}
+
+function sameSupervision(
+  first: EffectiveConfiguration["supervision"],
+  second: EffectiveConfiguration["supervision"],
+): boolean {
+  if (first === second) return true;
+  if (first === undefined || second === undefined) return false;
+  return (
+    first.enabled === second.enabled &&
+    first.interval_ms === second.interval_ms &&
+    first.rss_limit_bytes === second.rss_limit_bytes &&
+    first.event_loop_lag_ms === second.event_loop_lag_ms
+  );
+}
+
+export interface SupervisionHandlers {
+  readonly onLeak: () => void;
+  readonly onWedged: () => void;
+}
+
+export function createSupervisionHandlers(
+  writeDiagnostic: (message: string) => void,
+  evictors: Set<() => void | Promise<void>>,
+  supervisorSignal: ResettableSignal,
+): SupervisionHandlers {
+  return {
+    onLeak: () => {
+      for (const evictor of evictors) {
+        try {
+          void evictor();
+        } catch {
+          // Cache eviction must never interrupt the MCP session.
+        }
+      }
+      writeDiagnostic(
+        "[supervision] Memory leak detected; in-memory caches evicted.\n",
+      );
+    },
+    onWedged: () => {
+      supervisorSignal.abort();
+      supervisorSignal.reset();
+      writeDiagnostic(
+        "[supervision] Wedged worker detected; active tasks cancelled.\n",
+      );
+    },
+  };
+}
+
+export function createResettableSignal(): ResettableSignal {
+  let controller = new AbortController();
+  return {
+    get signal(): AbortSignal {
+      return controller.signal;
+    },
+    abort: () => controller.abort(),
+    reset: () => {
+      controller = new AbortController();
+    },
+  };
+}
+
+export interface ResettableSignal {
+  readonly signal: AbortSignal;
+  abort(): void;
+  reset(): void;
+}
+
+function defaultDiagnosticWriter(message: string): void {
+  process.stderr.write(message);
 }
 
 async function taskDependencies(
