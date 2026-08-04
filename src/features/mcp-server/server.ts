@@ -310,9 +310,18 @@ export function createMcpServer(
       ),
       "vector-index.sqlite",
     );
-    const sharedVectorIndex: VectorIndex = new SqliteVectorIndex({
-      persistencePath: vectorDbPath,
-    });
+    const sharedVectorIndex: VectorIndex & { close?: () => void } =
+      new SqliteVectorIndex({
+        persistencePath: vectorDbPath,
+      });
+
+    if (shutdownSignal.aborted) {
+      sharedVectorIndex.close?.();
+    } else {
+      shutdownSignal.addEventListener("abort", () => {
+        sharedVectorIndex.close?.();
+      });
+    }
 
     server.registerTool(
       TOOL_NAMES.searchSemantic,
