@@ -1,214 +1,144 @@
 # Local Model Workers MCP
 
-Local Model Workers MCP is a local MCP server that lets Claude Code, Codex,
-Antigravity, Cursor, VS Code (Roo Code / Cline), and Neovim (Avante) delegate
-repository exploration, semantic search, multi-language code queries, type & lint fixes, and
-test proposals to local models served by LM Studio, Ollama, vLLM, or LocalAI
-on another machine in a private local network.
+[![CI](https://github.com/gaabrielrd/local-model-workers-mcp/actions/workflows/validate.yml/badge.svg)](https://github.com/gaabrielrd/local-model-workers-mcp/actions/workflows/validate.yml)
+[![npm version](https://img.shields.io/npm/v/local-model-workers-mcp.svg)](https://www.npmjs.com/package/local-model-workers-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/local-model-workers-mcp.svg)](https://www.npmjs.com/package/local-model-workers-mcp)
+[![License: MIT](https://img.shields.io/npm/l/local-model-workers-mcp.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D24.18-blue.svg)](package.json)
 
-The local server remains the security boundary: it selects repository context,
-enforces path and content restrictions, validates remote output, and returns a
-structured result. The remote model never writes to the repository, applies a
-patch, or runs a project command.
+Run heavy repository work on your own models — without your code leaving your network.
 
-## Project status
+Local Model Workers MCP is a local MCP server that lets your AI coding tools
+(Claude Code, Codex, Antigravity, Cursor, VS Code, Neovim) delegate repository
+exploration, semantic search, code queries, and test, docs, and lint work to a
+local model served by **LM Studio, Ollama, vLLM, or LocalAI** — on the same
+machine or a trusted private LAN.
 
-Release `2.1.0` implements the complete V2.1 scope, including SQLite embedded vector storage (`sqlite-vec`), 3-state circuit breaker endpoint resiliency, multi-repository cross-referencing, intelligent context distillation, semantic diff analysis (`analyze_diff`), Web Streams SSE progress streaming, dynamic configuration profiles, hardware-aware concurrency control, and Docker containerization.
-The implementation includes:
+It returns **validated, unapplied diffs** and structured results. The server,
+not the model, is the security boundary: it reads your repository, filters what
+leaves, validates what comes back, and never writes to your project.
 
-- 15 MCP tools registered across 4 feature groups;
-- persistent `SqliteVectorIndex` built on native `node:sqlite`;
-- automated `CircuitBreaker` state machine (`closed`, `open`, `half-open`);
-- multi-repository cross-referencing via `additional_repositories` in `query_code_graph` and `search_semantic`;
-- AST comment, docstring, and newline context distillation (`distillContext`);
-- new `analyze_diff` tool for git commit diff summaries and architectural impact reports;
-- Web Streams SSE stream parser (`parseSseStream`);
-- preset configuration profiles (`fast`, `thorough`, `balanced`);
-- hardware-aware concurrency scaling based on system RAM and CPU cores;
-- official `Dockerfile` containerization;
-- layered, revision-controlled configuration with atomic writes;
-- canonical read-only repository access and fail-closed outbound filtering;
-- structured inference through LM Studio, Ollama, vLLM, and LocalAI adapters;
-- priority and model-aware routing, startup health checks, transient failover,
-  and lazy recovery checks for failed providers;
-- explicit trusted-LAN `none` mode for `lms` deployments without token support;
-- repository-free health diagnostics and model availability checks;
-- isolated task lifecycles with cross-process FIFO capacity;
-- bounded repository exploration and validated test-only patch proposals;
-- metadata-only operational logging with seven-day retention and time-series token offload statistics (`get_offload_stats`);
-- confirmed Claude Code, Codex, Antigravity, Cursor, VS Code, and Neovim harness configuration via an
-  interactive checkbox selector (arrow keys, `Space` to toggle, `Enter` to
-  confirm) in the `setup`/`init` assistant, with a `--target` flag for scripts;
-- selectable MCP feature groups during `setup`/`init` (`exploration`, `tests`,
-  `docs`, and `lint`), with all groups enabled by default and `--features` for
-  scripts;
-- managed prompt-steering instruction files that direct harnesses to the MCP
-  tools, with an optional custom `steering_prompt` preference;
-- validated lint-fix patches, type-fix patches (`fix_type_errors` for `tsc` & `mypy`), and documentation patches returned as unapplied
-  unified diffs, so write-heavy mechanical tasks stay on the developer's side
-  of the boundary;
-- an auto-validate test loop that iterates test generation in an isolated
-  temporary copy of the repository until the tests pass (or the iteration and
-  timeout limits are exhausted), so generated tests are only proposed once
-  proven green;
-- a protocol-clean MCP v2 server over `stdio`.
+## What you get
 
-Local qualification is green as of 2026-08-04:
+- **15 MCP tools** across four feature groups (`exploration`, `tests`, `docs`,
+  `lint`) plus always-on health and configuration tools.
+- **Bounded repository exploration** — goal-directed, evidence-backed analysis
+  with progress streaming and client cancellation.
+- **Semantic search & code queries** — a persistent SQLite vector index plus
+  symbol, caller, dependency, and export queries across multiple repositories.
+- **Validated, unapplied diffs** — test proposals, lint fixes, type fixes, and
+  docs patches come back as unified diffs you review and apply yourself.
+- **Auto-validated tests** — generated tests run in an isolated temporary copy
+  of the repo and are proposed only once they pass.
+- **Provider resiliency** — priority routing, health checks, circuit breakers,
+  and failover across LM Studio, Ollama, vLLM, and LocalAI.
+- **Offload savings you can measure** — weekly, monthly, and lifetime token
+  counts with `get_offload_stats`.
+- **Private by design** — only filtered inference traffic reaches your local
+  model over a trusted LAN; credentials are redacted from configuration output.
 
-- `npm run validate` passes formatting, lint, architecture boundaries,
-  typechecking, build, and all 368 automated tests;
-- `npm run release:smoke` produces reproducible tarballs, installs one in an
-  isolated prefix, starts the packaged MCP server, and verifies all 15 tools;
-- the compiled MCP reports the real LM Studio instance healthy without a token,
-  using `authentication: none` / `not_configured`;
-- Qwen 3.5 9B and Gemma 4 12B passed structured-output, required tool-call, and
-  vision probes; Nomic Embed returned 768-dimensional embeddings;
-- the production dependency audit reports no known vulnerabilities.
+## How it works
 
-The package is published under the open MIT license on npm as [`local-model-workers-mcp`](https://www.npmjs.com/package/local-model-workers-mcp) as well as attached as a release tarball to the [latest GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest).
+```
+Your harness ──stdio (MCP)──> local-model-workers-mcp ──HTTP (private LAN)──> Your model
+```
 
-The server exposes exactly fourteen MCP tools:
+The local server:
 
-- `auto_validate_tests`
-- `check_health`
-- `explore_repository`
-- `fix_lint_violations`
-- `fix_type_errors`
-- `generate_docs_patch`
-- `get_config`
-- `get_offload_stats`
-- `propose_tests`
-- `query_code_graph`
-- `search_semantic`
-- `summarize_module`
-- `update_config`
-- `validate_config`
+1. **Reads** the repository through a canonical, fail-closed read capability
+   (path sandbox, Git ignore rules, sensitive/binary exclusions).
+2. **Sends only bounded context** to your model over the trusted LAN.
+3. **Validates** the structured response.
+4. **Returns** structured results — and writes as unapplied unified diffs.
 
-See [prd.md](prd.md) for the complete requirements and acceptance criteria.
+The remote model can never write to your repository, apply a patch, or run a
+project command. Test execution only ever happens in isolated temporary copies.
 
-## V1 boundaries
+## Quick start
 
-- The MCP server runs locally over `stdio`.
-- Only inference traffic reaches configured local model providers over HTTP on
-  a trusted private network. Bearer authentication is optional per provider.
-- Repository access is read-only and restricted to the requested root.
-- Sensitive, ignored, binary, and explicitly excluded files are never sent to
-  LM Studio.
-- Test generation returns a validated unified diff; the MCP server never
-  applies it or executes tests.
-- Task content is ephemeral. Operational logs contain metadata only and are
-  retained for seven days.
-- macOS is the full harness-validation platform for V1. Linux and Windows run
-  basic install, startup, and configuration-read checks in the CI matrix.
-
-## Installation and First Use
-
-### 1. Installation
-
-Install globally from npm:
+### 1. Install
 
 ```sh
 npm install --global local-model-workers-mcp
 ```
 
-Or run interactive setup directly without global installation via `npx`:
+Or run setup without a global install:
 
 ```sh
 npx local-model-workers-mcp setup
 ```
 
-Alternatively, install directly from the latest GitHub Release:
-
-```sh
-# Resolve the asset URL of the latest release and install it globally
-TARBALL_URL="$(curl -fsSL https://api.github.com/repos/gaabrielrd/local-model-workers-mcp/releases/latest \
-  | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).assets[0].browser_download_url")"
-npm install --global "$TARBALL_URL"
-```
-
-To update, repeat the same command after a new release is published. There is no
-automatic updater; reinstalling the newer tarball replaces the previous install.
-
-Verify the install:
-
-```sh
-local-model-workers-mcp --version
-```
-
-### 2. Single-Command Interactive Setup
-
-Run the single interactive onboarding assistant to configure your environment, harness integration, and test connectivity in one step:
+### 2. Configure
 
 ```sh
 local-model-workers-mcp setup
-# or:
-local-model-workers-mcp init
 ```
 
-The setup assistant will interactively prompt for:
-- **LM Studio Base URL**: `http://localhost:1234/v1` (or your private LAN IP).
-- **Allowed Models** *(Optional)*: Press Enter to automatically query LM Studio's `/v1/models` endpoint and auto-populate all available active models.
-- **Default Model**: Select your preferred default model.
-- **Bearer Token** *(Optional)*: Leave empty for local unauthenticated LM Studio instances.
-- **MCP Features**: Press `Space` to enable or disable `exploration`, `tests`, `docs`, and `lint`. Administrative configuration and health tools remain available.
-- **Target Harness(es)**: Press `Space` to toggle `claude-code`, `codex`, and/or `antigravity` on and off, arrow keys to move the cursor, `Enter` to confirm, and `Ctrl+C` to cancel. Use `--target` to skip the prompt in scripts.
+The interactive assistant walks you through the base URL, allowed and default
+models, optional bearer token, feature groups, and target harnesses
+(arrow keys to move, `Space` to toggle, `Enter` to confirm). It then writes the
+harness configuration, runs a health check against your model, and installs a
+managed steering block so your agent knows to use these tools.
 
-Non-interactive setup for scripts or CI pipelines is also supported:
+Non-interactive for scripts and CI:
 
 ```sh
-local-model-workers-mcp setup --target all --features exploration,tests \
+local-model-workers-mcp setup --target all \
+  --features exploration,tests,docs,lint \
   --url "http://localhost:1234/v1" --yes
 ```
 
-### 3. First Use
+### 3. Use
 
-Once setup is complete and passes the health check, start your chosen harness:
+Setup registers the server for your harness — just start your agent:
 
-- **Claude Code**: Run `claude` in your repository directory. The MCP server `local-model-workers` is automatically loaded from `.mcp.json`.
-- **Codex**: Run `codex` from any directory. The MCP server is loaded from `~/.codex/config.toml`.
-- **Antigravity**: Start Antigravity. The MCP server is registered in `~/.gemini/config/mcp_config.json`.
+- **Claude Code**: run `claude` in your repository (project `.mcp.json`).
+- **Codex**: run `codex` (`~/.codex/config.toml`).
+- **Antigravity**: start Antigravity (`~/.gemini/config/mcp_config.json`).
 
-Make sure your shell exports the connection environment variables (or rely on the auto-configured harness defaults):
+Minimal environment:
 
 ```sh
 export LMW_LM_STUDIO_BASE_URL='http://localhost:1234/v1'
-# Optional: if omitted, all models available at /v1/models are allowed:
-export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'
+export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'   # optional: defaults to all served models
 ```
 
-For multi-provider routing, set `LMW_PROVIDERS` to a protected JSON array. A
-lower numeric `priority` is preferred; the router selects the first healthy
-provider that advertises and allows the requested model. See
-[configuration.md](docs/configuration.md) for the schema and compatibility
-behavior.
+For multi-provider routing, set `LMW_PROVIDERS` to a protected JSON array — the
+router picks the first healthy provider that serves the requested model. See
+[docs/configuration.md](docs/configuration.md) for the full contract.
 
----
+## Tools
+
+| Group | Tools |
+| --- | --- |
+| Exploration | `explore_repository`, `query_code_graph`, `search_semantic`, `summarize_module` |
+| Tests | `propose_tests`, `auto_validate_tests` |
+| Docs | `generate_docs_patch`, `analyze_diff` |
+| Lint | `fix_lint_violations`, `fix_type_errors` |
+| Administration | `check_health`, `get_config`, `get_offload_stats`, `validate_config`, `update_config` |
+
+## Quality
+
+- Published on [npm](https://www.npmjs.com/package/local-model-workers-mcp) and
+  attached to the latest
+  [GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest)
+  under the MIT license.
+- `npm run validate` is green on macOS, Linux, and Windows CI — formatting,
+  lint, typecheck, build, and 370 automated tests.
+- Release qualification verifies the packaged server registers all 15 tools and
+  runs real-model structured-output probes.
 
 ## Documentation
 
-- [Product requirements](prd.md)
-- [Architecture](docs/architecture.md)
-- [Development process](docs/development-process.md)
-- [Testing strategy](docs/testing.md)
-- [Configuration model](docs/configuration.md)
-- [Security model](docs/security.md)
-- [Repository read capability](docs/repository-access.md)
-- [Outbound content filtering](docs/content-filtering.md)
-- [Repository exploration](docs/repository-exploration.md)
-- [Safe test proposals](docs/test-proposals.md)
-- [Operational logging](docs/operational-logging.md)
-- [MCP tool reference](docs/mcp-tools.md)
-- [Installation and harness configuration](docs/installation.md)
-- [V1 release qualification](docs/release-qualification.md)
-- [External integrations](docs/integrations.md)
-- [Core contracts](docs/contracts.md)
-- [Architecture decisions](docs/decisions/README.md)
-- [Implementation plan](docs/tasks/README.md)
+- [Architecture](docs/architecture.md) · [Security model](docs/security.md) ·
+  [Configuration](docs/configuration.md) · [Installation & harness setup](docs/installation.md)
+- [MCP tool reference](docs/mcp-tools.md) · [Testing strategy](docs/testing.md) ·
+  [External integrations](docs/integrations.md) · [Architecture decisions](docs/decisions/README.md)
+- [Product requirements](prd.md) · [Development process](docs/development-process.md)
 
 ## Development
 
-Use Node.js 24.18.0 and npm 11.16.0. With `nvm`, the repository baseline can be
-selected from `.nvmrc`.
+Requires Node.js 24.18.x and npm 11.x (see `.nvmrc`):
 
 ```sh
 nvm use
@@ -216,29 +146,15 @@ npm ci
 npm run validate
 ```
 
-`npm run validate` checks formatting, linting, static types, tests, and the
-production build. The CLI can also be built, inspected, and packed as a local
-npm candidate:
+`npm run validate` checks formatting, linting, types, tests, and the production
+build. Build and inspect a release candidate with:
 
 ```sh
 npm run build
-node dist/cli/index.js --version
 npm run pack:check
 npm run release:smoke
 ```
 
-Official harness evidence is measured with:
+## License
 
-```sh
-npm run release:measure -- /absolute/path/to/release-evidence.json
-```
-
-The version and configuration diagnostics are written to stderr so stdout
-remains reserved for MCP `stdio`. Every push to `main` automatically runs CI
-validation and creates a GitHub Release with the package installer.
-
-The protected environment contract and editable file examples are documented
-in [configuration.md](docs/configuration.md). [`.env.example`](.env.example)
-contains placeholders only; the application does not load `.env` files. When
-configured, the Bearer token is not retained in effective configuration
-snapshots.
+[MIT](LICENSE)
