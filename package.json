@@ -47,6 +47,8 @@
     "lint": "eslint . --max-warnings 0",
     "pack:check": "npm pack --dry-run --json --ignore-scripts",
     "pretest": "npm run build",
+    "pretest:unit": "npm run build",
+    "pretest:integration": "npm run build",
     "release:smoke": "node scripts/release/smoke-package.mjs",
     "release:measure": "node scripts/release/measure-scenarios.mjs",
     "test": "node --import tsx --test --test-concurrency=4 --test-timeout=30000 test/*.test.ts",
