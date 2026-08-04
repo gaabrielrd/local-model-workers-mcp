@@ -594,6 +594,9 @@ async function parseJsonResponse(
       }
       chunks.push(result.value);
     }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
   } finally {
     reader.releaseLock();
   }
