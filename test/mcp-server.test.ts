@@ -361,10 +361,10 @@ async function fakeLmStudio(t: test.TestContext): Promise<string> {
   t.after(
     () =>
       new Promise<void>((resolve, reject) => {
+        server.closeAllConnections();
         server.close((error) =>
           error === undefined ? resolve() : reject(error),
         );
-        server.closeAllConnections();
       }),
   );
   const address = server.address();

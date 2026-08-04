@@ -362,6 +362,7 @@ async function startFakeServer(
   t.after(
     () =>
       new Promise<void>((resolve, reject) => {
+        server.closeAllConnections();
         server.close((error) => {
           if (error === undefined) {
             resolve();
@@ -369,7 +370,6 @@ async function startFakeServer(
             reject(error);
           }
         });
-        server.closeAllConnections();
       }),
   );
   const address = server.address();
