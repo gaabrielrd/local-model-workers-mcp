@@ -268,13 +268,21 @@ fixtures. Task tracking: docs/tasks 057.
 
 ## Version 3.0 — Candidate direction (not committed)
 
-Direction is under discussion and nothing here is planned for an upcoming
-release:
+A full proposal is written up in
+[roadmap-v3-proposal.md](roadmap-v3-proposal.md): a headline capability
+(verified fixes), the breaking cleanups a major can carry, and three follow-on
+pillars, each traced to a structural gap the 2.x line leaves behind. Nothing
+there is committed and it carries open questions for the maintainer.
+
+Earlier informal direction, now folded into that proposal:
 
 - Team administration and multi-account isolation for shared LM Studio or vLLM
-  infrastructure.
+  infrastructure — kept, but scoped down: request attribution for a shared model
+  box, never server-side multi-tenancy, which collides with the standing
+  non-goal below.
 - Deeper harness-specific rendering (e.g., IDE inline diff previews) through
-  the MCP SDK's evolving capabilities.
+  the MCP SDK's evolving capabilities — still open, gated on SDK capabilities
+  rather than on this project.
 
 ---
 
