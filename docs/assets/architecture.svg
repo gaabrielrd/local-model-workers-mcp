@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-label="Architecture: the harness talks to the local MCP server over stdio; the server is the security boundary and sends only filtered, bounded context to your model over a private LAN">
+  <title>Local Model Workers MCP — security boundary</title>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#22d3ee"/>
+    </marker>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1e293b" stroke-width="1" stroke-opacity="0.5"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="560" rx="18" fill="url(#panel)"/>
+  <rect width="1280" height="560" rx="18" fill="url(#grid)"/>
+  <rect x="0.5" y="0.5" width="1279" height="559" rx="18" fill="none" stroke="#1e293b"/>
+
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="40" y="52" font-size="20" font-weight="700" fill="#e2e8f0">The server is the security boundary</text>
+    <text x="40" y="78" font-size="15" fill="#64748b">Your repository is read locally. Only bounded, filtered context crosses to the model. Writes come back as diffs you apply.</text>
+
+    <!-- Harness -->
+    <g transform="translate(40 124)">
+      <rect width="272" height="330" rx="14" fill="#0b1220" stroke="#1e293b"/>
+      <text x="20" y="34" font-size="15" font-weight="700" fill="#e2e8f0">Your AI harness</text>
+      <text x="20" y="56" font-size="12" fill="#475569">runs on your machine</text>
+      <g font-size="14" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+        <text x="20" y="94">Claude Code</text>
+        <text x="20" y="124">Codex</text>
+        <text x="20" y="154">Cursor</text>
+        <text x="20" y="184">VS Code</text>
+        <text x="20" y="214">Neovim</text>
+        <text x="20" y="244">JetBrains</text>
+        <text x="20" y="274">Antigravity</text>
+      </g>
+      <rect x="20" y="292" width="232" height="26" rx="13" fill="#0f172a" stroke="#334155"/>
+      <text x="136" y="310" text-anchor="middle" font-size="12" fill="#64748b" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">stdio · MCP JSON-RPC</text>
+    </g>
+
+    <!-- Server -->
+    <g transform="translate(392 124)">
+      <rect width="440" height="330" rx="14" fill="#0b1220" stroke="url(#accent)" stroke-width="1.5"/>
+      <text x="24" y="34" font-size="15" font-weight="700" fill="url(#accent)">local-model-workers-mcp</text>
+      <text x="24" y="56" font-size="12" fill="#475569">fail-closed, never writes to your project</text>
+
+      <g font-size="13">
+        <g transform="translate(24 74)">
+          <rect width="392" height="52" rx="10" fill="#0f172a" stroke="#1e293b"/>
+          <text x="16" y="22" fill="#cbd5e1" font-weight="600">1 · Path sandbox</text>
+          <text x="16" y="40" fill="#64748b">canonical realpath, containment, symlink escape rejection</text>
+        </g>
+        <g transform="translate(24 134)">
+          <rect width="392" height="52" rx="10" fill="#0f172a" stroke="#1e293b"/>
+          <text x="16" y="22" fill="#cbd5e1" font-weight="600">2 · Content filter</text>
+          <text x="16" y="40" fill="#64748b">gitignore rules, sensitive and binary exclusion</text>
+        </g>
+        <g transform="translate(24 194)">
+          <rect width="392" height="52" rx="10" fill="#0f172a" stroke="#1e293b"/>
+          <text x="16" y="22" fill="#cbd5e1" font-weight="600">3 · Schema validation</text>
+          <text x="16" y="40" fill="#64748b">structured output parsed and bounded before it is trusted</text>
+        </g>
+        <g transform="translate(24 254)">
+          <rect width="392" height="52" rx="10" fill="#0f172a" stroke="#1e293b"/>
+          <text x="16" y="22" fill="#cbd5e1" font-weight="600">4 · Patch policy</text>
+          <text x="16" y="40" fill="#64748b">test-only / docs-only scope, file and line ceilings</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Model -->
+    <g transform="translate(912 124)">
+      <rect width="328" height="330" rx="14" fill="#0b1220" stroke="#1e293b"/>
+      <text x="20" y="34" font-size="15" font-weight="700" fill="#e2e8f0">Your model</text>
+      <text x="20" y="56" font-size="12" fill="#475569">same machine or trusted private LAN</text>
+
+      <g transform="translate(20 78)">
+        <rect width="288" height="120" rx="10" fill="#0f172a" stroke="#1e293b"/>
+        <text x="16" y="26" font-size="13" fill="#34d399" font-weight="600">Receives</text>
+        <g font-size="12.5" fill="#94a3b8">
+          <text x="16" y="50">bounded repository excerpts</text>
+          <text x="16" y="72">the task goal and constraints</text>
+          <text x="16" y="94">a strict output schema</text>
+        </g>
+      </g>
+
+      <g transform="translate(20 214)">
+        <rect width="288" height="96" rx="10" fill="#0f172a" stroke="#7f1d1d"/>
+        <text x="16" y="26" font-size="13" fill="#f87171" font-weight="600">Can never</text>
+        <g font-size="12.5" fill="#94a3b8">
+          <text x="16" y="50">write to your repository</text>
+          <text x="16" y="72">apply a patch or run a command</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- flows -->
+    <g font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+      <line x1="316" y1="250" x2="386" y2="250" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="351" y="240" text-anchor="middle" fill="#64748b">call</text>
+
+      <line x1="836" y1="228" x2="906" y2="228" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrowAccent)"/>
+      <text x="871" y="218" text-anchor="middle" fill="#22d3ee">HTTP</text>
+
+      <line x1="906" y1="286" x2="836" y2="286" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="871" y="306" text-anchor="middle" fill="#64748b">JSON</text>
+
+      <line x1="386" y1="330" x2="316" y2="330" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <text x="351" y="350" text-anchor="middle" fill="#64748b">diff</text>
+    </g>
+
+    <text x="40" y="510" font-size="13" fill="#475569" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">Generated tests execute only inside an isolated temporary copy — never your working tree.</text>
+  </g>
+</svg>

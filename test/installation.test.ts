@@ -463,6 +463,35 @@ void test("interactive setup command creates harness and global preference files
   assert.match(text, /Health status/);
 });
 
+void test("setup never echoes the bearer token to the terminal", async (t) => {
+  const fixture = await createFixture(t);
+  const output: string[] = [];
+  const io = {
+    write: (message: string): void => {
+      output.push(message);
+    },
+    environment: protectedEnvironment,
+    cwd: fixture.project,
+    homeDirectory: fixture.home,
+    platform: "linux" as const,
+  };
+
+  const exitCode = await runInstallationCommand(
+    ["setup", "--target", "both", "--yes"],
+    io,
+  );
+
+  assert.equal(exitCode, 0);
+  const text = output.join("");
+  // The token is persisted to the harness files, never printed back.
+  assert.equal(
+    text.includes(protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN),
+    false,
+  );
+  assert.match(text, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  assert.match(text, /value hidden/);
+});
+
 void test("setup persists an explicit MCP feature selection", async (t) => {
   const fixture = await createFixture(t);
   const output: string[] = [];

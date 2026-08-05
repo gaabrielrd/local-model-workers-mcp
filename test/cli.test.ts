@@ -62,10 +62,36 @@ void test("the CLI reports its version on the diagnostic channel", () => {
 void test("the CLI rejects unknown options without using stdout", () => {
   const diagnostics: string[] = [];
 
-  const exitCode = runCli(["--unknown"], (message) => {
-    diagnostics.push(message);
-  });
+  const exitCode = runCli(
+    ["--unknown"],
+    (message) => {
+      diagnostics.push(message);
+    },
+    { environment: {}, stream: { isTTY: false }, platform: "linux" },
+  );
 
   assert.equal(exitCode, 64);
-  assert.deepEqual(diagnostics, ["Unknown option: --unknown\n"]);
+  const text = diagnostics.join("");
+  assert.match(text, /Unknown option: --unknown/);
+  assert.match(text, /--help/);
+});
+
+void test("plain-capability help renders without escape sequences", () => {
+  const diagnostics: string[] = [];
+
+  const exitCode = runCli(
+    ["--help"],
+    (message) => {
+      diagnostics.push(message);
+    },
+    { environment: {}, stream: { isTTY: false }, platform: "linux" },
+  );
+
+  assert.equal(exitCode, 0);
+  const text = diagnostics.join("");
+  assert.match(text, /USAGE/);
+  assert.match(text, /setup/);
+  assert.match(text, /configure-harness/);
+  // A non-TTY diagnostic stream must never receive ANSI styling.
+  assert.equal(text.includes("\x1b["), false);
 });

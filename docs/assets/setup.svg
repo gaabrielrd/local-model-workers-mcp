@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="732" viewBox="0 0 700 732" role="img" aria-label="Terminal recording of local-model-workers-mcp setup, showing the gradient wordmark, five guided steps, a health check, and a completion summary">
+  <title>local-model-workers-mcp setup</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="700" height="732" rx="14" fill="#020617"/>
+  <rect width="700" height="44" rx="14" fill="url(#chrome)"/>
+  <rect y="30" width="700" height="14" fill="#0f172a"/>
+  <circle cx="26" cy="22" r="6" fill="#f87171"/>
+  <circle cx="48" cy="22" r="6" fill="#fbbf24"/>
+  <circle cx="70" cy="22" r="6" fill="#34d399"/>
+  <text x="350" y="27" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#64748b">local-model-workers-mcp setup</text>
+  <rect x="0.5" y="0.5" width="699" height="731" rx="14" fill="none" stroke="#1e293b"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13.5">
+    <!-- wordmark -->
+    <g fill="url(#g)" font-size="14.5">
+      <text x="28" y="86" xml:space="preserve">██╗     ███╗   ███╗██╗    ██╗</text>
+      <text x="28" y="105" xml:space="preserve">██║     ████╗ ████║██║    ██║</text>
+      <text x="28" y="124" xml:space="preserve">██║     ██╔████╔██║██║ █╗ ██║</text>
+      <text x="28" y="143" xml:space="preserve">██║     ██║╚██╔╝██║██║███╗██║</text>
+      <text x="28" y="162" xml:space="preserve">███████╗██║ ╚═╝ ██║╚███╔███╔╝</text>
+      <text x="28" y="181" xml:space="preserve">╚══════╝╚═╝     ╚═╝ ╚══╝╚══╝ </text>
+    </g>
+
+    <text x="28" y="214" fill="#e2e8f0" font-weight="700">Local Model Workers <tspan fill="#64748b" font-weight="400">v2.6.0</tspan></text>
+    <text x="28" y="234" fill="#64748b">Heavy repository work on your own models.</text>
+    <text x="28" y="254" fill="#22d3ee">Setup</text>
+
+    <!-- step 1 -->
+    <text x="28" y="296"><tspan fill="url(#g)" font-weight="700">1/5  PROVIDER CONNECTION</tspan> <tspan fill="#334155">──────────────────────</tspan></text>
+    <text x="28" y="320" fill="#94a3b8">LM Studio Base URL <tspan fill="#475569">[http://localhost:1234/v1]:</tspan></text>
+
+    <!-- step 2 -->
+    <text x="28" y="358"><tspan fill="url(#g)" font-weight="700">2/5  MODEL ACCESS</tspan> <tspan fill="#334155">─────────────────────────────</tspan></text>
+    <text x="28" y="382"><tspan fill="#34d399">✔</tspan> <tspan fill="#e2e8f0">Discovered </tspan><tspan fill="#e2e8f0" font-weight="700">3</tspan><tspan fill="#e2e8f0"> model(s)</tspan></text>
+    <text x="56" y="402" fill="#64748b">• qwen/qwen3.5-9b</text>
+    <text x="56" y="421" fill="#64748b">• deepseek/deepseek-coder-v3</text>
+    <text x="56" y="440" fill="#64748b">• nomic-ai/nomic-embed-text</text>
+
+    <!-- step 3 -->
+    <text x="28" y="478"><tspan fill="url(#g)" font-weight="700">3/5  FEATURE GROUPS</tspan> <tspan fill="#334155">───────────────────────────</tspan></text>
+    <text x="28" y="502" fill="#94a3b8">Select MCP features <tspan fill="#475569">(space to toggle, enter):</tspan></text>
+    <text x="28" y="522"><tspan fill="#22d3ee">›</tspan> <tspan fill="#34d399">[x]</tspan> <tspan fill="#e2e8f0">Repository exploration and code search</tspan></text>
+    <text x="28" y="541"><tspan fill="#020617">›</tspan> <tspan fill="#34d399">[x]</tspan> <tspan fill="#94a3b8">Test generation and auto-validation</tspan></text>
+    <text x="28" y="560"><tspan fill="#020617">›</tspan> <tspan fill="#475569">[ ]</tspan> <tspan fill="#94a3b8">Documentation generation</tspan></text>
+
+    <!-- health -->
+    <text x="28" y="598"><tspan fill="url(#g)" font-weight="700">5/5  PLANNED CHANGES</tspan> <tspan fill="#334155">──────────────────────────</tspan></text>
+    <text x="28" y="622"><tspan fill="#34d399">✔</tspan> <tspan fill="#e2e8f0">Health status: </tspan><tspan fill="#e2e8f0" font-weight="700">HEALTHY</tspan></text>
+
+    <!-- summary -->
+    <g fill="#334155">
+      <text x="28" y="654" xml:space="preserve">╭─ <tspan fill="#22d3ee">Ready</tspan> ────────────────────────────────────────╮</text>
+      <text x="28" y="673" xml:space="preserve">│ <tspan fill="#e2e8f0" font-weight="700">Setup Complete</tspan>                                 │</text>
+      <text x="28" y="692" xml:space="preserve">│ <tspan fill="#94a3b8">Provider:             http://localhost:1234/v1</tspan> │</text>
+      <text x="28" y="711" xml:space="preserve">╰────────────────────────────────────────────────╯</text>
+    </g>
+  </g>
+</svg>

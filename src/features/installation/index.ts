@@ -54,3 +54,20 @@ export {
   type SelectOptionsInput,
   type SelectOptionsResult,
 } from "./select-options.js";
+export {
+  ACCENT_END,
+  ACCENT_START,
+  createTheme,
+  detectCapabilities,
+  startSpinner,
+  stripAnsi,
+  visibleLength,
+  type ColorDepth,
+  type DetectCapabilitiesInput,
+  type Rgb,
+  type SpinnerHandle,
+  type StartSpinnerInput,
+  type Theme,
+  type ThemeCapabilities,
+} from "./theme.js";
+export { renderBanner, type BannerInput } from "./banner.js";

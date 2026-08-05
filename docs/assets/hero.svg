@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" role="img" aria-label="Local Model Workers MCP — heavy repository work on your own models, without your code leaving your network">
+  <title>Local Model Workers MCP</title>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.5"/>
+      <stop offset="0.5" stop-color="#a78bfa" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1e293b" stroke-width="1" stroke-opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="440" rx="20" fill="url(#panel)"/>
+  <rect width="1280" height="440" rx="20" fill="url(#grid)"/>
+  <ellipse cx="220" cy="90" rx="420" ry="260" fill="url(#glow)"/>
+  <ellipse cx="1080" cy="380" rx="420" ry="260" fill="url(#glow2)"/>
+  <rect x="0.5" y="0.5" width="1279" height="439" rx="20" fill="none" stroke="#1e293b"/>
+
+  <!-- brand mark: a shielded local node -->
+  <g transform="translate(84 132)">
+    <path d="M44 0 L88 20 V56 C88 88 68 112 44 122 C20 112 0 88 0 56 V20 Z" fill="none" stroke="url(#accent)" stroke-width="2.5"/>
+    <circle cx="44" cy="58" r="12" fill="url(#accent)"/>
+    <circle cx="44" cy="58" r="25" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-opacity="0.55"/>
+    <circle cx="44" cy="58" r="37" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-opacity="0.3"/>
+  </g>
+
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="212" y="150" font-size="30" font-weight="600" fill="#64748b" letter-spacing="7">LOCAL MODEL</text>
+    <text x="212" y="228" font-size="74" font-weight="800" fill="url(#accent)" letter-spacing="-1.5">WORKERS MCP</text>
+    <rect x="214" y="252" width="470" height="2" fill="url(#fade)"/>
+    <text x="212" y="298" font-size="25" fill="#cbd5e1">Heavy repository work on your own models —</text>
+    <text x="212" y="332" font-size="25" fill="#cbd5e1">without your code leaving your network.</text>
+
+    <!-- capability chips -->
+    <g font-size="15" font-weight="600">
+      <g transform="translate(212 366)">
+        <rect width="168" height="34" rx="17" fill="#0b1220" stroke="#22d3ee" stroke-opacity="0.45"/>
+        <text x="84" y="22" text-anchor="middle" fill="#67e8f9">15 MCP tools</text>
+      </g>
+      <g transform="translate(392 366)">
+        <rect width="214" height="34" rx="17" fill="#0b1220" stroke="#818cf8" stroke-opacity="0.45"/>
+        <text x="107" y="22" text-anchor="middle" fill="#a5b4fc">Validated, unapplied diffs</text>
+      </g>
+      <g transform="translate(618 366)">
+        <rect width="196" height="34" rx="17" fill="#0b1220" stroke="#a78bfa" stroke-opacity="0.45"/>
+        <text x="98" y="22" text-anchor="middle" fill="#c4b5fd">Zero code egress</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- provider rail -->
+  <g transform="translate(880 96)" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15">
+    <rect x="0" y="0" width="316" height="248" rx="14" fill="#0b1220" stroke="#1e293b"/>
+    <circle cx="22" cy="24" r="5" fill="#f87171"/>
+    <circle cx="40" cy="24" r="5" fill="#fbbf24"/>
+    <circle cx="58" cy="24" r="5" fill="#34d399"/>
+    <text x="288" y="29" text-anchor="end" fill="#475569" font-size="12">private LAN</text>
+    <line x1="0" y1="44" x2="316" y2="44" stroke="#1e293b"/>
+
+    <g fill="#94a3b8">
+      <text x="24" y="80">LM Studio</text>
+      <text x="24" y="118">Ollama</text>
+      <text x="24" y="156">vLLM</text>
+      <text x="24" y="194">LocalAI</text>
+    </g>
+    <g fill="#34d399" font-size="13">
+      <text x="292" y="80" text-anchor="end">healthy</text>
+      <text x="292" y="118" text-anchor="end">healthy</text>
+      <text x="292" y="156" text-anchor="end">standby</text>
+      <text x="292" y="194" text-anchor="end">standby</text>
+    </g>
+    <g fill="none" stroke="#1e293b">
+      <line x1="24" y1="96" x2="292" y2="96"/>
+      <line x1="24" y1="134" x2="292" y2="134"/>
+      <line x1="24" y1="172" x2="292" y2="172"/>
+    </g>
+    <text x="24" y="228" fill="#475569" font-size="12">failover · circuit breaker · priority routing</text>
+  </g>
+</svg>

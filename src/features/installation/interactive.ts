@@ -15,11 +15,23 @@ import {
 } from "./harnesses.js";
 import { selectOptions } from "./select-options.js";
 import type { InstallationCommandIo } from "./cli.js";
+import { renderBanner } from "./banner.js";
+import { createTheme, detectCapabilities, startSpinner } from "./theme.js";
 import {
   FEATURE_GROUPS,
   getEffectiveConfiguration,
   type FeatureGroup,
 } from "../configuration/index.js";
+
+const TOTAL_STEPS = 5;
+
+/** Masks a secret so it can be echoed in guidance without leaking the value. */
+function maskSecret(secret: string): string {
+  if (secret.length <= 4) {
+    return "*".repeat(8);
+  }
+  return `${secret.slice(0, 2)}${"*".repeat(8)}${secret.slice(-2)}`;
+}
 
 export async function runInteractiveSetup(
   optionsMap: ReadonlyMap<string, string | true>,
@@ -45,8 +57,16 @@ export async function runInteractiveSetup(
     });
   }
 
+  const theme = createTheme(
+    detectCapabilities({
+      environment: io.environment ?? process.env,
+      stream: process.stderr,
+      platform: io.platform ?? process.platform,
+    }),
+  );
+
   try {
-    io.write("--- Local Model Workers MCP Setup ---\n\n");
+    io.write(renderBanner({ theme, subtitle: "Setup" }));
 
     const env = io.environment ?? process.env;
     const homeDir =
@@ -57,6 +77,7 @@ export async function runInteractiveSetup(
     const autoConfirm = optionsMap.has("yes") || isNonInteractive;
 
     // 1. Connection / LM Studio Base URL
+    io.write(theme.section(1, TOTAL_STEPS, "Provider connection"));
     const envUrl = env.LMW_LM_STUDIO_BASE_URL ?? "http://localhost:1234/v1";
     let baseUrl =
       stringOpt(optionsMap, "url") ?? stringOpt(optionsMap, "base-url");
@@ -83,6 +104,7 @@ export async function runInteractiveSetup(
     }
 
     // 2. Allowed Models (Auto-populated if omitted)
+    io.write(theme.section(2, TOTAL_STEPS, "Model access"));
     const envModelsRaw = env.LMW_ALLOWED_MODELS;
     let envModelsDefault: string[] | undefined;
     if (envModelsRaw) {
@@ -123,9 +145,11 @@ export async function runInteractiveSetup(
     }
 
     if (allowedModels === undefined || allowedModels.length === 0) {
-      io.write(
-        "Auto-detecting available models from LM Studio API (/v1/models)...\n",
-      );
+      const spinner = startSpinner({
+        theme,
+        write: io.write,
+        label: `Probing ${baseUrl}/models for available models`,
+      });
       try {
         const client = createLmStudioClient({
           baseUrl,
@@ -135,13 +159,26 @@ export async function runInteractiveSetup(
         const catalog = await client.listModels({ timeout_ms: 5000 });
         if (catalog.models.length > 0) {
           allowedModels = [...catalog.models];
-          io.write(
-            `Auto-populated ${allowedModels.length} model(s) from LM Studio: ${allowedModels.join(", ")}\n`,
+          spinner.stop(
+            theme.status(
+              "success",
+              `Discovered ${theme.bold(String(allowedModels.length))} model(s)`,
+            ),
+          );
+          for (const model of allowedModels) {
+            io.write(`    ${theme.muted(theme.glyphs.bullet)} ${model}\n`);
+          }
+        } else {
+          spinner.stop(
+            theme.status("warning", "Provider returned an empty model catalog"),
           );
         }
       } catch {
-        io.write(
-          "Could not reach LM Studio API to auto-detect models; allowing all models.\n",
+        spinner.stop(
+          theme.status(
+            "warning",
+            "Could not reach the provider; allowing all models",
+          ),
         );
       }
     }
@@ -166,6 +203,7 @@ export async function runInteractiveSetup(
     }
 
     // 4. MCP feature groups
+    io.write(theme.section(3, TOTAL_STEPS, "Feature groups"));
     let enabledFeatures: readonly FeatureGroup[];
     const featuresFlag = stringOpt(optionsMap, "features");
     if (featuresFlag !== undefined) {
@@ -201,6 +239,7 @@ export async function runInteractiveSetup(
     }
 
     // 5. Target Harness(es)
+    io.write(theme.section(4, TOTAL_STEPS, "Target harnesses"));
     let targets: readonly Harness[];
     const targetFlag = stringOpt(optionsMap, "target");
     if (targetFlag !== undefined) {
@@ -278,7 +317,7 @@ export async function runInteractiveSetup(
       delete effectiveEnv.LMW_LM_STUDIO_BEARER_TOKEN;
     }
 
-    io.write("\nProposing configuration changes...\n");
+    io.write(theme.section(5, TOTAL_STEPS, "Planned changes"));
 
     // Propose Global Preferences
     const globalProposal = await proposeGlobalPreferences({
@@ -293,15 +332,15 @@ export async function runInteractiveSetup(
     });
 
     io.write(
-      `global: ${globalProposal.state} -> ${globalProposal.target_path}\n`,
+      `${theme.status("pending", theme.bold("global"))} ${theme.muted(globalProposal.state)} ${theme.muted(theme.glyphs.arrow)} ${globalProposal.target_path}\n`,
     );
     for (const line of globalProposal.preview) {
-      io.write(`  ${line}\n`);
+      io.write(`    ${theme.muted(line)}\n`);
     }
 
     if (!globalProposal.applicable) {
       io.write(
-        "Global preferences state is invalid; manual repair required.\n",
+        `${theme.status("failure", "Global preferences state is invalid; manual repair required.")}\n`,
       );
       return 65;
     }
@@ -318,31 +357,41 @@ export async function runInteractiveSetup(
 
     for (const proposal of harnessProposals) {
       io.write(
-        `${proposal.harness}: ${proposal.state} -> ${proposal.target_path}\n`,
+        `${theme.status("pending", theme.bold(proposal.harness))} ${theme.muted(proposal.state)} ${theme.muted(theme.glyphs.arrow)} ${proposal.target_path}\n`,
       );
       for (const line of proposal.preview) {
-        io.write(`  ${line}\n`);
+        io.write(`    ${theme.muted(line)}\n`);
       }
       for (const warning of proposal.warnings) {
-        io.write(`  warning: ${warning}\n`);
+        io.write(`    ${theme.status("warning", theme.warning(warning))}\n`);
       }
     }
 
     if (harnessProposals.some((p) => !p.applicable)) {
-      io.write("One or more harness configurations require manual repair.\n");
+      io.write(
+        `${theme.status("failure", "One or more harness configurations require manual repair.")}\n`,
+      );
       return 65;
     }
 
     if (dryRun) {
-      io.write("\n[Dry Run] No files were modified.\n");
+      io.write(
+        `\n${theme.box(
+          [
+            theme.status("success", "[Dry Run] No files were modified."),
+            theme.muted("Re-run without --dry-run to apply these changes."),
+          ],
+          theme.accent("Preview"),
+        )}\n`,
+      );
       return 0;
     }
 
     if (!autoConfirm && !isNonInteractive && rl) {
-      const confirmText = "\nApply these changes? (y/N): ";
+      const confirmText = `\n${theme.accent(theme.glyphs.arrow)} Apply these changes? ${theme.muted("(y/N)")}: `;
       const answer = (await rl.question(confirmText)).trim().toLowerCase();
       if (answer !== "y" && answer !== "yes") {
-        io.write("Setup cancelled by user.\n");
+        io.write(`${theme.status("warning", "Setup cancelled by user.")}\n`);
         return 0;
       }
     }
@@ -362,7 +411,9 @@ export async function runInteractiveSetup(
       platform: io.platform ?? process.platform,
       homeDirectory: homeDir,
     });
-    io.write(`global: ${globalResult.outcome}\n`);
+    io.write(
+      `${theme.status("success", theme.bold("global"))} ${theme.success(globalResult.outcome)}\n`,
+    );
 
     // Apply Harness Configurations
     for (const proposal of harnessProposals) {
@@ -378,11 +429,18 @@ export async function runInteractiveSetup(
           : {}),
         environment: effectiveEnv,
       });
-      io.write(`${result.harness}: ${result.outcome}\n`);
+      io.write(
+        `${theme.status("success", theme.bold(result.harness))} ${theme.success(result.outcome)}\n`,
+      );
     }
 
     // Diagnostics / Health Check
-    io.write("\nRunning health diagnostics against LM Studio...\n");
+    io.write("\n");
+    const healthSpinner = startSpinner({
+      theme,
+      write: io.write,
+      label: "Running health diagnostics against the provider",
+    });
     const healthResult = await checkHealth({
       loadConfiguration: async () => {
         const effective = await getEffectiveConfiguration({
@@ -397,51 +455,94 @@ export async function runInteractiveSetup(
       },
     });
 
-    io.write(`Health status: ${healthResult.status.toUpperCase()}\n`);
-    io.write(
-      `  LM Studio Reachability: ${healthResult.reachability.status} (${healthResult.reachability.code})\n`,
+    const overall = healthResult.status.toUpperCase();
+    healthSpinner.stop(
+      theme.status(
+        healthResult.status === "healthy" ? "success" : "failure",
+        `Health status: ${theme.bold(overall)}`,
+      ),
     );
-    io.write(
-      `  Authentication: ${healthResult.authentication.status} (${healthResult.authentication.code})\n`,
-    );
+
+    const probeLine = (
+      label: string,
+      probe: { readonly status: string; readonly code: string },
+    ): string => {
+      const kind =
+        probe.status === "healthy"
+          ? "success"
+          : probe.status === "not_checked"
+            ? "pending"
+            : "failure";
+      const padded = `${label}:`.padEnd(24);
+      return `  ${theme.status(kind, `${padded} ${probe.status} ${theme.muted(`(${probe.code})`)}`)}\n`;
+    };
+
+    io.write(probeLine("Reachability", healthResult.reachability));
+    io.write(probeLine("Authentication", healthResult.authentication));
     if (healthResult.default_model) {
-      io.write(
-        `  Default Model (${healthResult.default_model.model}): ${healthResult.default_model.status} (${healthResult.default_model.code})\n`,
-      );
+      io.write(probeLine("Default model", healthResult.default_model));
+      io.write(`    ${theme.muted(healthResult.default_model.model)}\n`);
     }
 
-    io.write("\n--- Setup Complete! ---\n");
-    io.write("You can now start your harness:\n");
+    // These lines are kept as contiguous plain text (no per-character
+    // gradient) so they stay greppable by humans and scripts alike.
+    io.write(
+      `\n${theme.box(
+        [
+          theme.bold("Setup Complete"),
+          "",
+          `Provider:             ${baseUrl}`,
+          `Default model:        ${defaultModel}`,
+          `Enabled MCP features: ${enabledFeatures.join(", ")}`,
+          `Harnesses:            ${targets.join(", ")}`,
+        ],
+        theme.accent("Ready"),
+      )}\n`,
+    );
+
+    const nextSteps: string[] = [];
     if (targets.includes("claude-code")) {
-      io.write(
-        "  - For Claude Code: run 'claude' in this repository directory.\n",
+      nextSteps.push(
+        `Claude Code: run ${theme.accent("claude")} in this repository.`,
       );
     }
     if (targets.includes("codex")) {
-      io.write("  - For Codex: run 'codex' from any shell.\n");
+      nextSteps.push(`Codex: run ${theme.accent("codex")} from any shell.`);
     }
     if (targets.includes("antigravity")) {
-      io.write(
-        "  - For Antigravity: server registered in ~/.gemini/config/mcp_config.json.\n",
+      nextSteps.push(
+        "Antigravity: registered in ~/.gemini/config/mcp_config.json.",
       );
     }
     if (targets.includes("jetbrains")) {
-      io.write(
-        "  - For JetBrains IDEs: restart the IDE; AI Assistant reads the shared mcp.json on startup.\n",
+      nextSteps.push(
+        "JetBrains: restart the IDE; AI Assistant reads the shared mcp.json on startup.",
       );
-      io.write(
-        "  - Register the steering rules file in Settings > Tools > AI Assistant > Rules.\n",
+      nextSteps.push(
+        "JetBrains: register the steering rules in Settings > Tools > AI Assistant > Rules.",
       );
     }
-    io.write("\nMake sure your shell exports the environment variables:\n");
-    io.write(`  Enabled MCP features: ${enabledFeatures.join(", ")}\n`);
-    io.write(`  export LMW_LM_STUDIO_BASE_URL='${baseUrl}'\n`);
+    if (nextSteps.length > 0) {
+      io.write(`\n${theme.bold("Start your harness")}\n`);
+      for (const step of nextSteps) {
+        io.write(`  ${theme.muted(theme.glyphs.bullet)} ${step}\n`);
+      }
+    }
+
+    io.write(`\n${theme.bold("Export these in your shell")}\n`);
     io.write(
-      `  export LMW_ALLOWED_MODELS='${JSON.stringify(allowedModels)}'\n`,
+      `  ${theme.muted("export")} LMW_LM_STUDIO_BASE_URL=${theme.accent(`'${baseUrl}'`)}\n`,
+    );
+    io.write(
+      `  ${theme.muted("export")} LMW_ALLOWED_MODELS=${theme.accent(`'${JSON.stringify(allowedModels)}'`)}\n`,
     );
     if (bearerToken) {
-      io.write(`  export LMW_LM_STUDIO_BEARER_TOKEN='${bearerToken}'\n`);
+      // The value itself is never echoed; setup already persisted it.
+      io.write(
+        `  ${theme.muted("export")} LMW_LM_STUDIO_BEARER_TOKEN=${theme.muted(`'${maskSecret(bearerToken)}'`)} ${theme.muted("(value hidden)")}\n`,
+      );
     }
+    io.write("\n");
 
     return 0;
   } finally {
