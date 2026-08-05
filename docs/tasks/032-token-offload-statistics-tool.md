@@ -1,6 +1,6 @@
 # Task 032: Token Offload Statistics Tool (`get_offload_stats`)
 
-**Status:** In Progress
+**Status:** Completed
 **Depends on:** Tasks 013, 026
 **PRD coverage:** CAP-08 & Token Savings Observability
 

@@ -1,5 +1,5 @@
 <Task 029: Smart context-aware & task-type model routing>
-**Status:** In Progress
+**Status:** Completed
 **Depends on:** Tasks 023, 025
 **PRD coverage:** Extended CAP-07 & Multi-model routing
 

@@ -37,8 +37,10 @@ import {
   type AutoValidateAttempt,
   type AutoValidateProgressEvent,
   type AutoValidateResult,
+  type CoverageDelta,
   type TestRunSummary,
 } from "./contracts.js";
+import { measureCoverage, type CoverageMeasurement } from "./coverage.js";
 import { applyValidatedPatch, PatchApplyError } from "./patch-apply.js";
 import {
   createSandbox,
@@ -169,6 +171,16 @@ async function runValidationLoop(
     const testCommand = detected.command;
     const commandText = detected.displayText;
 
+    const beforeCoverage = await measureCoverage({
+      sandboxRoot: sandbox.root,
+      testCommand,
+      timeout_ms: request.timeout_per_iteration_ms,
+      signal: context.signal,
+      ...(input.commandRunner === undefined
+        ? {}
+        : { commandRunner: input.commandRunner }),
+    });
+
     const infrastructure = await detectTestInfrastructure(capability);
     const snapshot = await snapshotRepository(capability, infrastructure);
     const attempts: AutoValidateAttempt[] = [];
@@ -223,18 +235,43 @@ async function runValidationLoop(
         bestAttempt = attempt;
       }
       if (attempt.passed) {
-        return completedValidated(request, commandText, attempts, bestAttempt);
+        const afterCoverage = await measureCoverage({
+          sandboxRoot: sandbox.root,
+          testCommand,
+          timeout_ms: request.timeout_per_iteration_ms,
+          signal: context.signal,
+          ...(input.commandRunner === undefined
+            ? {}
+            : { commandRunner: input.commandRunner }),
+        });
+        return completedValidated(
+          request,
+          commandText,
+          attempts,
+          bestAttempt,
+          buildCoverageDelta(beforeCoverage, afterCoverage),
+        );
       }
       refinement = refinementPrompt(request.goal, attempt);
     }
 
     context.reportProgress("preparing_result");
+    const afterCoverage = await measureCoverage({
+      sandboxRoot: sandbox.root,
+      testCommand,
+      timeout_ms: request.timeout_per_iteration_ms,
+      signal: context.signal,
+      ...(input.commandRunner === undefined
+        ? {}
+        : { commandRunner: input.commandRunner }),
+    });
     return completedExhausted(
       request,
       commandText,
       attempts,
       bestAttempt,
       input.language,
+      buildCoverageDelta(beforeCoverage, afterCoverage),
     );
   } finally {
     await sandbox.dispose().catch(() => undefined);
@@ -561,11 +598,34 @@ async function runAttempt(
   });
 }
 
+function buildCoverageDelta(
+  before: CoverageMeasurement | undefined,
+  after: CoverageMeasurement | undefined,
+): CoverageDelta | undefined {
+  if (before === undefined && after === undefined) {
+    return undefined;
+  }
+  return {
+    ...(before === undefined ? {} : { before }),
+    ...(after === undefined ? {} : { after }),
+    ...(before !== undefined && after !== undefined
+      ? {
+          delta_percent:
+            Math.round(
+              (after.line_coverage_percent - before.line_coverage_percent) *
+                100,
+            ) / 100,
+        }
+      : {}),
+  };
+}
+
 function completedValidated(
   request: ValidationRequest,
   commandText: string,
   attempts: readonly AutoValidateAttempt[],
   bestAttempt: AutoValidateAttempt,
+  coverageDelta: CoverageDelta | undefined,
 ): TaskWorkOutcome<AutoValidateResult> {
   return {
     status: "completed",
@@ -579,6 +639,7 @@ function completedValidated(
       test_results: bestAttempt.test_results,
       diagnostics: [],
       limitations: [],
+      ...(coverageDelta === undefined ? {} : { coverage_delta: coverageDelta }),
     },
   };
 }
@@ -589,6 +650,7 @@ function completedExhausted(
   attempts: readonly AutoValidateAttempt[],
   bestAttempt: AutoValidateAttempt | undefined,
   language: RequestLanguage,
+  coverageDelta: CoverageDelta | undefined,
 ): TaskWorkOutcome<AutoValidateResult> {
   const selected =
     bestAttempt ?? attempts[attempts.length - 1] ?? emptyAttempt();
@@ -634,6 +696,7 @@ function completedExhausted(
       patch: selected.patch,
       diagnostics: [diagnostic],
       limitations: [limitation],
+      ...(coverageDelta === undefined ? {} : { coverage_delta: coverageDelta }),
     },
   };
 }

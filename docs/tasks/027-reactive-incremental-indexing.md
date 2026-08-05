@@ -1,5 +1,5 @@
 <Task 027: Reactive incremental indexing for search_semantic>
-**Status:** In Progress
+**Status:** Completed
 **Depends on:** Tasks 017, 018
 **PRD coverage:** Extended CAP-07
 

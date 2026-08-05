@@ -126,7 +126,10 @@ void test("fails on the first iteration and validates after model refinement", a
     coordinator: immediateCoordinator,
     language: "en",
     sandboxFactory: () => fakeSandbox(),
-    commandRunner: () => {
+    commandRunner: (options) => {
+      if (options.args.includes("--coverage")) {
+        return Promise.resolve(passingRun(""));
+      }
       calls += 1;
       return Promise.resolve(
         calls === 1 ? failingRun("1 failed") : passingRun("1 passed"),
@@ -141,6 +144,72 @@ void test("fails on the first iteration and validates after model refinement", a
     assert.equal(response.result.attempts[0]?.passed, false);
     assert.equal(response.result.attempts[1]?.passed, true);
     assert.match(response.result.patch, /expect\(1\)\.toBe\(1\)/u);
+  }
+});
+
+void test("reports a coverage delta measured before and after the winning patch", async (t) => {
+  const root = await repositoryRoot(t);
+  await writeFile(
+    path.join(root, "package.json"),
+    '{"scripts":{"test":"npm-run-all"}}\n',
+  );
+  await mkdir(path.join(root, "test"));
+
+  const response = await autoValidateTests({
+    request: { repository_root: root, goal: "Add coverage for the value" },
+    configuration: configuration(),
+    inference: inferenceFrom([
+      proposalOutput(
+        unifiedDiff("test/value.test.ts", ["+test('value', () => {});"]),
+      ),
+    ]),
+    coordinator: immediateCoordinator,
+    language: "en",
+    sandboxFactory: () => fakeSandbox(),
+    commandRunner: (options) => {
+      if (options.args.includes("--coverage")) {
+        return Promise.resolve(
+          passingRun("All files |    70 |    70 |    70 |    70 |"),
+        );
+      }
+      return Promise.resolve(passingRun("1 passed"));
+    },
+  });
+
+  assert.equal(response.status, "completed");
+  if (response.status === "completed") {
+    assert.equal(response.result.status, "validated");
+    assert.deepEqual(response.result.coverage_delta, {
+      before: { line_coverage_percent: 70 },
+      after: { line_coverage_percent: 70 },
+      delta_percent: 0,
+    });
+  }
+});
+
+void test("omits the coverage delta when it cannot be measured", async (t) => {
+  const root = await repositoryRoot(t);
+  await writeFile(path.join(root, "package.json"), "{}");
+  await mkdir(path.join(root, "test"));
+
+  const response = await autoValidateTests({
+    request: { repository_root: root, goal: "Add coverage for the value" },
+    configuration: configuration(),
+    inference: inferenceFrom([
+      proposalOutput(
+        unifiedDiff("test/value.test.ts", ["+test('value', () => {});"]),
+      ),
+    ]),
+    coordinator: immediateCoordinator,
+    language: "en",
+    sandboxFactory: () => fakeSandbox(),
+    commandRunner: () => Promise.resolve(passingRun("1 passed")),
+  });
+
+  assert.equal(response.status, "completed");
+  if (response.status === "completed") {
+    assert.equal(response.result.status, "validated");
+    assert.equal(response.result.coverage_delta, undefined);
   }
 });
 
@@ -194,7 +263,10 @@ void test("moves to the next iteration when the sandbox process times out", asyn
     coordinator: immediateCoordinator,
     language: "en",
     sandboxFactory: () => fakeSandbox(),
-    commandRunner: () => {
+    commandRunner: (options) => {
+      if (options.args.includes("--coverage")) {
+        return Promise.resolve(passingRun(""));
+      }
       calls += 1;
       return Promise.resolve(
         calls === 1
@@ -349,6 +421,7 @@ void test("blocks on unresolved conflicts without consuming extra iterations", a
     coordinator: immediateCoordinator,
     language: "en",
     sandboxFactory: () => fakeSandbox(),
+    commandRunner: () => Promise.resolve(passingRun("")),
   });
 
   assert.equal(response.status, "blocked");
@@ -385,7 +458,10 @@ void test("cancellation aborts the loop and cleans up the sandbox", async (t) =>
         },
       };
     },
-    commandRunner: () => {
+    commandRunner: (options) => {
+      if (options.args.includes("--coverage")) {
+        return Promise.resolve(passingRun(""));
+      }
       controller.abort();
       return Promise.resolve(failingRun("1 failed"));
     },

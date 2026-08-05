@@ -1,5 +1,5 @@
 <Task 028: Multi-language AST symbol extraction for query_code_graph>
-**Status:** In Progress
+**Status:** Completed
 **Depends on:** Task 019
 **PRD coverage:** Extended CAP-07 & Code Graph
 

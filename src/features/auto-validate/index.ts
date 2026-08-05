@@ -4,6 +4,8 @@ export {
   AutoValidatePhaseSchema,
   AutoValidateResultSchema,
   AutoValidateStatusSchema,
+  CoverageDeltaSchema,
+  CoverageMeasurementSchema,
   DEFAULT_AUTO_VALIDATE_ITERATIONS,
   MAX_AUTO_VALIDATE_ITERATIONS,
   DEFAULT_TIMEOUT_PER_ITERATION_MS,
@@ -16,8 +18,16 @@ export {
   type AutoValidateProgressEvent,
   type AutoValidateResult,
   type AutoValidateStatus,
+  type CoverageDelta,
   type TestRunSummary,
 } from "./contracts.js";
+export {
+  deriveCoverageCommand,
+  measureCoverage,
+  parseCoverageSummary,
+  type CoverageMeasurement,
+  type MeasureCoverageOptions,
+} from "./coverage.js";
 export {
   PatchApplyError,
   applyValidatedPatch,

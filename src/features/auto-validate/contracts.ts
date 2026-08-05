@@ -74,6 +74,24 @@ export const AutoValidateAttemptSchema = z
 
 export type AutoValidateAttempt = z.infer<typeof AutoValidateAttemptSchema>;
 
+export const CoverageMeasurementSchema = z
+  .object({
+    line_coverage_percent: z.number().min(0).max(100),
+  })
+  .strict();
+
+export type CoverageMeasurement = z.infer<typeof CoverageMeasurementSchema>;
+
+export const CoverageDeltaSchema = z
+  .object({
+    before: CoverageMeasurementSchema.optional(),
+    after: CoverageMeasurementSchema.optional(),
+    delta_percent: z.number().optional(),
+  })
+  .strict();
+
+export type CoverageDelta = z.infer<typeof CoverageDeltaSchema>;
+
 export const AutoValidateStatusSchema = z.enum([
   "validated",
   "blocked",
@@ -93,6 +111,7 @@ export const AutoValidateResultSchema = z
     test_results: TestRunSummarySchema.optional(),
     diagnostics: z.array(DiagnosticSchema),
     limitations: z.array(LimitationSchema),
+    coverage_delta: CoverageDeltaSchema.optional(),
   })
   .strict();
 

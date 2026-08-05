@@ -1,5 +1,5 @@
 <Task 031: Extended IDE & Harness Setup for Cursor, VS Code, and Neovim>
-**Status:** In Progress
+**Status:** Completed
 **Depends on:** Tasks 014, 026
 **PRD coverage:** Extended CAP-07 & Harness Installation
 

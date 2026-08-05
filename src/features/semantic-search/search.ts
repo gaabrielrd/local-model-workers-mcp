@@ -170,6 +170,8 @@ export async function reindexRepository(
 
   const filesToIndex = Array.from(currentRepoFiles);
   let processed = 0;
+  let skipped = 0;
+  let reembedded = 0;
 
   for (const relativePath of filesToIndex) {
     signal?.throwIfAborted();
@@ -191,6 +193,7 @@ export async function reindexRepository(
       const contentHash = createHash("sha256").update(content).digest("hex");
       const isStale = await vectorIndex.isStale(relativePath, contentHash);
       if (!isStale) {
+        skipped += 1;
         onProgress?.(
           `Skipping unchanged file ${processed}/${filesToIndex.length}: ${relativePath}`,
         );
@@ -227,11 +230,19 @@ export async function reindexRepository(
           });
         }
       }
+      reembedded += 1;
     } catch {
       // Content filtering or read error — skip file
       continue;
     }
   }
+
+  const prunedCount = knownPaths.filter(
+    (knownPath) => !currentRepoFiles.has(knownPath),
+  ).length;
+  onProgress?.(
+    `Incremental sync complete: ${skipped} skipped, ${reembedded} re-embedded, ${prunedCount} pruned.`,
+  );
 
   await vectorIndex.save();
 }

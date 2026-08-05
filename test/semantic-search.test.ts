@@ -212,6 +212,7 @@ void test("incremental sync skips unmodified files and updates modified/deleted 
   });
 
   const secondPassStartCalls = embedCalls;
+  const progressMessages: string[] = [];
 
   await executeSemanticSearch({
     input: { query: "a", repository_root: "/repo", reindex: true },
@@ -219,11 +220,19 @@ void test("incremental sync skips unmodified files and updates modified/deleted 
     vectorIndex,
     repositoryRead: secondRepo,
     embeddingModel: MODEL,
+    onProgress: (message) => progressMessages.push(message),
   });
 
   const callsInSecondPass = embedCalls - secondPassStartCalls;
   // Second pass should only embed query + file2.ts + file3.ts (skipping file1.ts)
   assert.ok(callsInSecondPass <= 3);
+  assert.ok(
+    progressMessages.some(
+      (message) =>
+        message ===
+        "Incremental sync complete: 1 skipped, 2 re-embedded, 0 pruned.",
+    ),
+  );
 
   const knownPaths = await vectorIndex.getKnownPaths();
   assert.equal(knownPaths.length, 3);
