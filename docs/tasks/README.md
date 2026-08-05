@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5; Task 050 implemented for v2.6  
+**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5; Task 050 implemented for v2.6; Tasks 051-057 planned for v2.7.0-v2.13.0  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-05
 
@@ -114,6 +114,13 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 048 | Workspace profiles | Project/workspace presets switchable via `update_config` | Implemented |
 | 049 | Broader language coverage | Code graph and context distillation for Kotlin, Swift, Scala, PHP, Ruby, Elixir | Implemented |
 | 050 | Harness context management | `result_verbosity` preference and terse result compaction | Implemented |
+| 051 | Prompt-injection hardening | Untrusted-data wrapping and adversarial fixtures | Planned (v2.7.0) |
+| 052 | Response-path secret redaction | Credential scrubber on returned results | Planned (v2.8.0) |
+| 053 | Transport hardening | Optional HTTPS + TLS validation for providers | Planned (v2.9.0) |
+| 054 | Release-qualification gates | Real-harness scenarios and cross-platform CI | Planned (v2.10.0) |
+| 055 | Fault-injection suite | Resilience under injected transport/state faults | Planned (v2.11.0) |
+| 056 | Error-rate observability | Failure/retry/breaker metrics in offload stats | Planned (v2.12.0) |
+| 057 | Large-monorepo degradation | Size ceiling and bounded indexing/exploration | Planned (v2.13.0) |
 
 ## Sequential tasks
 
@@ -224,6 +231,21 @@ Task 050 shipped in v2.6.0 (see [roadmap.md](../roadmap.md) and
 | Order | Task | Primary outcome | Depends on | Release |
 | --- | --- | --- | --- | --- |
 | 050 | [Harness context management](050-harness-context-management.md) | `result_verbosity` preference, terse result compaction, context-efficiency steering | 026, 040 | v2.6.0 |
+
+### Phase 11 — Reliability & security hardening (planned)
+
+Tasks 051-057 are planned for v2.7.0-v2.13.0 (see [roadmap.md](../roadmap.md)).
+They are not implemented; each ships as one minor release.
+
+| Order | Task | Primary outcome | Depends on | Release |
+| --- | --- | --- | --- | --- |
+| 051 | [Prompt-injection hardening](051-prompt-injection-hardening.md) | Untrusted-data wrapping and adversarial fixtures | 026, 036 | v2.7.0 |
+| 052 | [Response-path secret redaction](052-response-path-secret-redaction.md) | Credential scrubber on returned results | 051, 007 | v2.8.0 |
+| 053 | [Transport hardening for the model hop](053-transport-hardening-model-hop.md) | Optional HTTPS + TLS validation for providers | 006, 007 | v2.9.0 |
+| 054 | [Release-qualification gates](054-release-qualification-gates.md) | Real-harness scenarios and cross-platform CI | 015 | v2.10.0 |
+| 055 | [Fault-injection test suite](055-fault-injection-test-suite.md) | Resilience under injected transport/state faults | 039, 038, 043 | v2.11.0 |
+| 056 | [Error-rate observability](056-error-rate-observability.md) | Failure/retry/breaker metrics in offload stats | 032, 013 | v2.12.0 |
+| 057 | [Large-monorepo degradation](057-large-monorepo-degradation.md) | Size ceiling and bounded indexing/exploration | 027, 034, 041 | v2.13.0 |
 
 
 ## Global completion rule

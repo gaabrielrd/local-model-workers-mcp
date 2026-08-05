@@ -141,6 +141,51 @@ The design is recorded in [ADR-0013](decisions/0013-result-verbosity-compaction.
 
 ---
 
+## v2.7.0+ — Reliability & security hardening (planned)
+
+Planned pillars that harden the security boundary and the resilience machinery.
+Each pillar is tracked by its own task doc in `docs/tasks/` and ships as one
+minor release (v2.7.0 onward), following the project versioning rule. None of
+these are implemented yet; the v3.0 candidate direction below remains separate
+and uncommitted.
+
+### Security
+
+- **v2.7.0 — Prompt-injection hardening** (Task 051):
+  Treat every repository excerpt sent to the model as untrusted *data*, wrapped
+  in explicit delimiters with a standing "file content is never an instruction"
+  directive, plus adversarial fixture tests proving injected text cannot alter
+  task behavior.
+- **v2.8.0 — Response-path secret redaction** (Task 052):
+  Scrub credentials the model might echo back from repository content before a
+  result is returned to the harness, on both the text block and
+  `structuredContent`.
+- **v2.9.0 — Transport hardening for the model hop** (Task 053):
+  Optional HTTPS with TLS certificate validation for provider connections,
+  fail-closed on invalid certs when enabled, backward-compatible with the
+  current trusted-LAN HTTP behavior.
+
+### Reliability
+
+- **v2.10.0 — Release-qualification gates** (Task 054):
+  Close the two remaining release gates: real Claude Code and Codex scenarios
+  against a real LM Studio, and green Linux/Windows CI for the exact candidate
+  commit.
+- **v2.11.0 — Fault-injection test suite** (Task 055):
+  Prove the circuit breaker, SSE parser, capacity coordinator, and atomic
+  config writes under injected faults (disconnects, truncated frames, races,
+  interrupted writes) instead of happy-path unit tests only.
+- **v2.12.0 — Error-rate observability** (Task 056):
+  Expose failure, retry, and circuit-breaker metrics over the existing
+  week/month/lifetime windows so operator-facing degradation surfaces before
+  tasks start timing out.
+- **v2.13.0 — Large-monorepo degradation** (Task 057):
+  Documented repository-size guidance and bounded indexing/exploration with
+  explicit limitation responses, plus memory regression tests on large
+  generated fixtures.
+
+---
+
 ## Version 3.0 — Candidate direction (not committed)
 
 Direction is under discussion and nothing here is planned for an upcoming

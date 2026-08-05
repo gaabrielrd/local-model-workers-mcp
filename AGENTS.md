@@ -30,7 +30,9 @@ com fallback não interativo via flags como `--target all --yes`.
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
   e testes.
 - Roadmap concluído até v2.6.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`);
-  a direção candidata v3.0 está documentada mas não planejada.
+  as tarefas 051-057 de endurecimento de segurança e confiabilidade estão
+  planejadas para v2.7.0-v2.13.0; a direção candidata v3.0 está documentada mas
+  não planejada.
 - Versionamento: cada implementação do roadmap vira uma release minor; `main`
   avança o minor a cada pilar concluído com `npm run validate` verde.
 
