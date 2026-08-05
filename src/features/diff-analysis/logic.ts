@@ -1,4 +1,8 @@
-import type { ModelInferencePort } from "../model-inference/index.js";
+import {
+  composeSystemProtocol,
+  composeUntrustedPrompt,
+  type ModelInferencePort,
+} from "../model-inference/index.js";
 import {
   AnalyzeDiffResultSchema,
   type AnalyzeDiffInput,
@@ -61,18 +65,25 @@ export async function analyzeDiff(
 
   if (inference !== undefined && model !== undefined) {
     try {
+      const { text: prompt } = composeUntrustedPrompt({
+        task: {
+          task: "analyze_diff",
+          repository_root: input.repository_root,
+          commit_range: input.commit_range ?? "HEAD",
+        },
+        data: diffText.slice(0, 15_000),
+      });
       const result = await inference.inferStructured({
         model,
         messages: [
           {
             role: "system",
-            content:
-              "You are an expert code review assistant. Analyze the provided git diff and produce a structured analysis.",
+            content: composeSystemProtocol([
+              "You are an expert code review assistant.",
+              "Analyze the provided git diff and produce a structured analysis.",
+            ]),
           },
-          {
-            role: "user",
-            content: `Repository root: ${input.repository_root}\nCommit range: ${input.commit_range ?? "HEAD"}\n\nDiff content:\n${diffText.slice(0, 15_000)}`,
-          },
+          { role: "user", content: prompt },
         ],
         output_name: "diff_analysis",
         output_schema: AnalyzeDiffResultSchema,

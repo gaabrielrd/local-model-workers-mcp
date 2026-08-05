@@ -12,6 +12,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  parseUntrustedPrompt,
   type ModelInferencePort,
   type StructuredInferenceRequest,
 } from "../src/features/model-inference/index.js";
@@ -120,7 +121,7 @@ void test("inline TypeScript documentation produces a validated additions-only p
 
   const docsCall = calls.find((call) => call.outputName === "docs_generation");
   assert.ok(docsCall !== undefined);
-  const user = JSON.parse(docsCall.user) as {
+  const user = promptPayload(docsCall.user) as unknown as {
     task?: string;
     doc_type?: string;
     files?: readonly {
@@ -304,7 +305,7 @@ void test("inline Python documentation uses a google-style docstring and skips d
 
   const docsCall = calls.find((call) => call.outputName === "docs_generation");
   assert.ok(docsCall !== undefined);
-  const user = JSON.parse(docsCall.user) as {
+  const user = promptPayload(docsCall.user) as unknown as {
     files?: readonly {
       path?: string;
       language?: string;
@@ -460,7 +461,7 @@ void test("already documented symbols are skipped unless force_refresh is set", 
     (call) => call.outputName === "docs_generation",
   );
   assert.ok(forceCall !== undefined);
-  const user = JSON.parse(forceCall.user) as {
+  const user = promptPayload(forceCall.user) as unknown as {
     files?: readonly {
       symbols?: readonly { name?: string }[];
     }[];
@@ -501,7 +502,7 @@ void test("the requested style is applied when compatible with the file language
     const docsCall = calls.find(
       (call) => call.outputName === "docs_generation",
     );
-    const user = JSON.parse(docsCall?.user ?? "{}") as {
+    const user = promptPayload(docsCall?.user ?? "") as unknown as {
       files?: readonly { style?: string }[];
     };
     return user.files?.[0]?.style;
@@ -910,7 +911,7 @@ function fakeInference(
         const output = request.output_schema.parse(docsOutput);
         return Promise.resolve({ model: request.model, output, usage: USAGE });
       }
-      const payload = JSON.parse(user) as {
+      const payload = promptPayload(user) as unknown as {
         readonly task?: string;
         readonly path?: string;
         readonly file_summaries?: readonly unknown[];
@@ -1063,5 +1064,17 @@ function changingRepoRead(
         truncated: start - 1 + selected.length < lines.length,
       });
     },
+  };
+}
+
+/** Merges the trusted envelope and fenced data so assertions read as before. */
+function promptPayload(user: string): Record<string, unknown> {
+  const parsed = parseUntrustedPrompt(user);
+  if (parsed === undefined) {
+    throw new Error("the prompt carried no untrusted-data block");
+  }
+  return {
+    ...(parsed.task as Record<string, unknown>),
+    ...(JSON.parse(parsed.data) as Record<string, unknown>),
   };
 }

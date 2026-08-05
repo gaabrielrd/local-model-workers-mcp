@@ -35,3 +35,12 @@ export {
   type CircuitState,
 } from "./circuit-breaker.js";
 export { parseSseStream } from "./streaming.js";
+export {
+  UNTRUSTED_DATA_DIRECTIVE,
+  composeSystemProtocol,
+  composeUntrustedPrompt,
+  parseUntrustedPrompt,
+  type ComposeUntrustedPromptInput,
+  type ParsedUntrustedPrompt,
+  type UntrustedPrompt,
+} from "./untrusted-data.js";

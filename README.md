@@ -120,6 +120,9 @@ Kotlin, Swift, Scala, PHP, Ruby, and Elixir.
   model you control, on your machine or a trusted private LAN.
 - **The server never writes to your project.** Every write-shaped result is an
   unapplied unified diff that you review and apply yourself.
+- **Repository text is fenced.** Every excerpt sent to a model is wrapped in a
+  nonce-delimited untrusted-data block, with your task instructions kept outside
+  it, so text committed to a file cannot hijack the request.
 - **Patches are structurally validated.** Test proposals must be test-only,
   docs patches docs-only, and every patch respects file and changed-line
   ceilings before you ever see it.
@@ -156,7 +159,7 @@ back to plain ASCII on non-TTY, non-UTF-8, and legacy Windows consoles.
   [GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest)
   under the MIT license.
 - `npm run validate` is green on macOS, Linux, and Windows CI — formatting,
-  lint, feature boundaries, typecheck, build, and 494 automated tests.
+  lint, feature boundaries, typecheck, build, and 503 automated tests.
 - Release qualification verifies the packaged server registers all 15 tools and
   runs real-model structured-output probes.
 

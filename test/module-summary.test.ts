@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  parseUntrustedPrompt,
   InferenceError,
   type ModelInferencePort,
   type StructuredInferenceRequest,
@@ -352,7 +353,7 @@ function fakeInference(calls: CapturedCall[] = []): ModelInferencePort {
         "";
       calls.push({ system, user, outputName: request.output_name });
 
-      const payload = JSON.parse(user) as {
+      const payload = promptPayload(user) as unknown as {
         readonly task?: string;
         readonly path?: string;
         readonly depth?: "shallow" | "deep";
@@ -506,5 +507,17 @@ function fakeRepoRead(files: Record<string, string>): RepositoryReadCapability {
         truncated: start - 1 + selected.length < lines.length,
       });
     },
+  };
+}
+
+/** Merges the trusted envelope and fenced data so assertions read as before. */
+function promptPayload(user: string): Record<string, unknown> {
+  const parsed = parseUntrustedPrompt(user);
+  if (parsed === undefined) {
+    throw new Error("the prompt carried no untrusted-data block");
+  }
+  return {
+    ...(parsed.task as Record<string, unknown>),
+    ...(JSON.parse(parsed.data) as Record<string, unknown>),
   };
 }

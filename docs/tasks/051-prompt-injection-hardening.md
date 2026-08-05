@@ -1,6 +1,6 @@
 # Task 051: Prompt-Injection Hardening
 
-**Status:** Planned (v2.7.0)
+**Status:** Implemented (v2.7.0)
 **Depends on:** Task 026 (harness prompt steering), Task 036 (context distillation)
 
 ## Objective
@@ -30,12 +30,12 @@ out; this task decides *how* that content is presented to the model.
 
 ## Acceptance Criteria
 
-- [ ] Every inference request carrying repository text wraps it in the data
+- [x] Every inference request carrying repository text wraps it in the data
       preamble and delimiters.
-- [ ] Adversarial fixture files never change golden task results.
-- [ ] Collector semantics (paths, sizes, exclusions, trust labels) unchanged.
-- [ ] Public tool schemas and MCP API unchanged.
-- [ ] `npm run validate` green.
+- [x] Adversarial fixture files never change golden task results.
+- [x] Collector semantics (paths, sizes, exclusions, trust labels) unchanged.
+- [x] Public tool schemas and MCP API unchanged.
+- [x] `npm run validate` green.
 
 ## Files Changed (anticipated)
 
@@ -46,3 +46,25 @@ out; this task decides *how* that content is presented to the model.
 - `test/` (NEW — adversarial fixture suite; MODIFIED — prompt-shape assertions)
 - `docs/architecture.md`, `docs/mcp-tools.md` (MODIFIED — threat model notes)
 - `docs/tasks/051-prompt-injection-hardening.md` (NEW — this document)
+
+## Implementation notes
+
+- `src/features/model-inference/untrusted-data.ts` is the single presentation
+  layer: `composeUntrustedPrompt` fences repository-derived payload between
+  `BEGIN`/`END UNTRUSTED REPOSITORY DATA <nonce>` markers whose identifier is 16
+  random bytes per request, and `composeSystemProtocol` appends the standing
+  directive so no feature can omit it. `parseUntrustedPrompt` is the inverse and
+  keeps the wire format defined in one place.
+- The trusted task envelope (goal, constraints, requested language, task name)
+  is rendered outside the fence so the caller's actual task still reaches the
+  model; only repository-derived fields move inside.
+- Applied at all nine inference sites: exploration, auto-validate, test
+  proposal, lint fix, type fix, docs generation, both module-summary passes, and
+  diff analysis. `analyze_diff` previously interpolated raw diff text with no
+  untrusted-data language at all.
+- Occurrences of the live nonce inside the payload are redacted before fencing,
+  so "exactly one live terminator" is an invariant rather than a probability.
+- `test/prompt-injection.test.ts` holds the adversarial fixtures;
+  `test/lint-fix.test.ts` proves a hostile source file produces a byte-identical
+  golden result.
+- See [ADR-0014](../decisions/0014-nonce-delimited-untrusted-data.md).

@@ -64,6 +64,13 @@ remains. `standard` (the default) and `verbose` render exactly as before. See
 Python, Go, Rust, Java, C#, Kotlin, Swift, Scala, PHP, Ruby, and Elixir files.
 Unsupported extensions are ignored without failing.
 
+Every tool that sends repository text to a model presents it inside a
+nonce-delimited untrusted-data block, with the trusted task envelope (goal,
+constraints, requested language) kept outside the fence. Text inside a scanned
+file therefore cannot forge the block terminator or reach the instruction
+surface. See [security.md](security.md#how-accepted-content-is-presented) and
+[ADR-0014](decisions/0014-nonce-delimited-untrusted-data.md).
+
 Task calls propagate the MCP request abort signal into queueing, repository
 work, and HTTP inference. Client cancellation or orderly process shutdown aborts
 owned work and releases global capacity. Legacy clients that request progress

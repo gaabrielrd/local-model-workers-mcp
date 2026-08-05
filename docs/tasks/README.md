@@ -234,8 +234,8 @@ Task 050 shipped in v2.6.0 (see [roadmap.md](../roadmap.md) and
 
 ### Phase 11 — Reliability & security hardening (planned)
 
-Tasks 051-057 are planned for v2.7.0-v2.13.0 (see [roadmap.md](../roadmap.md)).
-They are not implemented; each ships as one minor release.
+Task 051 shipped in v2.7.0. Tasks 052-057 are planned for v2.8.0-v2.13.0 (see
+[roadmap.md](../roadmap.md)); each ships as one minor release.
 
 | Order | Task | Primary outcome | Depends on | Release |
 | --- | --- | --- | --- | --- |

@@ -19,6 +19,7 @@ technical context and consequences of implementing that scope.
 - [ADR-0011: Confirm auto-validate test execution in a sandbox](0011-confirmed-auto-validate-sandbox-execution.md)
 - [ADR-0012: Derive `max_tokens` from the model context window](0012-derive-max-tokens-from-model-context.md)
 - [ADR-0013: Reduce harness context via a `result_verbosity` preference](0013-result-verbosity-compaction.md)
+- [ADR-0014: Fence repository text in nonce-delimited untrusted-data blocks](0014-nonce-delimited-untrusted-data.md)
 
 ## Status values
 

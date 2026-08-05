@@ -61,6 +61,38 @@ and fixed impact metadata. Exact classifier patterns, Git process isolation,
 ignore syntax, byte accounting, and false-positive trade-offs are documented in
 [content-filtering.md](content-filtering.md).
 
+## How accepted content is presented
+
+The collector decides *which* content may leave the machine. The presentation
+layer decides *how* it is shown to the model.
+
+Every inference request that carries repository text is composed by
+`composeUntrustedPrompt`. The user message is a trusted envelope — the caller's
+goal, constraints, requested language, and task name — followed by a fenced
+block that holds only repository-derived payload:
+
+```
+{"task":"fix_lint_violations","linter":"eslint","constraints":{…}}
+
+-----BEGIN UNTRUSTED REPOSITORY DATA 9f3c…-----
+{"files":[{"path":"src/app.ts","source_lines":["…"]}]}
+-----END UNTRUSTED REPOSITORY DATA 9f3c…-----
+```
+
+The identifier in the delimiters is 16 random bytes generated per request, so
+text inside a scanned file cannot predict it, cannot forge a terminator, and
+cannot escape the fence into the instruction surface. Any occurrence of the live
+identifier within the payload is redacted before fencing, making "exactly one
+live terminator" an invariant. A standing directive is appended to every system
+protocol stating that the fenced region is data and never an instruction, a
+role change, a tool call, or something to imitate.
+
+This is defense in depth, not a guarantee: fencing constrains what the model is
+told, and the enforcing boundaries remain the collector on the way out and
+schema validation, patch policy, and path containment on the way back. A model
+that ignores the fence still cannot write to the repository. See
+[ADR-0014](decisions/0014-nonce-delimited-untrusted-data.md).
+
 ## Remote output
 
 LM Studio output is data, not an instruction to the server. The server validates
@@ -124,7 +156,7 @@ timeout paths.
 | Threat | Required control |
 | --- | --- |
 | Path traversal or symlink escape | Canonicalize and verify containment for every access |
-| Prompt injection in repository content | Treat content as quoted data and expose only fixed read operations |
+| Prompt injection in repository content | Fence every excerpt in a nonce-delimited untrusted-data block, keep the trusted task envelope outside it, and expose only fixed read operations |
 | Secret exfiltration | Mandatory classification, ignore rules, minimization, and outbound inspection tests |
 | Malicious or malformed model output | Parse and validate locally; fail closed |
 | Production change disguised as a test | Classify every patch path and block ambiguity |
