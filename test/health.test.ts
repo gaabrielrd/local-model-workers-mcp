@@ -304,6 +304,8 @@ function configuration(tokenConfigured = true): EffectiveConfiguration {
     },
     administrative_maxima: ADMINISTRATIVE_MAXIMA,
     fixed_limits: FIXED_LIMITS,
+    profile: "balanced",
+    post_processing_hooks: [],
     origins: {
       "lm_studio.base_url": "protected",
       "lm_studio.authentication": "protected",
@@ -335,6 +337,8 @@ function configuration(tokenConfigured = true): EffectiveConfiguration {
       "fixed_limits.patch_max_files": "protected",
       "fixed_limits.patch_max_changed_lines": "protected",
       "fixed_limits.inference_retry_count": "protected",
+      profile: "built_in",
+      post_processing_hooks: "built_in",
     },
   };
 }

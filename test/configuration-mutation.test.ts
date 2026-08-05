@@ -236,6 +236,81 @@ void test("uses null to remove a project override and fall back globally", async
   });
 });
 
+void test("sets and clears post-processing hooks through validated updates", async (t) => {
+  const fixture = await createFixture(t);
+  const current = await fixture.snapshot();
+
+  const setProposal = await fixture.validate(current.revision, {
+    post_processing_hooks: [{ command: "formatter", args: ["--fix"] }],
+  });
+  assert.equal(setProposal.valid, true);
+  if (!setProposal.valid) return;
+  assert.deepEqual(setProposal.changes, [
+    {
+      field: "post_processing_hooks",
+      old_value: "[]",
+      new_value: JSON.stringify([{ command: "formatter", args: ["--fix"] }]),
+      old_origin: "built_in",
+      new_origin: "project",
+    },
+  ]);
+  assert.deepEqual(setProposal.proposed_configuration.post_processing_hooks, [
+    { command: "formatter", args: ["--fix"] },
+  ]);
+  assert.equal(
+    setProposal.proposed_configuration.origins["post_processing_hooks"],
+    "project",
+  );
+
+  await updateConfig({
+    ...fixture.input(),
+    expected_revision: current.revision,
+    changes: {
+      post_processing_hooks: [{ command: "formatter", args: ["--fix"] }],
+    },
+    confirmation: { approved: true, proposal_id: setProposal.proposal_id },
+  });
+
+  const updated = await fixture.snapshot();
+  assert.deepEqual(updated.post_processing_hooks, [
+    { command: "formatter", args: ["--fix"] },
+  ]);
+
+  const clearProposal = await fixture.validate(updated.revision, {
+    post_processing_hooks: null,
+  });
+  assert.equal(clearProposal.valid, true);
+  if (!clearProposal.valid) return;
+  assert.deepEqual(
+    clearProposal.proposed_configuration.post_processing_hooks,
+    [],
+  );
+  assert.equal(
+    clearProposal.proposed_configuration.origins["post_processing_hooks"],
+    "built_in",
+  );
+});
+
+void test("rejects malformed post-processing hooks in proposals", async (t) => {
+  const fixture = await createFixture(t);
+  const current = await fixture.snapshot();
+
+  const emptyCommand = await fixture.validate(current.revision, {
+    post_processing_hooks: [{ command: "  " }],
+  });
+  assert.equal(emptyCommand.valid, false);
+  if (!emptyCommand.valid) {
+    assert.equal(emptyCommand.errors[0]?.code, "invalid_proposal");
+  }
+
+  const tooManyHooks = await fixture.validate(current.revision, {
+    post_processing_hooks: Array.from({ length: 9 }, (_, index) => ({
+      command: `hook-${index}`,
+    })),
+  });
+  assert.equal(tooManyHooks.valid, false);
+});
+
 void test("sets and clears routing entries through validated updates", async (t) => {
   const fixture = await createFixture(t);
   const current = await fixture.snapshot();

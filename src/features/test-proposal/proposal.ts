@@ -7,6 +7,7 @@ import {
   type EffectiveConfiguration,
 } from "../configuration/index.js";
 import type { ModelInferencePort } from "../model-inference/index.js";
+import type { PostProcessingService } from "../post-processing/index.js";
 import {
   ExplorationRequestSchema,
   createRepositoryReadCapability,
@@ -97,6 +98,7 @@ export interface ProposeTestsInput {
   readonly collectorFactory?: (
     input: CreateOutboundContextCollectorInput,
   ) => Promise<OutboundContextCollector>;
+  readonly postProcessing?: PostProcessingService;
 }
 
 interface SourceSnapshot {
@@ -201,6 +203,7 @@ export async function proposeTests(
         exploration.limitations,
         context,
         input.language,
+        input.postProcessing,
       ),
     input.signal === undefined ? {} : { signal: input.signal },
   );
@@ -215,6 +218,7 @@ async function runProposal(
   limitations: readonly Limitation[],
   context: TaskExecutionContext,
   language: RequestLanguage,
+  postProcessing: PostProcessingService | undefined,
 ): Promise<TaskWorkOutcome<TestProposalResult>> {
   context.reportProgress("exploring");
   const sources = await snapshotSources(capability, evidence);
@@ -280,6 +284,35 @@ async function runProposal(
     }
     throw error;
   }
+
+  if (postProcessing !== undefined) {
+    const outcome = await postProcessing.applyPatchHooks({
+      hooks: context.configuration.post_processing_hooks,
+      patch: validated.patch,
+      validate: (patch) =>
+        validateTestPatch({
+          patch,
+          repositoryRoot: request.repository_root,
+          maxFiles: context.configuration.fixed_limits.patch_max_files,
+          maxChangedLines:
+            context.configuration.fixed_limits.patch_max_changed_lines,
+        }).then((revalidated) => revalidated.patch),
+      ...(context.signal === undefined ? {} : { signal: context.signal }),
+    });
+    if (outcome.status === "blocked") {
+      return blocked("patch_not_allowed", language, outcome.diagnostic);
+    }
+    if (outcome.patch !== validated.patch) {
+      validated = await validateTestPatch({
+        patch: outcome.patch,
+        repositoryRoot: request.repository_root,
+        maxFiles: context.configuration.fixed_limits.patch_max_files,
+        maxChangedLines:
+          context.configuration.fixed_limits.patch_max_changed_lines,
+      });
+    }
+  }
+
   const affectedFiles = validated.files.map((file) => file.path);
   if (!samePathSet(affectedFiles, response.output.affected_files)) {
     return blocked(

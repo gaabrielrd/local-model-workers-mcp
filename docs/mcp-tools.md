@@ -56,6 +56,13 @@ owned work and releases global capacity. Legacy clients that request progress
 receive the four stable task stages; clients without progress support receive
 the same final result.
 
+`propose_tests`, `fix_lint_violations`, `fix_type_errors`, and
+`generate_docs_patch` run the configured `post_processing_hooks`
+(project over global) after patch generation when the list is non-empty. Hooks
+run against a throwaway temporary copy of the patch with no repository write
+access; any hook failure blocks the proposal. A rewritten patch is revalidated
+by the local patch policy before delivery.
+
 ## Protocol safety
 
 With every feature enabled, the server registers exactly the 15 tools above

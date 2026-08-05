@@ -3,7 +3,9 @@ import path from "node:path";
 
 import { z } from "zod";
 
+import type { PostProcessingHook } from "../configuration/index.js";
 import type { ModelInferencePort } from "../model-inference/index.js";
+import type { PostProcessingService } from "../post-processing/index.js";
 import {
   RepositoryAccessError,
   createOutboundContextCollector,
@@ -60,6 +62,8 @@ export interface FixLintViolationsOptions {
   readonly inference: ModelInferencePort;
   readonly repositoryRead: RepositoryReadCapability;
   readonly model: string;
+  readonly post_processing_hooks?: readonly PostProcessingHook[];
+  readonly postProcessing?: PostProcessingService;
   readonly collectorFactory?: (
     input: CreateOutboundContextCollectorInput,
   ) => Promise<OutboundContextCollector>;
@@ -245,6 +249,23 @@ export async function fixLintViolations(
     );
   }
 
+  const postProcessing = await runLintPostProcessing(
+    options,
+    input,
+    contexts,
+    violationLines,
+    validatedPatch,
+  );
+  if (postProcessing.blocked) {
+    return policyFailure(
+      contexts,
+      unfixed,
+      postProcessing.diagnostic,
+      "The generated patch was rejected by a post-processing hook.",
+    );
+  }
+  validatedPatch = postProcessing.patch;
+
   return reconcile(contexts, unfixed, response.output, validatedPatch);
 }
 
@@ -405,6 +426,23 @@ export async function fixTypeErrors(
     );
   }
 
+  const postProcessing = await runLintPostProcessing(
+    options,
+    input,
+    contexts,
+    violationLines,
+    validatedPatch,
+  );
+  if (postProcessing.blocked) {
+    return policyFailure(
+      contexts,
+      unfixed,
+      postProcessing.diagnostic,
+      "The generated patch was rejected by a post-processing hook.",
+    );
+  }
+  validatedPatch = postProcessing.patch;
+
   return reconcile(contexts, unfixed, response.output, validatedPatch);
 }
 
@@ -485,6 +523,7 @@ function policyFailure(
   contexts: readonly FileContext[],
   inheritedUnfixed: readonly UnfixedViolation[],
   reason: string,
+  summary = "The generated patch was rejected by the local patch policy.",
 ): FixLintViolationsResult {
   const unfixed: UnfixedViolation[] = [...inheritedUnfixed];
   for (const context of contexts) {
@@ -501,8 +540,48 @@ function policyFailure(
     patch: "",
     fixed_violations: [],
     unfixed_violations: unfixed,
-    summary: "The generated patch was rejected by the local patch policy.",
+    summary,
   };
+}
+
+type LintPostProcessingResult =
+  | { readonly blocked: false; readonly patch: string }
+  | { readonly blocked: true; readonly diagnostic: string };
+
+async function runLintPostProcessing(
+  options: FixLintViolationsOptions,
+  input: { readonly repository_root: string; readonly max_files: number },
+  contexts: readonly FileContext[],
+  violationLines: Map<string, number[]>,
+  validatedPatch: string,
+): Promise<LintPostProcessingResult> {
+  if (
+    options.postProcessing === undefined ||
+    (options.post_processing_hooks ?? []).length === 0
+  ) {
+    return { blocked: false, patch: validatedPatch };
+  }
+  const outcome = await options.postProcessing.applyPatchHooks({
+    hooks: options.post_processing_hooks ?? [],
+    patch: validatedPatch,
+    validate: (patch) =>
+      validateLintPatch({
+        patch,
+        repositoryRoot: input.repository_root,
+        allowedFiles: contexts.map((context) => context.file),
+        violationLines,
+        maxFiles: input.max_files,
+        maxChangedLines: LINT_FIX_MAX_CHANGED_LINES,
+        ...(options.inspectPath === undefined
+          ? {}
+          : { inspectPath: options.inspectPath }),
+      }).then((validated) => validated.patch),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+  });
+  if (outcome.status === "blocked") {
+    return { blocked: true, diagnostic: outcome.diagnostic };
+  }
+  return { blocked: false, patch: outcome.patch };
 }
 
 function normalizeViolations(

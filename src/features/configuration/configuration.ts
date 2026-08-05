@@ -13,6 +13,9 @@ import {
   CONFIGURATION_SCHEMA_VERSION,
   DEFAULT_PROVIDER_RECHECK_INTERVAL_MS,
   FIXED_LIMITS,
+  POST_PROCESSING_HOOKS_MAX,
+  POST_PROCESSING_HOOK_TIMEOUT_MS_MAX,
+  PROFILE_PRESETS,
   REDACTED_CONFIGURATION_VALUE,
 } from "./constants.js";
 import {
@@ -99,6 +102,25 @@ export const CONFIGURATION_PROFILES = ["fast", "thorough", "balanced"] as const;
 
 export type ConfigurationProfile = (typeof CONFIGURATION_PROFILES)[number];
 
+export const PostProcessingHookSchema = z
+  .object({
+    command: z.string().trim().min(1).max(4_096),
+    args: z.array(z.string().trim().min(1).max(4_096)).max(128).optional(),
+    timeout_ms: z
+      .number()
+      .int()
+      .min(1)
+      .max(POST_PROCESSING_HOOK_TIMEOUT_MS_MAX)
+      .optional(),
+  })
+  .strict();
+
+export const PostProcessingHooksSchema = z
+  .array(PostProcessingHookSchema)
+  .max(POST_PROCESSING_HOOKS_MAX);
+
+export type PostProcessingHook = z.infer<typeof PostProcessingHookSchema>;
+
 const SupervisionSchema = z
   .object({
     enabled: z.boolean().optional(),
@@ -119,6 +141,7 @@ export const PreferencesSchema = z
     enabled_features: EnabledFeaturesSchema.optional(),
     supervision: SupervisionSchema.optional(),
     limits: LimitsSchema.optional(),
+    post_processing_hooks: PostProcessingHooksSchema.optional(),
   })
   .strict();
 
@@ -248,6 +271,8 @@ export interface EffectiveConfiguration {
   };
   readonly steering_prompt?: string | undefined;
   readonly enabled_features?: readonly FeatureGroup[];
+  readonly profile: ConfigurationProfile;
+  readonly post_processing_hooks: readonly PostProcessingHook[];
   readonly providers?: readonly EffectiveProviderConfiguration[];
   readonly provider_routing?: {
     readonly strategy: "priority";
@@ -279,6 +304,8 @@ export type ConfigurationField =
   | "lm_studio.embedding_model"
   | `lm_studio.model_routing.${ModelTaskType}`
   | "steering_prompt"
+  | "profile"
+  | "post_processing_hooks"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -342,30 +369,50 @@ export async function getEffectiveConfiguration(
     );
   }
 
+  const profile: {
+    readonly value: ConfigurationProfile | undefined;
+    readonly origin: ConfigurationOrigin;
+  } = selectOptionalValue(
+    projectPreferences?.profile,
+    globalPreferences?.profile,
+    "balanced",
+  );
+  const activeProfile: ConfigurationProfile = profile.value ?? "balanced";
+  const profileLimits = PROFILE_PRESETS[activeProfile]
+    .limits as Partial<EffectiveLimits>;
+
   const concurrency = selectValue(
     projectPreferences?.limits?.max_concurrency,
     globalPreferences?.limits?.max_concurrency,
-    BUILT_IN_LIMITS.max_concurrency,
+    profileLimits.max_concurrency ?? BUILT_IN_LIMITS.max_concurrency,
   );
   const queueTimeout = selectValue(
     projectPreferences?.limits?.queue_timeout_ms,
     globalPreferences?.limits?.queue_timeout_ms,
-    BUILT_IN_LIMITS.queue_timeout_ms,
+    profileLimits.queue_timeout_ms ?? BUILT_IN_LIMITS.queue_timeout_ms,
   );
   const processingTimeout = selectValue(
     projectPreferences?.limits?.processing_timeout_ms,
     globalPreferences?.limits?.processing_timeout_ms,
-    BUILT_IN_LIMITS.processing_timeout_ms,
+    profileLimits.processing_timeout_ms ??
+      BUILT_IN_LIMITS.processing_timeout_ms,
   );
   const explorationInteractions = selectValue(
     projectPreferences?.limits?.max_exploration_interactions,
     globalPreferences?.limits?.max_exploration_interactions,
-    BUILT_IN_LIMITS.max_exploration_interactions,
+    profileLimits.max_exploration_interactions ??
+      BUILT_IN_LIMITS.max_exploration_interactions,
   );
   const contextBudget = selectValue(
     projectPreferences?.limits?.context_budget_bytes,
     globalPreferences?.limits?.context_budget_bytes,
-    BUILT_IN_LIMITS.context_budget_bytes,
+    profileLimits.context_budget_bytes ?? BUILT_IN_LIMITS.context_budget_bytes,
+  );
+
+  const postProcessingHooks = selectValue(
+    projectPreferences?.post_processing_hooks,
+    globalPreferences?.post_processing_hooks,
+    [],
   );
 
   const embeddingModel = selectOptionalValue(
@@ -429,6 +476,8 @@ export async function getEffectiveConfiguration(
     "lm_studio.embedding_model": embeddingModel.origin,
     ...modelRouting.origins,
     steering_prompt: steeringPrompt.origin,
+    profile: profile.origin,
+    post_processing_hooks: postProcessingHooks.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -467,6 +516,12 @@ export async function getEffectiveConfiguration(
       ? {}
       : { steering_prompt: steeringPrompt.value }),
     enabled_features: [...enabledFeatures.value],
+    profile: activeProfile,
+    post_processing_hooks: postProcessingHooks.value.map((hook) => ({
+      command: hook.command,
+      ...(hook.args === undefined ? {} : { args: [...hook.args] }),
+      ...(hook.timeout_ms === undefined ? {} : { timeout_ms: hook.timeout_ms }),
+    })),
     providers: protectedSettings.providers.map((provider) => ({
       name: provider.name,
       type: provider.type,

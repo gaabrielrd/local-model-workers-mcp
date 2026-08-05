@@ -74,6 +74,14 @@ tool list is fixed when the MCP process starts; project preferences reject it.
   },
   "steering_prompt": "Prefer semantic search for descriptive queries.",
   "enabled_features": ["exploration", "tests", "docs", "lint"],
+  "profile": "balanced",
+  "post_processing_hooks": [
+    {
+      "command": "prettier",
+      "args": ["--write", "--parser", "babel"],
+      "timeout_ms": 30000
+    }
+  ],
   "limits": {
     "max_concurrency": 2,
     "queue_timeout_ms": 300000,
@@ -100,6 +108,33 @@ include `schema_version: 1`.
 `tests`, `docs`, and `lint`. When omitted, all four groups are enabled for
 backward compatibility. The field is editable only in global preferences and
 is exposed by `get_config`.
+
+### Workspace profiles
+
+`profile` is an optional project or global override selecting a preset from
+`fast`, `thorough`, or `balanced`. The effective profile resolves project over
+global over the `balanced` built-in default. Each preset supplies fallback
+values for the editable `limits`; any explicit limit at project or global scope
+wins over the active preset. Switching the profile through `update_config`
+applies immediately to the next tool call without a server restart. See
+[workspace profiles](tasks/048-workspace-profiles.md).
+
+### Custom post-processing hooks
+
+`post_processing_hooks` is an optional project or global override (project over
+global over `[]`). Each hook is an object with a required `command`, an
+optional `args` array (up to 128 entries), and an optional `timeout_ms` between
+1 and 120,000 (default 30,000). At most 8 hooks are allowed. When empty, no
+hooks run.
+
+Hooks execute immediately after patch generation for `propose_tests`,
+`fix_lint_violations`, `fix_type_errors`, and `generate_docs_patch`. The
+generated patch is written to a fresh temporary directory and piped to each
+hook's stdin with that directory as its working directory; the developer's
+repository is never the hook working directory. Hooks may transform the patch,
+but a non-zero exit, timeout, spawn failure, or output rejected by the local
+patch policy fails closed and blocks the proposal. See
+[custom post-processing hooks](tasks/047-custom-post-processing-hooks.md).
 
 ### Global location
 
@@ -174,7 +209,8 @@ implemented and registered as the `validate_config` and `update_config` MCP
 tools.
 
 A proposal is a non-empty partial object containing only `default_model`,
-`model_routing`, `steering_prompt`, and/or the editable children of `limits`.
+`model_routing`, `steering_prompt`, `profile`, `post_processing_hooks`,
+and/or the editable children of `limits`.
 A value changes the project override. `null` removes that override so
 resolution falls back to global preferences or a built-in default. Routing
 entries in `model_routing` follow the same strict per-entry model schema and

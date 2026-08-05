@@ -28,6 +28,7 @@ import {
   type ProtectedProviderConfiguration,
 } from "../configuration/index.js";
 import { checkHealth } from "../health/index.js";
+import { createPostProcessingRunner } from "../post-processing/index.js";
 import {
   createProviderAdapter,
   createProviderRouter,
@@ -282,6 +283,7 @@ export function createMcpServer(
             configuration: dependencies.configuration,
             inference: dependencies.inference,
             coordinator: dependencies.coordinator,
+            postProcessing: dependencies.postProcessing,
             language: request.language,
             signal: AbortSignal.any([
               context.mcpReq.signal,
@@ -492,6 +494,9 @@ export function createMcpServer(
             input: parsedInput,
             inference: dependencies.inference,
             repositoryRead: dependencies.repositoryRead,
+            post_processing_hooks:
+              dependencies.configuration.post_processing_hooks,
+            postProcessing: dependencies.postProcessing,
             model: resolveModelForTask(dependencies.configuration, "lint_fix"),
             signal: AbortSignal.any([
               context.mcpReq.signal,
@@ -522,6 +527,9 @@ export function createMcpServer(
             input: parsedInput,
             inference: dependencies.inference,
             repositoryRead: dependencies.repositoryRead,
+            post_processing_hooks:
+              dependencies.configuration.post_processing_hooks,
+            postProcessing: dependencies.postProcessing,
             model: resolveModelForTask(dependencies.configuration, "lint_fix"),
             signal: AbortSignal.any([
               context.mcpReq.signal,
@@ -554,6 +562,9 @@ export function createMcpServer(
             input: parsedInput,
             inference: dependencies.inference,
             repositoryRead: dependencies.repositoryRead,
+            post_processing_hooks:
+              dependencies.configuration.post_processing_hooks,
+            postProcessing: dependencies.postProcessing,
             model: resolveModelForTask(
               dependencies.configuration,
               "docs_generation",
@@ -900,7 +911,14 @@ async function taskDependencies(
   const repositoryRead = await createRepositoryReadCapability({
     repositoryRoot: projectRoot,
   });
-  return { configuration, inference, coordinator, repositoryRead };
+  const postProcessing = createPostProcessingRunner();
+  return {
+    configuration,
+    inference,
+    coordinator,
+    repositoryRead,
+    postProcessing,
+  };
 }
 
 function progressReporter(

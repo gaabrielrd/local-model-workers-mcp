@@ -7,9 +7,12 @@ import { z } from "zod";
 import {
   ADMINISTRATIVE_MAXIMA,
   CONFIGURATION_SCHEMA_VERSION,
+  POST_PROCESSING_HOOKS_MAX,
 } from "./constants.js";
 import {
   ConfigurationError,
+  CONFIGURATION_PROFILES,
+  PostProcessingHookSchema,
   ProjectPreferencesSchema,
   getEffectiveConfiguration,
   isContainedPath,
@@ -79,12 +82,21 @@ const MutableModelRoutingSchema = z
     message: "At least one routing change is required.",
   });
 
+const MutablePostProcessingHooksSchema = z
+  .union([
+    z.array(PostProcessingHookSchema).max(POST_PROCESSING_HOOKS_MAX),
+    z.null(),
+  ])
+  .optional();
+
 const ProjectChangesSchema = z
   .object({
     default_model: z.string().trim().min(1).max(256).nullable().optional(),
     model_routing: MutableModelRoutingSchema.optional(),
     steering_prompt: z.string().trim().min(1).max(2_000).nullable().optional(),
     limits: MutableLimitsSchema.optional(),
+    profile: z.enum(CONFIGURATION_PROFILES).nullable().optional(),
+    post_processing_hooks: MutablePostProcessingHooksSchema,
   })
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, {
@@ -187,6 +199,8 @@ type MutableConfigurationField =
   | "lm_studio.model_routing.summarization"
   | "lm_studio.model_routing.code_graph"
   | "steering_prompt"
+  | "profile"
+  | "post_processing_hooks"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -208,6 +222,8 @@ const mutableFields: readonly MutableConfigurationField[] = [
   "lm_studio.model_routing.summarization",
   "lm_studio.model_routing.code_graph",
   "steering_prompt",
+  "profile",
+  "post_processing_hooks",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
   "limits.processing_timeout_ms",
@@ -465,6 +481,8 @@ function applyChanges(
     model_routing?: Record<string, string>;
     steering_prompt?: string;
     limits?: Record<string, number>;
+    profile?: string;
+    post_processing_hooks?: unknown;
   } = {
     schema_version: CONFIGURATION_SCHEMA_VERSION,
     ...(current.default_model === undefined
@@ -479,6 +497,10 @@ function applyChanges(
     ...(Object.keys(currentLimits).length === 0
       ? {}
       : { limits: currentLimits }),
+    ...(current.profile === undefined ? {} : { profile: current.profile }),
+    ...(current.post_processing_hooks === undefined
+      ? {}
+      : { post_processing_hooks: current.post_processing_hooks }),
   };
 
   if ("default_model" in changes) {
@@ -526,6 +548,22 @@ function applyChanges(
       delete candidate.limits;
     } else {
       candidate.limits = nextLimits;
+    }
+  }
+
+  if ("profile" in changes) {
+    if (changes.profile === null) {
+      delete candidate.profile;
+    } else if (changes.profile !== undefined) {
+      candidate.profile = changes.profile;
+    }
+  }
+
+  if ("post_processing_hooks" in changes) {
+    if (changes.post_processing_hooks === null) {
+      delete candidate.post_processing_hooks;
+    } else if (changes.post_processing_hooks !== undefined) {
+      candidate.post_processing_hooks = changes.post_processing_hooks;
     }
   }
 
@@ -631,6 +669,10 @@ function effectiveValue(
       return configuration.lm_studio.model_routing?.code_graph;
     case "steering_prompt":
       return configuration.steering_prompt;
+    case "profile":
+      return configuration.profile;
+    case "post_processing_hooks":
+      return JSON.stringify(configuration.post_processing_hooks);
     case "limits.max_concurrency":
       return configuration.limits.max_concurrency;
     case "limits.queue_timeout_ms":

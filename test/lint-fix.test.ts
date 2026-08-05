@@ -15,6 +15,7 @@ import {
   type ModelInferencePort,
   type StructuredInferenceRequest,
 } from "../src/features/model-inference/index.js";
+import type { PostProcessingService } from "../src/features/post-processing/index.js";
 import {
   RepositoryAccessError,
   createOutboundContextCollector,
@@ -687,6 +688,160 @@ void test("no repository writes occur during the process", async (t) => {
   );
   assert.deepEqual(await readdir(path.join(root, "src")), ["app.ts"]);
 });
+
+void test("a blocked post-processing hook fails the lint fix closed", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": "const a = 1\n",
+  });
+  const lintOutput = JSON.stringify([
+    {
+      filePath: "src/app.ts",
+      messages: [
+        {
+          ruleId: "semi",
+          severity: 2,
+          message: "Missing semicolon.",
+          line: 1,
+          column: 11,
+        },
+      ],
+    },
+  ]);
+  const patch = modifyDiff("src/app.ts", 1, ["-const a = 1", "+const a = 1;"]);
+
+  const result = await fixLintViolations({
+    input: { repository_root: ROOT, lint_output: lintOutput },
+    inference: fakeInference(
+      remoteFix(patch, [{ file: "src/app.ts", line: 1, rule_id: "semi" }]),
+    ),
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe"),
+    post_processing_hooks: [{ command: "license-check" }],
+    postProcessing: blockedPostProcessing("License header is missing."),
+  });
+
+  assert.equal(result.patch, "");
+  assert.equal(result.fixed_violations.length, 0);
+  assert.equal(
+    result.summary,
+    "The generated patch was rejected by a post-processing hook.",
+  );
+  assert.deepEqual(
+    result.unfixed_violations.map((item) => ({
+      file: item.file,
+      rule_id: item.rule_id,
+      reason: item.reason,
+    })),
+    [
+      {
+        file: "src/app.ts",
+        rule_id: "semi",
+        reason: "License header is missing.",
+      },
+    ],
+  );
+});
+
+void test("a blocked post-processing hook fails type-error fixes closed", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": "const x: number = 'hello';\n",
+  });
+  const typeOutput =
+    "src/app.ts:1:7 - error TS2322: Type 'string' is not assignable to type 'number'.";
+  const patch = modifyDiff("src/app.ts", 1, [
+    "-const x: number = 'hello';",
+    "+const x: string = 'hello';",
+  ]);
+
+  const result = await fixTypeErrors({
+    input: { repository_root: ROOT, type_output: typeOutput },
+    inference: fakeInference(
+      remoteFix(patch, [{ file: "src/app.ts", line: 1, rule_id: "TS2322" }]),
+    ),
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe"),
+    post_processing_hooks: [{ command: "license-check" }],
+    postProcessing: blockedPostProcessing(
+      "Compiler policy rejected the patch.",
+    ),
+  });
+
+  assert.equal(result.patch, "");
+  assert.equal(result.fixed_violations.length, 0);
+  assert.equal(
+    result.unfixed_violations[0]?.reason,
+    "Compiler policy rejected the patch.",
+  );
+});
+
+void test("a hook-transformed lint patch is delivered after revalidation", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": "const a = 1\n",
+  });
+  const lintOutput = JSON.stringify([
+    {
+      filePath: "src/app.ts",
+      messages: [
+        {
+          ruleId: "semi",
+          severity: 2,
+          message: "Missing semicolon.",
+          line: 1,
+          column: 11,
+        },
+      ],
+    },
+  ]);
+  const patch = modifyDiff("src/app.ts", 1, ["-const a = 1", "+const a = 1;"]);
+  const transformed = patch.replace(
+    "+const a = 1;",
+    "+const a = 1; // formatted",
+  );
+
+  const result = await fixLintViolations({
+    input: { repository_root: ROOT, lint_output: lintOutput },
+    inference: fakeInference(
+      remoteFix(patch, [{ file: "src/app.ts", line: 1, rule_id: "semi" }]),
+    ),
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe"),
+    post_processing_hooks: [{ command: "formatter" }],
+    postProcessing: transformingPostProcessing(transformed),
+  });
+
+  assert.ok(result.patch.includes("// formatted"));
+  assert.equal(result.fixed_violations.length, 1);
+});
+
+function blockedPostProcessing(diagnostic: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "blocked" as const,
+        hook: "license-check",
+        code: "hook_failed" as const,
+        diagnostic,
+        executed: ["license-check"],
+      }),
+  };
+}
+
+function transformingPostProcessing(next: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "passed" as const,
+        patch: next,
+        executed: ["formatter"],
+      }),
+  };
+}
 
 function fakeInference(
   output: unknown,

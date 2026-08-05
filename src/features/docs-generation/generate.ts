@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
+import type { PostProcessingHook } from "../configuration/index.js";
 import type { ModelInferencePort } from "../model-inference/index.js";
+import type { PostProcessingService } from "../post-processing/index.js";
 import {
   RepositoryAccessError,
   createOutboundContextCollector,
@@ -56,6 +58,8 @@ export interface GenerateDocsPatchOptions {
   readonly inference: ModelInferencePort;
   readonly repositoryRead: RepositoryReadCapability;
   readonly model: string;
+  readonly post_processing_hooks?: readonly PostProcessingHook[];
+  readonly postProcessing?: PostProcessingService;
   readonly collectorFactory?: (
     input: CreateOutboundContextCollectorInput,
   ) => Promise<OutboundContextCollector>;
@@ -173,7 +177,7 @@ export async function generateDocsPatch(
     ...(options.signal === undefined ? {} : { signal: options.signal }),
   });
 
-  const validated = await buildAndValidatePatch({
+  let validated = await buildAndValidatePatch({
     input,
     contexts,
     generated: response.output,
@@ -188,6 +192,33 @@ export async function generateDocsPatch(
       "invalid_evidence",
       "A source file changed before the documentation patch could be delivered.",
     );
+  }
+
+  const postProcessing = await runDocsPostProcessing(
+    options,
+    input,
+    contexts,
+    validated.patch,
+  );
+  if (postProcessing.blocked) {
+    throw new DocsGenerationError("invalid_output", postProcessing.diagnostic);
+  }
+  if (postProcessing.patch !== validated.patch) {
+    try {
+      validated = await validateDocsPatch({
+        patch: postProcessing.patch,
+        repositoryRoot: input.repository_root,
+        allowedFiles: docsAllowedFiles(input, contexts),
+        ...(options.inspectPath === undefined
+          ? {}
+          : { inspectPath: options.inspectPath }),
+      });
+    } catch (error: unknown) {
+      if (error instanceof PatchPolicyError) {
+        throw new DocsGenerationError("invalid_output", error.message);
+      }
+      throw error;
+    }
   }
 
   return {
@@ -504,4 +535,51 @@ async function sourcesUnchanged(
 
 function fingerprintOf(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+type DocsPostProcessingResult =
+  | { readonly blocked: false; readonly patch: string }
+  | { readonly blocked: true; readonly diagnostic: string };
+
+function docsAllowedFiles(
+  input: GenerateDocsPatchInput,
+  contexts: readonly FileContext[],
+): readonly string[] {
+  const allowed = contexts.map((context) => context.path);
+  if (input.doc_type === "markdown" || input.doc_type === "both") {
+    allowed.push(docsMarkdownPathForTarget(input.target));
+  }
+  return allowed;
+}
+
+async function runDocsPostProcessing(
+  options: GenerateDocsPatchOptions,
+  input: GenerateDocsPatchInput,
+  contexts: readonly FileContext[],
+  validatedPatch: string,
+): Promise<DocsPostProcessingResult> {
+  if (
+    options.postProcessing === undefined ||
+    (options.post_processing_hooks ?? []).length === 0
+  ) {
+    return { blocked: false, patch: validatedPatch };
+  }
+  const outcome = await options.postProcessing.applyPatchHooks({
+    hooks: options.post_processing_hooks ?? [],
+    patch: validatedPatch,
+    validate: (patch) =>
+      validateDocsPatch({
+        patch,
+        repositoryRoot: input.repository_root,
+        allowedFiles: docsAllowedFiles(input, contexts),
+        ...(options.inspectPath === undefined
+          ? {}
+          : { inspectPath: options.inspectPath }),
+      }).then((revalidated) => revalidated.patch),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+  });
+  if (outcome.status === "blocked") {
+    return { blocked: true, diagnostic: outcome.diagnostic };
+  }
+  return { blocked: false, patch: outcome.patch };
 }

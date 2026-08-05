@@ -12,6 +12,7 @@ import {
   type EffectiveConfiguration,
 } from "../src/features/configuration/index.js";
 import type { ModelInferencePort } from "../src/features/model-inference/index.js";
+import type { PostProcessingService } from "../src/features/post-processing/index.js";
 import {
   createOutboundContextCollector,
   type CreateOutboundContextCollectorInput,
@@ -120,10 +121,53 @@ void test("blocks unresolved behavior conflicts and stale source fingerprints", 
   }
 });
 
+void test("blocks a proposal when a post-processing hook rejects the patch", async (t) => {
+  const root = await repositoryRoot(t);
+  const response = await run(
+    root,
+    testCapability(() => "source"),
+    inferenceFrom([
+      explorationRead(),
+      explorationFinal(),
+      proposal(unifiedDiff("test/value.test.ts", ["+new"])),
+    ]),
+    blockedPostProcessing("Hook rejected the generated patch."),
+  );
+
+  assert.equal(response.status, "blocked");
+  if (response.status === "blocked") {
+    assert.equal(response.diagnostic.code, "patch_not_allowed");
+    assert.match(response.diagnostic.message.text, /Hook rejected/);
+  }
+});
+
+void test("delivers a patch transformed by a post-processing hook", async (t) => {
+  const root = await repositoryRoot(t);
+  const original = unifiedDiff("test/value.test.ts", [
+    "+test('value', () => {});",
+  ]);
+  const transformed = original.replace(
+    "+test('value', () => {});",
+    "+test('value', () => {}); // formatted",
+  );
+  const response = await run(
+    root,
+    testCapability(() => "source"),
+    inferenceFrom([explorationRead(), explorationFinal(), proposal(original)]),
+    transformingPostProcessing(transformed),
+  );
+
+  assert.equal(response.status, "completed");
+  if (response.status === "completed") {
+    assert.ok(response.result.patch.includes("// formatted"));
+  }
+});
+
 async function run(
   root: string,
   capability: RepositoryReadCapability,
   inference: ModelInferencePort,
+  postProcessing?: PostProcessingService,
 ) {
   return await proposeTests({
     request: { goal: "Add coverage for value", repository_root: root },
@@ -133,6 +177,7 @@ async function run(
     language: "en",
     capabilityFactory: () => Promise.resolve(capability),
     collectorFactory: safeCollector,
+    ...(postProcessing === undefined ? {} : { postProcessing }),
   });
 }
 
@@ -273,6 +318,30 @@ async function repositoryRoot(t: test.TestContext): Promise<string> {
   return root;
 }
 
+function blockedPostProcessing(diagnostic: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "blocked" as const,
+        hook: "security-check",
+        code: "hook_failed" as const,
+        diagnostic,
+        executed: ["security-check"],
+      }),
+  };
+}
+
+function transformingPostProcessing(next: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "passed" as const,
+        patch: next,
+        executed: ["formatter"],
+      }),
+  };
+}
+
 function configuration(): EffectiveConfiguration {
   return {
     schema_version: 1,
@@ -293,6 +362,8 @@ function configuration(): EffectiveConfiguration {
     },
     administrative_maxima: ADMINISTRATIVE_MAXIMA,
     fixed_limits: FIXED_LIMITS,
+    profile: "balanced",
+    post_processing_hooks: [],
     origins: {
       "lm_studio.base_url": "protected",
       "lm_studio.authentication": "protected",
@@ -324,6 +395,8 @@ function configuration(): EffectiveConfiguration {
       "fixed_limits.patch_max_files": "protected",
       "fixed_limits.patch_max_changed_lines": "protected",
       "fixed_limits.inference_retry_count": "protected",
+      profile: "built_in",
+      post_processing_hooks: "built_in",
     },
   };
 }

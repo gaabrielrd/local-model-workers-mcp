@@ -11,10 +11,11 @@ all major IDEs.
 
 ---
 
-## Delivered — v1.0 to v2.3
+## Delivered — v1.0 to v2.4
 
-Releases 1.0.0 through 2.3.0 delivered a complete, 15-tool local offloading
-engine, its operator-grade stability layer, and the ecosystem harnesses:
+Releases 1.0.0 through 2.4.0 delivered a complete, 15-tool local offloading
+engine, its operator-grade stability layer, the ecosystem harnesses, and the
+extensibility pillar:
 
 - **15 MCP tools** across `exploration`, `tests`, `docs`, and `lint` feature
   groups plus always-on administration tools;
@@ -32,7 +33,11 @@ engine, its operator-grade stability layer, and the ecosystem harnesses:
   notifications;
 - **Dynamic configuration profiles** — `fast`, `thorough`, `balanced` presets;
 - **Hardware-aware concurrency** — task concurrency scaled by RAM and CPU cores;
-- **Containerization** — official `Dockerfile`.
+- **Containerization** — official `Dockerfile`;
+- **Custom post-processing hooks** — user-defined local scripts after patch
+  generation with temp-dir isolation and fail-closed blocking;
+- **Workspace profiles** — project/workspace presets switchable at runtime via
+  `update_config` without a restart.
 
 ### v2.2.0 — Stability & operator experience
 
@@ -58,31 +63,27 @@ engine, its operator-grade stability layer, and the ecosystem harnesses:
 
 ---
 
-## Next — v2.4.0
+## v2.4.0 — Extensibility & automation (implemented)
 
-V2.4 keeps turning the offloading engine into a more broadly adopted tool.
-The security boundary is unchanged: the server remains read-only against the
-developer's repository, and every write proposal stays an unapplied, validated
-diff.
-
-The remaining pillar ships as one minor release — **v2.4.0** — so a feature
-lands, is qualified (`npm run validate` green), and is released before the next
-one starts. Task tracking: docs/tasks 047–048.
-
-### v2.4.0 — Extensibility & automation
+V2.4 ships the remaining extensibility pillar. The security boundary is
+unchanged: the server remains read-only against the developer's repository, and
+every write proposal stays an unapplied, validated diff. Task tracking:
+docs/tasks 047–048.
 
 - **Custom post-processing hooks**:
   User-defined local scripts executed immediately after patch generation for
   custom formatting, security-policy checks, or lint validation before a
   proposal is returned to the client. Hooks run only with explicit developer
-  configuration and never alter the repository.
+  configuration and never alter the repository (temp-dir isolation, fail
+  closed, transforms re-validated).
 - **Workspace profiles & multi-preset switching**:
   Extend the global `fast`/`thorough`/`balanced` presets to project and
   workspace scope, switchable at runtime via `update_config`, so a repository
   can move between development, security-audit, refactoring, and documentation
-  modes without a server restart.
+  modes without a server restart (project > global > preset resolution,
+  explicit limits beat presets).
 
-### V2.2 non-scope
+### V2.4 non-scope
 
 - Cloud provider inference APIs (OpenAI, Anthropic, Google).
 - Direct repository writes by the MCP server outside temporary auto-validate

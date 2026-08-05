@@ -32,6 +32,7 @@ import {
   generateDocsPatch,
   validateDocsPatch,
 } from "../src/features/docs-generation/index.js";
+import type { PostProcessingService } from "../src/features/post-processing/index.js";
 import { PatchPolicyError } from "../src/features/test-proposal/index.js";
 
 const ROOT = "/repo";
@@ -139,6 +140,117 @@ void test("inline TypeScript documentation produces a validated additions-only p
     ["add", "Calculator"],
   );
 });
+
+void test("a blocked post-processing hook fails the documentation generation closed", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": [
+      "export function add(a: number, b: number): number {",
+      "  return a + b;",
+      "}",
+    ].join("\n"),
+  });
+
+  await assert.rejects(
+    generateDocsPatch({
+      input: {
+        repository_root: ROOT,
+        target: "src/app.ts",
+        doc_type: "inline",
+      },
+      inference: fakeInference({
+        files: [
+          {
+            path: "src/app.ts",
+            symbol_docs: [{ name: "add", content: "Adds two numbers." }],
+          },
+        ],
+        summary: "Documented add.",
+      }),
+      repositoryRead,
+      model: MODEL,
+      collectorFactory: safeCollector,
+      inspectPath: () => Promise.resolve("safe"),
+      post_processing_hooks: [{ command: "docs-policy" }],
+      postProcessing: blockedPostProcessing("Docs policy rejected the patch."),
+    }),
+    (error: unknown) =>
+      error instanceof DocsGenerationError &&
+      error.code === "invalid_output" &&
+      /Docs policy rejected/.test(error.message),
+  );
+});
+
+void test("a hook-transformed documentation patch is delivered after revalidation", async () => {
+  const repositoryRead = fakeRepoRead({
+    "src/app.ts": [
+      "export function add(a: number, b: number): number {",
+      "  return a + b;",
+      "}",
+    ].join("\n"),
+  });
+  const original = [
+    "diff --git a/src/app.ts b/src/app.ts",
+    "--- a/src/app.ts",
+    "+++ b/src/app.ts",
+    "@@ -1,3 +1,6 @@",
+    "+/**",
+    "+ * Adds two numbers.",
+    "+ */",
+    " export function add(a: number, b: number): number {",
+    "   return a + b;",
+    " }",
+    "",
+  ].join("\n");
+  const transformed = original.replace(
+    "+ * Adds two numbers.",
+    "+ * Adds two numbers. (formatted)",
+  );
+
+  const result = await generateDocsPatch({
+    input: { repository_root: ROOT, target: "src/app.ts", doc_type: "inline" },
+    inference: fakeInference({
+      files: [
+        {
+          path: "src/app.ts",
+          symbol_docs: [{ name: "add", content: "Adds two numbers." }],
+        },
+      ],
+      summary: "Documented add.",
+    }),
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe"),
+    post_processing_hooks: [{ command: "formatter" }],
+    postProcessing: transformingPostProcessing(transformed),
+  });
+
+  assert.ok(result.patch.includes("(formatted)"));
+});
+
+function blockedPostProcessing(diagnostic: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "blocked" as const,
+        hook: "docs-policy",
+        code: "hook_failed" as const,
+        diagnostic,
+        executed: ["docs-policy"],
+      }),
+  };
+}
+
+function transformingPostProcessing(next: string): PostProcessingService {
+  return {
+    applyPatchHooks: () =>
+      Promise.resolve({
+        status: "passed" as const,
+        patch: next,
+        executed: ["formatter"],
+      }),
+  };
+}
 
 void test("inline Python documentation uses a google-style docstring and skips documented symbols", async () => {
   const calls: CapturedCall[] = [];

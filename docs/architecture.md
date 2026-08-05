@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Product architecture implemented through v2.3.0 (15-tool engine)
+**Status:** Product architecture implemented through v2.4.0 (15-tool engine)
 **Last reviewed:** 2026-08-04
 
 ## Purpose
@@ -89,7 +89,10 @@ The initial feature boundaries are expected to be:
 - `code-graph`: structural symbol extraction and queryable in-memory index;
 - `semantic-search`: embedding service and local vector index with persistence;
 - `module-summary`: structured file and directory summaries cached by content
-  hash, combining code-graph metadata with structured inference.
+  hash, combining code-graph metadata with structured inference;
+- `post-processing`: user-configured local hooks that run after patch
+  generation, executing against a throwaway temporary patch copy and failing
+  closed on any error.
 
 The current `repository-exploration` public API contains exploration input
 validation, the three-method repository read capability, and the outbound
@@ -145,6 +148,14 @@ it started. Project updates are confirmed with a proposal-bound identifier,
 revision-checked, validated, and atomically replaced through a persistence
 adapter. Storage locations, fields, units, and mutation semantics are concrete;
 see [configuration.md](configuration.md).
+
+Configuration is re-resolved on every MCP tool call. `update_config` persists a
+project `profile` or `post_processing_hooks` override atomically, and the next
+call — including `get_config` with `project_root` — resolves the new effective
+snapshot and revision without a server restart. The `post-processing` runner is
+injected per call through `taskDependencies` and executes hooks only when
+`post_processing_hooks` is non-empty; it never receives repository write
+access.
 
 The global-only `enabled_features` preference is resolved at process startup.
 The MCP composition layer always registers health and configuration tools, then

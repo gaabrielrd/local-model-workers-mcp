@@ -43,4 +43,33 @@ export const FIXED_LIMITS = {
   inference_retry_count: 1,
 } as const;
 
+export const POST_PROCESSING_HOOKS_MAX = 8;
+export const POST_PROCESSING_HOOK_TIMEOUT_MS_DEFAULT = 30_000;
+export const POST_PROCESSING_HOOK_TIMEOUT_MS_MAX = 120_000;
+export const POST_PROCESSING_HOOK_CAPTURE_BYTES = 256 * 1_024;
+
+export const PROFILE_PRESETS = {
+  fast: {
+    limits: {
+      max_concurrency: 4,
+      queue_timeout_ms: 60_000,
+      processing_timeout_ms: 2 * 60_000,
+      max_exploration_interactions: 6,
+      context_budget_bytes: 96 * 1_024,
+    },
+  },
+  thorough: {
+    limits: {
+      max_concurrency: 1,
+      queue_timeout_ms: 10 * 60_000,
+      processing_timeout_ms: 20 * 60_000,
+      max_exploration_interactions: 30,
+      context_budget_bytes: 512 * 1_024,
+    },
+  },
+  balanced: {
+    limits: {},
+  },
+} as const;
+
 export const REDACTED_CONFIGURATION_VALUE = "[REDACTED]";

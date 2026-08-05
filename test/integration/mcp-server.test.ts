@@ -310,6 +310,66 @@ void test("advertises only selected feature tools plus administrative tools", as
   );
 });
 
+void test("switches workspace profiles at runtime through update_config", async (t) => {
+  const baseUrl = await fakeLmStudio(t);
+  const fixture = await applicationFixture(t, baseUrl);
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [builtCli],
+    cwd: process.cwd(),
+    env: fixture.environment,
+    stderr: "pipe",
+  });
+  const client = new Client(
+    { name: "profile-switch-test", version: "1.0.0" },
+    { capabilities: {} },
+  );
+  await client.connect(transport);
+  t.after(() => client.close());
+
+  const before = await client.callTool({
+    name: TOOL_NAMES.getConfig,
+    arguments: { project_root: fixture.repository },
+  });
+  const beforeOutput = object(before.structuredContent);
+  assert.equal(beforeOutput.profile, "balanced");
+
+  const revision = beforeOutput.revision;
+  assert.equal(typeof revision, "string");
+  const validation = await client.callTool({
+    name: TOOL_NAMES.validateConfig,
+    arguments: {
+      project_root: fixture.repository,
+      expected_revision: revision,
+      changes: { profile: "thorough" },
+    },
+  });
+  const validationOutput = object(validation.structuredContent);
+  assert.equal(validationOutput.valid, true);
+  const proposalId = validationOutput.proposal_id;
+  assert.equal(typeof proposalId, "string");
+
+  const update = await client.callTool({
+    name: TOOL_NAMES.updateConfig,
+    arguments: {
+      project_root: fixture.repository,
+      expected_revision: revision,
+      changes: { profile: "thorough" },
+      confirmation: { approved: true, proposal_id: proposalId },
+    },
+  });
+  assert.equal(update.isError, undefined, JSON.stringify(update.content));
+
+  const after = await client.callTool({
+    name: TOOL_NAMES.getConfig,
+    arguments: { project_root: fixture.repository },
+  });
+  const afterOutput = object(after.structuredContent);
+  assert.equal(afterOutput.profile, "thorough");
+  assert.equal(object(afterOutput.limits).processing_timeout_ms, 20 * 60_000);
+  assert.notEqual(afterOutput.revision, beforeOutput.revision);
+});
+
 async function applicationFixture(
   t: test.TestContext,
   baseUrl: string,

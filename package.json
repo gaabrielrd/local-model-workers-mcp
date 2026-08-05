@@ -1,6 +1,6 @@
 {
   "name": "local-model-workers-mcp",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Local Model Workers MCP server for bounded repository exploration, code graph queries, type/lint fixes, and test proposals delegated to local LLMs (LM Studio, Ollama, vLLM, LocalAI).",
   "license": "MIT",
   "author": "Gabriel Rodriguez",
