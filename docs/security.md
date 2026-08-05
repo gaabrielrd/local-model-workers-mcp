@@ -104,6 +104,31 @@ from a file that changed during the task. Oversized work returns a division plan
 rather than a truncated diff. The server never applies a patch, installs a
 dependency, or executes a command.
 
+## Response-path redaction
+
+Results are scrubbed once, at the MCP boundary, before the payload is split into
+`content[0].text` and `structuredContent`. Both channels and tool error messages
+are therefore covered by construction rather than by parallel code paths.
+
+Two layers run:
+
+1. **Exact match** on credentials this process holds — the configured Bearer
+   token and every provider `bearer_token`. Secrets shorter than 8 characters
+   are ignored; matches apply longest-first so an overlapping shorter secret
+   cannot leave a visible tail.
+2. **Shape match** on recognizable credential formats a model could echo back
+   from repository content: issuer-prefixed tokens (OpenAI, GitHub, GitLab,
+   Slack, AWS, Google, Stripe, npm), PEM private-key blocks,
+   `Authorization: Bearer|Basic` headers, and secret-named assignments.
+
+Generic high-entropy detection is deliberately not used. The server legitimately
+returns git commit SHAs, `sha256:` content hashes, and file fingerprints; an
+entropy rule would redact those and corrupt normal results. Matching is
+shape-based so false positives stay rare and explainable.
+
+Values are replaced with a stable `[REDACTED]` placeholder rather than dropped,
+so result shape and JSON parsability are unchanged.
+
 ## Secrets and configuration
 
 Bearer tokens and other credentials belong to protected configuration and may

@@ -1,6 +1,6 @@
 {
   "name": "local-model-workers-mcp",
-  "version": "2.7.0",
+  "version": "2.13.0",
   "description": "Local Model Workers MCP server for bounded repository exploration, code graph queries, type/lint fixes, and test proposals delegated to local LLMs (LM Studio, Ollama, vLLM, LocalAI).",
   "license": "MIT",
   "author": "Gabriel Rodriguez",
@@ -52,6 +52,8 @@
     "pretest:integration": "npm run build",
     "release:smoke": "node scripts/release/smoke-package.mjs",
     "release:measure": "node scripts/release/measure-scenarios.mjs",
+    "release:gates": "node scripts/release/check-release-gates.mjs",
+    "release:scenarios": "node scripts/release/run-harness-scenarios.mjs",
     "test": "node --import tsx --test --test-concurrency=4 --test-timeout=30000 test/*.test.ts test/integration/*.test.ts",
     "test:unit": "node --import tsx --test --test-concurrency=4 --test-timeout=30000 test/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 --test-timeout=30000 test/integration/*.test.ts",

@@ -1,7 +1,7 @@
 # V1 release qualification
 
 **Candidate:** `local-model-workers-mcp@1.0.0-rc.1`  
-**Status:** Automated local gates pass; external release gates remain blocked  
+**Status:** Automated local gates pass; external release gates remain blocked (report them with `npm run release:gates`)  
 **Last reviewed:** 2026-08-02
 
 ## Current verdict

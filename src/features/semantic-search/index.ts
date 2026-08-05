@@ -1,5 +1,6 @@
 export {
   SemanticSearchInputSchema,
+  type IndexLimitation,
   type SemanticSearchInput,
   type SemanticSearchResult,
   type SemanticSearchResultItem,
@@ -18,4 +19,5 @@ export {
   reindexRepository,
   type ExecuteSemanticSearchOptions,
   type ReindexOptions,
+  type ReindexOutcome,
 } from "./search.js";

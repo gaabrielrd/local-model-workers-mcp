@@ -49,6 +49,88 @@ void test("fails over after the primary exhausts a transient request", async () 
   assert.deepEqual(result.output, { value: "secondary" });
   assert.deepEqual(calls, ["primary", "secondary"]);
   assert.equal(router.getProviderStatus()[0]?.status, "unhealthy");
+  // The result is attributed to the provider that served it, including the
+  // failover as a retry.
+  assert.equal(result.provider, "secondary");
+  assert.equal(result.retries, 1);
+});
+
+void test("preserves adapter-internal retries in the attributed result", async () => {
+  const calls: string[] = [];
+  const adapter = fakeAdapter("only", "ollama", 0, ["model"], calls);
+  adapter.inferStructured = <Output>() =>
+    Promise.resolve({
+      model: "model",
+      output: { value: "only" } as Output,
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+        reasoning_tokens: 0,
+      },
+      retries: 2,
+    });
+  const router = createProviderRouter({ adapters: [adapter] });
+  await router.refreshHealth({ timeout_ms: 100 });
+
+  const result = await router.inferStructured(request("model"));
+
+  assert.equal(result.provider, "only");
+  assert.equal(result.retries, 2);
+});
+
+void test("attributes the failing provider when every candidate is transient", async () => {
+  const calls: string[] = [];
+  const router = createProviderRouter({
+    adapters: [
+      fakeAdapter("primary", "vllm", 0, ["model"], calls, {
+        inferenceError: new InferenceError(
+          "transient_failure",
+          "safe transient fixture",
+          true,
+        ),
+      }),
+      fakeAdapter("backup", "ollama", 1, ["model"], calls, {
+        inferenceError: new InferenceError(
+          "transient_failure",
+          "safe transient fixture",
+          true,
+        ),
+      }),
+    ],
+  });
+  await router.refreshHealth({ timeout_ms: 100 });
+
+  await assert.rejects(
+    router.inferStructured(request("model")),
+    (error: unknown) =>
+      error instanceof InferenceError &&
+      error.code === "transient_failure" &&
+      error.provider === "backup",
+  );
+});
+
+void test("surfaces the real breaker state after it opens", async () => {
+  const calls: string[] = [];
+  const router = createProviderRouter({
+    adapters: [
+      fakeAdapter("flaky", "vllm", 0, ["model"], calls, {
+        listError: new InferenceError(
+          "endpoint_unreachable",
+          "safe offline fixture",
+          true,
+        ),
+      }),
+    ],
+    failureThreshold: 2,
+  });
+  assert.equal(router.getProviderStatus()[0]?.circuit_state, "closed");
+
+  await router.refreshHealth({ timeout_ms: 100 });
+  assert.equal(router.getProviderStatus()[0]?.circuit_state, "closed");
+  await router.refreshHealth({ timeout_ms: 100 });
+
+  assert.equal(router.getProviderStatus()[0]?.circuit_state, "open");
 });
 
 void test("routes a model only to a provider that advertises and allows it", async () => {

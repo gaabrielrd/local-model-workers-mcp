@@ -128,7 +128,8 @@ Kotlin, Swift, Scala, PHP, Ruby, and Elixir.
   ceilings before you ever see it.
 - **Secrets are redacted everywhere.** Bearer tokens never appear in
   configuration output, health responses, logs, stdout, stderr, or setup
-  summaries.
+  summaries — and every tool result is scrubbed at the MCP boundary, so a
+  credential a model echoes back never reaches your transcript.
 - **Test execution is isolated.** Generated tests run in a throwaway copy of
   the repository, never your working tree.
 
@@ -159,7 +160,7 @@ back to plain ASCII on non-TTY, non-UTF-8, and legacy Windows consoles.
   [GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest)
   under the MIT license.
 - `npm run validate` is green on macOS, Linux, and Windows CI — formatting,
-  lint, feature boundaries, typecheck, build, and 503 automated tests.
+  lint, feature boundaries, typecheck, build, and 553 automated tests.
 - Release qualification verifies the packaged server registers all 15 tools and
   runs real-model structured-output probes.
 

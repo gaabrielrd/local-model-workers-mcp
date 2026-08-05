@@ -1,6 +1,6 @@
 # Task 057: Large-Monorepo Degradation
 
-**Status:** Planned (v2.13.0)
+**Status:** Implemented (v2.13.0)
 **Depends on:** Task 027 (reactive indexing), Task 034 (SQLite vector storage), Task 041 (hardware-aware concurrency)
 
 ## Objective
@@ -28,12 +28,12 @@ time.
 
 ## Acceptance Criteria
 
-- [ ] Repository-size guidance is documented in `docs/`.
-- [ ] Over-limit indexing/exploration returns an explicit limitation rather
+- [x] Repository-size guidance is documented in `docs/`.
+- [x] Over-limit indexing/exploration returns an explicit limitation rather
       than exhausting memory or hanging.
-- [ ] Memory regression tests on large generated fixtures stay bounded.
-- [ ] In-scope repositories behave identically to before.
-- [ ] `npm run validate` green.
+- [x] Memory regression tests on large generated fixtures stay bounded.
+- [x] In-scope repositories behave identically to before.
+- [x] `npm run validate` green.
 
 ## Files Changed (anticipated)
 
@@ -43,3 +43,23 @@ time.
 - `docs/architecture.md`, `docs/limits.md` or equivalent (MODIFIED — size
   guidance)
 - `docs/tasks/057-large-monorepo-degradation.md` (NEW — this document)
+
+## Implementation notes
+
+- `FIXED_LIMITS.index_max_files` (25,000) and `index_max_bytes` (512 MiB) are the
+  documented ceiling, sitting alongside the existing patch limits so the model is
+  consistent. They are policy, not security: crossing them degrades coverage and
+  never widens the repository read boundary.
+- `reindexRepository` now returns a `ReindexOutcome` describing what it covered:
+  indexed, skipped-unchanged, pruned, and how many files were left out. It stops
+  at the file ceiling before walking the rest of the tree, and stops on
+  cumulative byte volume mid-pass, so neither dimension can run unbounded.
+- `search_semantic` surfaces an `index_limitation` (`repository_too_large`, with
+  the reason and the count not indexed). Without it a caller cannot tell "no
+  match" from "never indexed", which is the failure mode that actually misleads.
+- Repositories under the ceiling are untouched: the outcome reports
+  `truncated: false`, no limitation is attached, and the existing incremental
+  sync tests pass unchanged.
+- `test/monorepo-degradation.test.ts` generates large fixtures and asserts both
+  ceilings, the reported shortfall, and that heap growth does not scale with
+  input size — index eviction holds the footprint at its configured maximum.

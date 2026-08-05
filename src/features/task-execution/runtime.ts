@@ -104,6 +104,10 @@ export interface TaskTerminalMetadata {
   readonly model: string;
   readonly status: TerminalStatus;
   readonly error_code: ErrorCode | null;
+  /** Provider that served the task's inference, when attributable. */
+  readonly provider?: string;
+  /** Total retry attempts performed across the task's inference calls. */
+  readonly retry_count?: number;
 }
 
 export interface TaskRuntime<Output> {
@@ -160,6 +164,8 @@ export function createTaskRuntime<Output>(
   let currentState: "queued" | "processing" | TerminalStatus = "queued";
   let runPromise: Promise<TaskResponse<Output>> | undefined;
   let sequence = 0;
+  let capturedProvider: string | undefined;
+  let capturedRetries = 0;
 
   emit("queued");
 
@@ -285,12 +291,31 @@ export function createTaskRuntime<Output>(
             ),
           );
         }
-        return options.inference.inferStructured({
-          ...request,
-          model,
-          timeout_ms: remaining,
-          signal,
-        });
+        return options.inference
+          .inferStructured({
+            ...request,
+            model,
+            timeout_ms: remaining,
+            signal,
+          })
+          .then(
+            (result) => {
+              if (result.provider !== undefined) {
+                capturedProvider = result.provider;
+              }
+              capturedRetries += result.retries ?? 0;
+              return result;
+            },
+            (error: unknown) => {
+              if (
+                error instanceof InferenceError &&
+                error.provider !== undefined
+              ) {
+                capturedProvider = error.provider;
+              }
+              throw error;
+            },
+          );
       },
     };
 
@@ -355,6 +380,10 @@ export function createTaskRuntime<Output>(
         status: response.status,
         error_code:
           response.status === "completed" ? null : response.diagnostic.code,
+        ...(capturedProvider === undefined
+          ? {}
+          : { provider: capturedProvider }),
+        ...(capturedRetries === 0 ? {} : { retry_count: capturedRetries }),
       });
     } catch {
       // Operational observers cannot change task results.

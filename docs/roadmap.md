@@ -161,42 +161,108 @@ changing which content may leave the machine. Task tracking: docs/tasks 051.
 
 See [ADR-0014](decisions/0014-nonce-delimited-untrusted-data.md).
 
-## v2.8.0+ — Reliability & security hardening (planned)
+## v2.8.0 — Response-path secret redaction (implemented)
 
-Remaining pillars that harden the security boundary and the resilience
-machinery. Each pillar is tracked by its own task doc in `docs/tasks/` and ships
-as one minor release, following the project versioning rule. None of these are
-implemented yet; the v3.0 candidate direction below remains separate and
-uncommitted.
+V2.8 guarantees that credentials never reach the harness transcript, whichever
+channel a result travels on. Task tracking: docs/tasks 052.
 
-### Security
-- **v2.8.0 — Response-path secret redaction** (Task 052):
-  Scrub credentials the model might echo back from repository content before a
-  result is returned to the harness, on both the text block and
-  `structuredContent`.
-- **v2.9.0 — Transport hardening for the model hop** (Task 053):
-  Optional HTTPS with TLS certificate validation for provider connections,
-  fail-closed on invalid certs when enabled, backward-compatible with the
-  current trusted-LAN HTTP behavior.
+- **One scrubber at the MCP boundary**: `redactSecrets` runs in `callTool` on
+  the final payload before it is split into `content[0].text` and
+  `structuredContent`, so both channels and tool error messages are covered by
+  construction.
+- **Two layers**: exact match on credentials this process holds (the Bearer
+  token and every configured provider token), plus shape matching on
+  issuer-prefixed credentials, PEM private-key blocks, `Authorization` headers,
+  and secret-named assignments.
+- **No entropy heuristics**: git SHAs, `sha256:` content hashes, and
+  fingerprints are legitimate output and are never redacted.
+- **Redact, never drop**: values become a stable `[REDACTED]` placeholder, so
+  result shape and parsability are unchanged.
 
-### Reliability
+## v2.9.0 — Transport hardening for the model hop (implemented)
 
-- **v2.10.0 — Release-qualification gates** (Task 054):
-  Close the two remaining release gates: real Claude Code and Codex scenarios
-  against a real LM Studio, and green Linux/Windows CI for the exact candidate
-  commit.
-- **v2.11.0 — Fault-injection test suite** (Task 055):
-  Prove the circuit breaker, SSE parser, capacity coordinator, and atomic
-  config writes under injected faults (disconnects, truncated frames, races,
-  interrupted writes) instead of happy-path unit tests only.
-- **v2.12.0 — Error-rate observability** (Task 056):
-  Expose failure, retry, and circuit-breaker metrics over the existing
-  week/month/lifetime windows so operator-facing degradation surfaces before
-  tasks start timing out.
-- **v2.13.0 — Large-monorepo degradation** (Task 057):
-  Documented repository-size guidance and bounded indexing/exploration with
-  explicit limitation responses, plus memory regression tests on large
-  generated fixtures.
+V2.9 adds an opt-in verified transport for provider connections without
+changing the default trusted-LAN posture. Task tracking: docs/tasks 053.
+
+- **Protected `tls_verify` per provider**: set on `LMW_PROVIDERS` in the process
+  environment, so editable preferences and repository content cannot weaken it.
+- **Fails closed when enabled**: plain HTTP to a non-loopback host and
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` are both refused at adapter construction, so
+  the failure surfaces at startup rather than mid-task.
+- **Certificate failures are no longer retried**: adapters previously discarded
+  the transport error and raised a retryable `endpoint_unreachable`; a rejected
+  certificate now maps to a non-retryable `invalid_configuration`.
+- **Backward compatible**: with the flag absent, HTTP on a trusted LAN behaves
+  exactly as before.
+
+## v2.10.0 — Release-qualification gates (tooling implemented)
+
+V2.10 makes release-gate status mechanically checkable instead of a claim in a
+document. Task tracking: docs/tasks 054.
+
+- **`npm run release:gates`**: reports every gate as `met`, `unmet`, or
+  `unverifiable` and exits non-zero unless all are met. "Unverifiable" is a
+  distinct outcome so a missing artifact never reads as a pass.
+- **`npm run release:scenarios`**: drives the official fixtures through real
+  Claude Code and Codex in isolated profiles against a live provider, verifying
+  prerequisites first and refusing to fabricate a run.
+- **CI `gates` job**: reports status per commit before `release`. It is
+  report-only, so existing publish behavior is unchanged.
+
+The external gates themselves (CA-47..CA-52) still require an operator: a real
+harness session and a confirmed three-OS matrix cannot be proven locally.
+
+## v2.11.0 — Fault-injection test suite (implemented)
+
+V2.11 proves the resilience machinery under injected faults rather than only on
+the happy path. Task tracking: docs/tasks 055.
+
+- **Fault responder**: an in-test HTTP server that dies mid-body, truncates SSE,
+  returns HTML error pages, answers slowly, or returns empty bodies on demand.
+- **Three fault classes covered**: transport, stream, and capacity state.
+- **Contract-level assertions**: every fault yields a typed `InferenceError`,
+  and the shared capacity state always ends with zero active and zero queued
+  entries however the task settled.
+
+## v2.12.0 — Error-rate observability (implemented)
+
+V2.12 gives an operator a degradation signal before users see timeouts. Task
+tracking: docs/tasks 056.
+
+- **Additive `reliability` section on `get_offload_stats`**:
+  failure/retry/cancellation counters over the same week, month, and lifetime
+  windows, split by error code and by provider, plus a per-provider live
+  circuit-breaker state (`closed`/`open`/`half-open`) from the real breaker.
+- **Durable daily rollup**: events are rolled up into an owner-only
+  `rollup.json`, so month/lifetime windows survive the seven-day raw-event
+  pruning; pre-rollup logs fall back to raw events.
+- **Provider attribution at the router boundary**: the router names the serving
+  provider and retry count (adapter retries + provider failovers) on results
+  and the failing provider on total failure; terminal metadata carries both into
+  the operational log.
+- **No content change**: counters, codes, and names only; the redaction and
+  content-filtering boundaries are unchanged. Existing stats fields and the MCP
+  API are byte-compatible.
+
+The design is recorded in [ADR-0015](decisions/0015-error-rate-observability.md).
+
+## v2.13.0 — Large-monorepo degradation (implemented)
+
+V2.13 makes very large repositories degrade predictably instead of consuming
+unbounded memory or time. Task tracking: docs/tasks 057.
+
+- **Documented ceiling**: `index_max_files` (25,000) and `index_max_bytes`
+  (512 MiB) join the existing fixed limits. Policy, not security.
+- **Bounded work with an explicit report**: `reindexRepository` stops at the
+  ceiling and returns what it covered and what it left out.
+- **Callers can tell "not indexed" from "no match"**: `search_semantic` attaches
+  an `index_limitation` when coverage was truncated.
+- **No change under the ceiling**: in-scope repositories behave exactly as
+  before.
+
+Documented repository-size guidance and bounded indexing/exploration with
+explicit limitation responses, plus memory regression tests on large generated
+fixtures. Task tracking: docs/tasks 057.
 
 ---
 

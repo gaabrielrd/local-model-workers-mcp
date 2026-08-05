@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5; Task 050 implemented for v2.6; Tasks 051-057 planned for v2.7.0-v2.13.0  
+**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Tasks 049-056 implemented (v2.5-v2.12); Task 057 planned for v2.13.0  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-05
 
@@ -114,12 +114,12 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 048 | Workspace profiles | Project/workspace presets switchable via `update_config` | Implemented |
 | 049 | Broader language coverage | Code graph and context distillation for Kotlin, Swift, Scala, PHP, Ruby, Elixir | Implemented |
 | 050 | Harness context management | `result_verbosity` preference and terse result compaction | Implemented |
-| 051 | Prompt-injection hardening | Untrusted-data wrapping and adversarial fixtures | Planned (v2.7.0) |
-| 052 | Response-path secret redaction | Credential scrubber on returned results | Planned (v2.8.0) |
-| 053 | Transport hardening | Optional HTTPS + TLS validation for providers | Planned (v2.9.0) |
-| 054 | Release-qualification gates | Real-harness scenarios and cross-platform CI | Planned (v2.10.0) |
-| 055 | Fault-injection suite | Resilience under injected transport/state faults | Planned (v2.11.0) |
-| 056 | Error-rate observability | Failure/retry/breaker metrics in offload stats | Planned (v2.12.0) |
+| 051 | Prompt-injection hardening | Untrusted-data wrapping and adversarial fixtures | Implemented |
+| 052 | Response-path secret redaction | Credential scrubber on returned results | Implemented |
+| 053 | Transport hardening | Optional HTTPS + TLS validation for providers | Implemented |
+| 054 | Release-qualification gates | Real-harness scenarios and cross-platform CI | Implemented |
+| 055 | Fault-injection suite | Resilience under injected transport/state faults | Implemented |
+| 056 | Error-rate observability | Failure/retry/breaker metrics in offload stats | Implemented |
 | 057 | Large-monorepo degradation | Size ceiling and bounded indexing/exploration | Planned (v2.13.0) |
 
 ## Sequential tasks
@@ -232,10 +232,11 @@ Task 050 shipped in v2.6.0 (see [roadmap.md](../roadmap.md) and
 | --- | --- | --- | --- | --- |
 | 050 | [Harness context management](050-harness-context-management.md) | `result_verbosity` preference, terse result compaction, context-efficiency steering | 026, 040 | v2.6.0 |
 
-### Phase 11 — Reliability & security hardening (planned)
+### Phase 11 — Reliability & security hardening
 
-Task 051 shipped in v2.7.0. Tasks 052-057 are planned for v2.8.0-v2.13.0 (see
-[roadmap.md](../roadmap.md)); each ships as one minor release.
+Tasks 051-057 shipped in v2.7.0-v2.13.0 (see [roadmap.md](../roadmap.md)); each
+shipped as one minor release. Task 054 is process/QA: its tooling shipped, but
+its external gates still require operator execution.
 
 | Order | Task | Primary outcome | Depends on | Release |
 | --- | --- | --- | --- | --- |

@@ -108,6 +108,11 @@ CA-33 through CA-45. Include both expected attacks and malformed inputs:
 - Do not place real tokens, credentials, or personal paths in fixtures or
   snapshots.
 - Do not require a real LM Studio instance in the default validation suite.
+- Prove resilience with injected faults, not only happy paths. `test/fault-injection/`
+  provides an HTTP responder that can die mid-body, truncate SSE, return HTML
+  error pages, answer slowly, or return empty bodies. Assert the *contract* —
+  a typed `InferenceError`, and capacity state ending with zero active and zero
+  queued entries — rather than implementation details.
 
 ## Validation command
 

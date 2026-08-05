@@ -10,10 +10,11 @@ import {
   FIXED_LIMITS,
   type EffectiveConfiguration,
 } from "../src/features/configuration/index.js";
-import type {
-  ModelInferencePort,
-  StructuredInferenceRequest,
-  StructuredInferenceResult,
+import {
+  InferenceError,
+  type ModelInferencePort,
+  type StructuredInferenceRequest,
+  type StructuredInferenceResult,
 } from "../src/features/model-inference/index.js";
 import {
   CapacityError,
@@ -25,6 +26,7 @@ import {
   type TaskContentKind,
   type TaskExecutionContext,
   type TaskProgressEvent,
+  type TaskTerminalMetadata,
 } from "../src/features/task-execution/index.js";
 
 const ResultSchema = z.object({ value: z.string() }).strict();
@@ -386,6 +388,91 @@ void test("maps queue timeout and queued cancellation to terminal task responses
       assert.equal(workCalls, 0);
     });
   }
+});
+
+void test("terminal metadata attributes the serving provider and its retries", async () => {
+  let terminal: TaskTerminalMetadata | undefined;
+  const inference = inferencePort((request) =>
+    Promise.resolve({
+      model: request.model,
+      output: request.output_schema.parse({ value: "attributed" }),
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+        reasoning_tokens: 0,
+      },
+      provider: "primary",
+      retries: 2,
+    }),
+  );
+  const runtime = createTaskRuntime({
+    goal: "attribute provider",
+    configuration: configuration(),
+    resultSchema: ResultSchema,
+    inference,
+    language: "en",
+    onTerminal: (metadata) => {
+      terminal = metadata;
+    },
+  });
+
+  const result = await runtime.run(async (context) => {
+    await context.inferStructured({
+      messages: [{ role: "user", content: "private prompt" }],
+      output_name: "task_result",
+      output_schema: ResultSchema,
+      max_tokens: 100,
+    });
+    await context.inferStructured({
+      messages: [{ role: "user", content: "private prompt again" }],
+      output_name: "task_result",
+      output_schema: ResultSchema,
+      max_tokens: 100,
+    });
+    return { status: "completed", result: { value: "ok" } };
+  });
+
+  assert.equal(result.status, "completed");
+  assert.equal(terminal?.provider, "primary");
+  assert.equal(terminal?.retry_count, 4);
+});
+
+void test("terminal metadata attributes the provider of a failed inference call", async () => {
+  let terminal: TaskTerminalMetadata | undefined;
+  const inference = inferencePort(() =>
+    Promise.reject(
+      new InferenceError(
+        "inference_failed",
+        "the serving provider went away",
+        false,
+        "failing-provider",
+      ),
+    ),
+  );
+  const runtime = createTaskRuntime({
+    goal: "attribute failure",
+    configuration: configuration(),
+    resultSchema: ResultSchema,
+    inference,
+    language: "en",
+    onTerminal: (metadata) => {
+      terminal = metadata;
+    },
+  });
+
+  const result = await runtime.run(async (context) => {
+    await context.inferStructured({
+      messages: [{ role: "user", content: "private prompt" }],
+      output_name: "task_result",
+      output_schema: ResultSchema,
+      max_tokens: 100,
+    });
+    return { status: "completed", result: { value: "unreachable" } };
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(terminal?.provider, "failing-provider");
 });
 
 function configuration(

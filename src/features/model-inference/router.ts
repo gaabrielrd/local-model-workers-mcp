@@ -88,7 +88,7 @@ export function createProviderRouter(
     await Promise.all(
       adapters.map((adapter) => refreshOne(adapter, requestOptions)),
     );
-    return snapshot(adapters, status);
+    return snapshot(adapters, status, breakers);
   };
 
   const ensureHealth = async (
@@ -144,16 +144,25 @@ export function createProviderRouter(
       );
     }
     let lastTransient: InferenceError | undefined;
+    let providersAttempted = 0;
     for (const adapter of candidates) {
+      providersAttempted += 1;
       try {
         const result = await operation(adapter);
         breakers.get(adapter.provider.name)?.recordSuccess();
-        return result;
+        return {
+          ...result,
+          provider: adapter.provider.name,
+          retries:
+            ((result as { retries?: number }).retries ?? 0) +
+            (providersAttempted - 1),
+        };
       } catch (error: unknown) {
         if (!(error instanceof InferenceError) || !error.retryable) {
           throw error;
         }
         lastTransient = error;
+        lastTransient.provider = adapter.provider.name;
         breakers.get(adapter.provider.name)?.recordFailure();
         status.set(adapter.provider.name, {
           status: "unhealthy",
@@ -175,19 +184,23 @@ export function createProviderRouter(
 
   return {
     refreshHealth,
-    getProviderStatus: () => snapshot(adapters, status),
+    getProviderStatus: () => snapshot(adapters, status, breakers),
     routeForModel: (model) => {
       const adapter = candidatesForModel(model)[0];
       return adapter === undefined
         ? null
-        : snapshotOne(adapter, status.get(adapter.provider.name));
+        : snapshotOne(
+            adapter,
+            status.get(adapter.provider.name),
+            breakers.get(adapter.provider.name),
+          );
     },
     listModels: async (requestOptions): Promise<ModelCatalog> => {
       await ensureHealth(requestOptions);
       return {
         models: [
           ...new Set(
-            snapshot(adapters, status)
+            snapshot(adapters, status, breakers)
               .filter((entry) => entry.status === "healthy")
               .flatMap((entry) => entry.models),
           ),
@@ -250,10 +263,15 @@ function validateAdapters(
 function snapshot(
   adapters: readonly ProviderAdapter[],
   status: ReadonlyMap<string, MutableProviderStatus>,
+  breakers: ReadonlyMap<string, CircuitBreaker>,
 ): readonly ProviderStatus[] {
   return Object.freeze(
     adapters.map((adapter) =>
-      snapshotOne(adapter, status.get(adapter.provider.name)),
+      snapshotOne(
+        adapter,
+        status.get(adapter.provider.name),
+        breakers.get(adapter.provider.name),
+      ),
     ),
   );
 }
@@ -261,12 +279,14 @@ function snapshot(
 function snapshotOne(
   adapter: ProviderAdapter,
   current: MutableProviderStatus | undefined,
+  breaker: CircuitBreaker | undefined,
 ): ProviderStatus {
   return Object.freeze({
     name: adapter.provider.name,
     type: adapter.provider.type,
     priority: adapter.provider.priority,
     status: current?.status ?? "unknown",
+    circuit_state: breaker?.getState() ?? "closed",
     models: Object.freeze([...(current?.models ?? [])]),
     last_checked_at:
       current?.lastCheckedAt === null || current?.lastCheckedAt === undefined

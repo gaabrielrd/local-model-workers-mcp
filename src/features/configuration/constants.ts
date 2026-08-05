@@ -41,6 +41,15 @@ export const FIXED_LIMITS = {
   patch_max_files: 10,
   patch_max_changed_lines: 1_000,
   inference_retry_count: 1,
+  /**
+   * Largest repository the semantic index will fully cover, in files.
+   *
+   * Policy, not security: crossing it degrades to a bounded, explicitly
+   * reported subset instead of unbounded work. The read boundary is unchanged.
+   */
+  index_max_files: 25_000,
+  /** Largest total source volume the index will embed, in bytes. */
+  index_max_bytes: 512 * 1_024 * 1_024,
 } as const;
 
 export const POST_PROCESSING_HOOKS_MAX = 8;

@@ -45,9 +45,20 @@ export interface SemanticSearchResultItem {
   readonly line_end: number;
 }
 
+/**
+ * Reported when the repository exceeds the documented indexing ceiling, so a
+ * caller can tell "no match" apart from "not indexed".
+ */
+export interface IndexLimitation {
+  readonly code: "repository_too_large";
+  readonly reason: "file_count" | "byte_volume";
+  readonly files_not_indexed: number;
+}
+
 export interface SemanticSearchResult {
   readonly results: readonly SemanticSearchResultItem[];
   readonly stale_warning?: boolean | undefined;
+  readonly index_limitation?: IndexLimitation | undefined;
 }
 
 export interface VectorIndex {

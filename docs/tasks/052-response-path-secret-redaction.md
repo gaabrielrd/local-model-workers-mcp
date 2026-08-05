@@ -1,6 +1,6 @@
 # Task 052: Response-Path Secret Redaction
 
-**Status:** Planned (v2.8.0)
+**Status:** Implemented (v2.8.0)
 **Depends on:** Task 051 (prompt-injection hardening), Task 007 (inference provider)
 
 ## Objective
@@ -26,13 +26,13 @@ transcript, on either the text content block or `structuredContent`.
 
 ## Acceptance Criteria
 
-- [ ] A configured credential echoed by the model is absent from returned
+- [x] A configured credential echoed by the model is absent from returned
       results in both the text block and `structuredContent`.
-- [ ] Pattern-based redaction removes repository-sourced credential-shaped
+- [x] Pattern-based redaction removes repository-sourced credential-shaped
       values without false-positive breakage on normal output.
-- [ ] Result shape and parsability are preserved (placeholder, not omission).
-- [ ] Public tool schemas unchanged.
-- [ ] `npm run validate` green.
+- [x] Result shape and parsability are preserved (placeholder, not omission).
+- [x] Public tool schemas unchanged.
+- [x] `npm run validate` green.
 
 ## Files Changed (anticipated)
 
@@ -42,3 +42,23 @@ transcript, on either the text content block or `structuredContent`.
 - `test/` (NEW — redaction tests for both channels)
 - `docs/architecture.md` (MODIFIED — response-path redaction note)
 - `docs/tasks/052-response-path-secret-redaction.md` (NEW — this document)
+
+## Implementation notes
+
+- `src/features/mcp-server/secret-redaction.ts` runs in `callTool`, on the final
+  payload, before `renderToolResult` splits it. Both the text block and
+  `structuredContent` are therefore covered by construction rather than by two
+  parallel code paths. Tool error messages are scrubbed on the same boundary.
+- Exact-match secrets come from `runtimeSecrets()`: the process Bearer token
+  plus every configured provider `bearer_token`. Secrets shorter than 8
+  characters are ignored, and matches are applied longest-first so an
+  overlapping shorter secret cannot leave a visible tail.
+- Shape matching covers issuer-prefixed credentials (OpenAI, GitHub, GitLab,
+  Slack, AWS, Google, Stripe, npm), PEM private-key blocks,
+  `Authorization: Bearer|Basic` headers, and secret-named assignments.
+- **Generic entropy detection was deliberately rejected.** This server returns
+  git commit SHAs, `sha256:` content hashes, and file fingerprints as normal
+  output; a "long hex/base64 run" rule would redact them and corrupt results. A
+  regression test pins that behavior.
+- Values are replaced with a stable `[REDACTED]` placeholder, never omitted, so
+  result shape and JSON parsability are unchanged.

@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 
+import { FIXED_LIMITS } from "../configuration/index.js";
 import type { ModelInferencePort } from "../model-inference/index.js";
 import type { RepositoryReadCapability } from "../repository-exploration/index.js";
 
 import { chunkText } from "./chunking.js";
 import type {
+  IndexLimitation,
   SemanticSearchInput,
   SemanticSearchResult,
   SemanticSearchResultItem,
@@ -23,6 +25,9 @@ export interface ExecuteSemanticSearchOptions {
   readonly timeout_ms?: number | undefined;
   readonly signal?: AbortSignal | undefined;
   readonly onProgress?: ((message: string) => void) | undefined;
+  /** Overrides the documented indexing ceiling. Tests use it to stay small. */
+  readonly maxFiles?: number | undefined;
+  readonly maxBytes?: number | undefined;
 }
 
 export async function executeSemanticSearch(
@@ -40,11 +45,12 @@ export async function executeSemanticSearch(
   } = options;
 
   const topK = input.top_k ?? DEFAULT_TOP_K;
+  let indexOutcome: ReindexOutcome | undefined;
 
   // Reindex if requested or index is empty
   if (input.reindex === true || vectorIndex.size() === 0) {
     onProgress?.("Indexing repository files for semantic search...");
-    await reindexRepository({
+    indexOutcome = await reindexRepository({
       repositoryRead,
       inference,
       vectorIndex,
@@ -52,6 +58,8 @@ export async function executeSemanticSearch(
       timeout_ms,
       signal,
       onProgress,
+      ...(options.maxFiles === undefined ? {} : { maxFiles: options.maxFiles }),
+      ...(options.maxBytes === undefined ? {} : { maxBytes: options.maxBytes }),
     });
   }
 
@@ -70,9 +78,21 @@ export async function executeSemanticSearch(
   }
 
   // Vector search
+  const limitation: IndexLimitation | undefined =
+    indexOutcome?.truncated === true
+      ? {
+          code: "repository_too_large",
+          reason: indexOutcome.limit_reason ?? "file_count",
+          files_not_indexed: indexOutcome.over_limit_files,
+        }
+      : undefined;
+
   const matches = await vectorIndex.search(queryVector, topK);
   if (matches.length === 0) {
-    return { results: [] };
+    return {
+      results: [],
+      ...(limitation === undefined ? {} : { index_limitation: limitation }),
+    };
   }
 
   // Staleness check on sample of top results
@@ -124,7 +144,24 @@ export async function executeSemanticSearch(
   return {
     results: items,
     ...(staleWarning ? { stale_warning: true } : {}),
+    ...(limitation === undefined ? {} : { index_limitation: limitation }),
   };
+}
+
+/**
+ * What a reindex pass actually covered.
+ *
+ * A repository past the documented ceiling is indexed up to that ceiling and
+ * reports the shortfall, rather than consuming unbounded memory or time.
+ */
+export interface ReindexOutcome {
+  readonly indexed_files: number;
+  readonly skipped_unchanged: number;
+  readonly pruned_files: number;
+  /** Files present in the repository but beyond the ceiling. */
+  readonly over_limit_files: number;
+  readonly truncated: boolean;
+  readonly limit_reason?: "file_count" | "byte_volume";
 }
 
 export interface ReindexOptions {
@@ -135,11 +172,14 @@ export interface ReindexOptions {
   readonly timeout_ms: number;
   readonly signal?: AbortSignal | undefined;
   readonly onProgress?: ((message: string) => void) | undefined;
+  /** Overrides the documented ceiling. Tests use it to keep fixtures small. */
+  readonly maxFiles?: number | undefined;
+  readonly maxBytes?: number | undefined;
 }
 
 export async function reindexRepository(
   options: ReindexOptions,
-): Promise<void> {
+): Promise<ReindexOutcome> {
   const {
     repositoryRead,
     inference,
@@ -168,10 +208,23 @@ export async function reindexRepository(
     }
   }
 
-  const filesToIndex = Array.from(currentRepoFiles);
+  const maxFiles = options.maxFiles ?? FIXED_LIMITS.index_max_files;
+  const maxBytes = options.maxBytes ?? FIXED_LIMITS.index_max_bytes;
+  const allFiles = Array.from(currentRepoFiles);
+
+  // Stop at the ceiling rather than walking an unbounded monorepo. The
+  // selection is deterministic so repeated runs cover the same subset.
+  const filesToIndex = allFiles.slice(0, maxFiles);
+  const overLimitFiles = allFiles.length - filesToIndex.length;
+  let truncated = overLimitFiles > 0;
+  let limitReason: "file_count" | "byte_volume" | undefined =
+    overLimitFiles > 0 ? "file_count" : undefined;
+
   let processed = 0;
   let skipped = 0;
   let reembedded = 0;
+  let indexedBytes = 0;
+  let byteLimitStoppedAt: number | undefined;
 
   for (const relativePath of filesToIndex) {
     signal?.throwIfAborted();
@@ -188,6 +241,14 @@ export async function reindexRepository(
       if (content.trim().length === 0) {
         await vectorIndex.removeFile(relativePath);
         continue;
+      }
+
+      indexedBytes += Buffer.byteLength(content, "utf8");
+      if (indexedBytes > maxBytes) {
+        truncated = true;
+        limitReason = "byte_volume";
+        byteLimitStoppedAt = processed;
+        break;
       }
 
       const contentHash = createHash("sha256").update(content).digest("hex");
@@ -240,9 +301,29 @@ export async function reindexRepository(
   const prunedCount = knownPaths.filter(
     (knownPath) => !currentRepoFiles.has(knownPath),
   ).length;
+  const notCovered =
+    overLimitFiles +
+    (byteLimitStoppedAt === undefined
+      ? 0
+      : filesToIndex.length - byteLimitStoppedAt);
+
   onProgress?.(
     `Incremental sync complete: ${skipped} skipped, ${reembedded} re-embedded, ${prunedCount} pruned.`,
   );
+  if (truncated) {
+    onProgress?.(
+      `Repository exceeds the indexing ceiling (${limitReason}); ${notCovered} file(s) were not indexed.`,
+    );
+  }
 
   await vectorIndex.save();
+
+  return {
+    indexed_files: reembedded,
+    skipped_unchanged: skipped,
+    pruned_files: prunedCount,
+    over_limit_files: notCovered,
+    truncated,
+    ...(limitReason === undefined ? {} : { limit_reason: limitReason }),
+  };
 }

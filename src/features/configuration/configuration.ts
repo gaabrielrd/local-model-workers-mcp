@@ -186,6 +186,7 @@ const ProviderConfigurationSchema = z
     bearer_token: z.string().trim().min(1).max(8_192).optional(),
     allowed_models: AllowedModelsSchema,
     priority: z.number().int().min(0).max(10_000),
+    tls_verify: z.boolean().optional(),
   })
   .strict();
 
@@ -214,6 +215,13 @@ export interface ProtectedProviderConfiguration {
   readonly bearer_token?: string;
   readonly allowed_models: readonly string[];
   readonly priority: number;
+  /**
+   * Require TLS certificate validation for this provider. Protected: it lives
+   * in the process environment only, so repository content and editable
+   * project/global preferences can never weaken it. Defaults to false, which
+   * preserves the documented trusted-LAN posture.
+   */
+  readonly tls_verify?: boolean;
 }
 
 export interface EffectiveProviderConfiguration {
@@ -788,6 +796,9 @@ export function getProtectedProviderConfigurations(
             : { bearer_token: provider.bearer_token }),
           allowed_models: Object.freeze([...provider.allowed_models]),
           priority: provider.priority,
+          ...(provider.tls_verify === undefined
+            ? {}
+            : { tls_verify: provider.tls_verify }),
         }))
         .sort(
           (left, right) =>

@@ -1,6 +1,6 @@
 # Task 053: Transport Hardening for the Model Hop
 
-**Status:** Planned (v2.9.0)
+**Status:** Implemented (v2.9.0)
 **Depends on:** Task 006 (remote client), Task 007 (inference provider)
 
 ## Objective
@@ -28,12 +28,12 @@ backward compatibility.
 
 ## Acceptance Criteria
 
-- [ ] HTTPS provider URLs validate certificates when verification is enabled.
-- [ ] Invalid certificates fail closed and produce a clear health/error signal.
-- [ ] HTTP remains supported when verification is disabled (no regression).
-- [ ] Verification cannot be weakened through editable project/global
+- [x] HTTPS provider URLs validate certificates when verification is enabled.
+- [x] Invalid certificates fail closed and produce a clear health/error signal.
+- [x] HTTP remains supported when verification is disabled (no regression).
+- [x] Verification cannot be weakened through editable project/global
       preferences.
-- [ ] `npm run validate` green.
+- [x] `npm run validate` green.
 
 ## Files Changed (anticipated)
 
@@ -44,3 +44,24 @@ backward compatibility.
 - `docs/configuration.md`, `docs/architecture.md` (MODIFIED — transport
   hardening notes)
 - `docs/tasks/053-transport-hardening-model-hop.md` (NEW — this document)
+
+## Implementation notes
+
+- Protected per-provider `tls_verify` flag on `LMW_PROVIDERS`. It lives in the
+  process environment only, so editable project/global preferences and
+  repository content can never weaken it.
+- `src/features/model-inference/transport-security.ts` enforces the two ways the
+  posture is silently lost when verification is on: a plain `http:` URL to a
+  non-loopback host, and `NODE_TLS_REJECT_UNAUTHORIZED=0` which would make
+  `https:` meaningless. Loopback HTTP stays allowed because it never leaves the
+  machine.
+- The check runs in `createProviderAdapter`, so an unverifiable provider fails
+  at startup rather than mid-task.
+- Certificate validation itself is performed by Node's TLS stack. Previously the
+  adapters discarded the fetch error and threw a **retryable**
+  `endpoint_unreachable`, so a rejected certificate looked like a transient blip
+  and was retried. `transportError` now walks the error `cause` chain and maps
+  verification failures to a non-retryable `invalid_configuration` with a clear
+  message.
+- Default behavior is unchanged: with `tls_verify` absent or false, HTTP on a
+  trusted LAN keeps working exactly as before.

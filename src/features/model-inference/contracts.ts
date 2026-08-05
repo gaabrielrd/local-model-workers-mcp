@@ -1,5 +1,7 @@
 import type { z } from "zod";
 
+import type { CircuitState } from "./circuit-breaker.js";
+
 export const INFERENCE_ERROR_CODES = Object.freeze([
   "invalid_configuration",
   "endpoint_unreachable",
@@ -21,16 +23,20 @@ export type InferenceErrorCode = (typeof INFERENCE_ERROR_CODES)[number];
 export class InferenceError extends Error {
   public readonly code: InferenceErrorCode;
   public readonly retryable: boolean;
+  /** Provider being served when the error was raised, when attributable. */
+  public provider: string | undefined = undefined;
 
   public constructor(
     code: InferenceErrorCode,
     message: string,
     retryable = false,
+    provider?: string,
   ) {
     super(message);
     this.name = "InferenceError";
     this.code = code;
     this.retryable = retryable;
+    this.provider = provider;
   }
 }
 
@@ -60,6 +66,10 @@ export interface StructuredInferenceResult<Output> {
   readonly model: string;
   readonly output: Output;
   readonly usage: InferenceUsage;
+  /** Provider that served the request, when attributable. */
+  readonly provider?: string;
+  /** Retry attempts performed before this result, when attributable. */
+  readonly retries?: number;
 }
 
 export interface ModelCatalog {
@@ -114,6 +124,8 @@ export interface ProviderConfig {
   readonly bearer_token?: string;
   readonly allowed_models: readonly string[];
   readonly priority: number;
+  /** Require TLS certificate validation for this provider. */
+  readonly tls_verify?: boolean;
 }
 
 export interface ProviderMetadata extends Omit<ProviderConfig, "bearer_token"> {
@@ -129,6 +141,7 @@ export interface ProviderStatus {
   readonly type: ProviderType;
   readonly priority: number;
   readonly status: "healthy" | "unhealthy" | "unknown";
+  readonly circuit_state: CircuitState;
   readonly models: readonly string[];
   readonly last_checked_at: string | null;
   readonly error_code?: InferenceErrorCode;

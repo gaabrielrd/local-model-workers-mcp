@@ -44,3 +44,11 @@ export {
   type ParsedUntrustedPrompt,
   type UntrustedPrompt,
 } from "./untrusted-data.js";
+export {
+  assertTransportSecurity,
+  isLoopbackHost,
+  isTlsVerificationError,
+  tlsValidationDisabled,
+  transportError,
+  type AssertTransportSecurityInput,
+} from "./transport-security.js";

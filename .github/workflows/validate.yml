@@ -40,8 +40,26 @@ jobs:
       - name: Run smoke tests
         run: npm run release:smoke
 
-  release:
+  gates:
+    # Reports which release gates are met for this commit. Gates that require a
+    # real harness run or a confirmed three-OS matrix cannot be proven inside a
+    # single job, so this reports rather than blocks. Drop --report-only to make
+    # promotion conditional on every gate passing.
     needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          package-manager-cache: false
+      - run: npm ci
+      - name: Report release gates
+        run: node scripts/release/check-release-gates.mjs --report-only
+
+  release:
+    needs: [validate, gates]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

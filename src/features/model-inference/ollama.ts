@@ -11,6 +11,7 @@ import {
   type StructuredInferenceRequest,
   type StructuredInferenceResult,
 } from "./contracts.js";
+import { transportError } from "./transport-security.js";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1_024 * 1_024;
 const TRANSIENT_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
@@ -171,7 +172,7 @@ async function listModels(
   options: ValidatedOptions,
   requestOptions: RequestOptions,
 ): Promise<ModelCatalog> {
-  const payload = await withRetry(
+  const { value: payload } = await withRetry(
     options,
     requestContext(requestOptions),
     (context) =>
@@ -206,23 +207,26 @@ async function inferStructured<Output>(
   }
   const context = requestContext(request);
   await requireAvailableModel(options, request.model, context);
-  const payload = await withRetry(options, context, (activeContext) =>
-    requestJson(
-      options,
-      endpoint(options.baseUrl, "api/chat"),
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          model: request.model,
-          messages: request.messages,
-          stream: false,
-          format: z.toJSONSchema(request.output_schema),
-          options: { temperature: 0, num_predict: request.max_tokens },
-        }),
-      },
-      activeContext,
-    ),
+  const { value: payload, retries } = await withRetry(
+    options,
+    context,
+    (activeContext) =>
+      requestJson(
+        options,
+        endpoint(options.baseUrl, "api/chat"),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            model: request.model,
+            messages: request.messages,
+            stream: false,
+            format: z.toJSONSchema(request.output_schema),
+            options: { temperature: 0, num_predict: request.max_tokens },
+          }),
+        },
+        activeContext,
+      ),
   );
   const parsed = ChatSchema.safeParse(payload);
   if (!parsed.success || parsed.data.model !== request.model) {
@@ -260,6 +264,7 @@ async function inferStructured<Output>(
       total_tokens: promptTokens + completionTokens,
       reasoning_tokens: 0,
     },
+    retries,
   };
 }
 
@@ -277,17 +282,20 @@ async function embedText(
   }
   const context = requestContext(request);
   await requireAvailableModel(options, request.model, context);
-  const payload = await withRetry(options, context, (activeContext) =>
-    requestJson(
-      options,
-      endpoint(options.baseUrl, "api/embed"),
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model: request.model, input }),
-      },
-      activeContext,
-    ),
+  const { value: payload } = await withRetry(
+    options,
+    context,
+    (activeContext) =>
+      requestJson(
+        options,
+        endpoint(options.baseUrl, "api/embed"),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model: request.model, input }),
+        },
+        activeContext,
+      ),
   );
   const parsed = EmbedSchema.safeParse(payload);
   if (
@@ -340,11 +348,11 @@ async function withRetry<T>(
   options: ValidatedOptions,
   context: RequestContext,
   operation: (context: RequestContext) => Promise<T>,
-): Promise<T> {
+): Promise<{ value: T; retries: number }> {
   let lastError: InferenceError | undefined;
   for (let attempt = 0; attempt <= options.retryCount; attempt += 1) {
     try {
-      return await operation(context);
+      return { value: await operation(context), retries: attempt };
     } catch (error: unknown) {
       if (!(error instanceof InferenceError) || !error.retryable) throw error;
       lastError = error;
@@ -380,7 +388,7 @@ async function requestJson(
       },
       signal,
     });
-  } catch {
+  } catch (error: unknown) {
     if (context.callerSignal?.aborted === true) {
       throw new InferenceError(
         "inference_cancelled",
@@ -393,11 +401,7 @@ async function requestJson(
         "The Ollama request timed out.",
       );
     }
-    throw new InferenceError(
-      "endpoint_unreachable",
-      "The Ollama endpoint could not be reached.",
-      true,
-    );
+    throw transportError(error, "The Ollama endpoint could not be reached.");
   }
   if (response.status === 401 || response.status === 403) {
     throw new InferenceError(
@@ -440,11 +444,7 @@ async function requestJson(
         "The Ollama request timed out.",
       );
     }
-    throw new InferenceError(
-      "endpoint_unreachable",
-      "The Ollama response stream failed.",
-      true,
-    );
+    throw transportError(error, "The Ollama response stream failed.");
   }
 }
 

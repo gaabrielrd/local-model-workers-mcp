@@ -337,3 +337,123 @@ void test("getOffloadStats calculates weekly, monthly, and lifetime token saving
   assert.equal(stats.monthly.tokens_saved, 6000);
   assert.match(stats.summary, /Token offload statistics:/);
 });
+
+void test("reliability metrics aggregate failures, retries, and error codes per window", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lmw-reliability-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1_000;
+  const store = createOperationalLogStore({ directory });
+
+  const write = async (
+    id: string,
+    endedAt: number,
+    status: "completed" | "failed" | "timed_out" | "cancelled",
+    errorCode: string | null,
+    extra: Record<string, unknown> = {},
+  ): Promise<void> => {
+    await store.record({
+      task_id: id,
+      started_at_ms: endedAt - 1_000,
+      ended_at_ms: endedAt,
+      duration_ms: 1_000,
+      model: "qwen/default",
+      status,
+      error_code: errorCode,
+      ...extra,
+    } as never);
+  };
+
+  // This week
+  await write("a", now - day, "completed", null);
+  await write("b", now - day, "failed", "inference_failed", {
+    provider: "primary",
+    retry_count: 2,
+  });
+  await write("c", now - day, "timed_out", "processing_timeout", {
+    provider: "secondary",
+  });
+  // This month but not this week
+  await write("d", now - 10 * day, "failed", "internal_error", {
+    provider: "primary",
+  });
+  // Lifetime only
+  await write("e", now - 60 * day, "cancelled", "task_cancelled");
+
+  const stats = await getOffloadStats(directory, now, {
+    providers: [
+      {
+        name: "primary",
+        status: "unhealthy",
+        circuit_state: "open",
+        last_checked_at: null,
+        error_code: "endpoint_unreachable",
+      },
+    ],
+  });
+
+  // Existing fields are untouched.
+  assert.equal(typeof stats.lifetime.tokens_saved, "number");
+  assert.equal(typeof stats.summary, "string");
+
+  assert.equal(stats.reliability.weekly.total_tasks, 3);
+  assert.equal(stats.reliability.weekly.failed_tasks, 1);
+  assert.equal(stats.reliability.weekly.timed_out_tasks, 1);
+  assert.equal(stats.reliability.weekly.retries, 2);
+  // 2 of 3 tasks this week ended in failure or timeout.
+  assert.equal(stats.reliability.weekly.error_rate, 0.667);
+  assert.deepEqual(stats.reliability.weekly.by_error_code, {
+    inference_failed: 1,
+    processing_timeout: 1,
+  });
+  assert.deepEqual(stats.reliability.weekly.by_provider, {
+    primary: 1,
+    secondary: 1,
+  });
+
+  assert.equal(stats.reliability.monthly.total_tasks, 4);
+  assert.equal(stats.reliability.monthly.by_provider.primary, 2);
+
+  assert.equal(stats.reliability.lifetime.total_tasks, 5);
+  assert.equal(stats.reliability.lifetime.cancelled_tasks, 1);
+
+  // Live breaker state travels with the report.
+  assert.equal(stats.reliability.providers[0]?.circuit_state, "open");
+});
+
+void test("an empty window reports a zero error rate rather than dividing by zero", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lmw-reliability-0-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+
+  const stats = await getOffloadStats(directory, Date.now());
+  assert.equal(stats.reliability.weekly.total_tasks, 0);
+  assert.equal(stats.reliability.weekly.error_rate, 0);
+  assert.deepEqual(stats.reliability.weekly.by_error_code, {});
+  assert.deepEqual(stats.reliability.providers, []);
+});
+
+void test("reliability metrics carry no repository content or credentials", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lmw-reliability-x-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+
+  const store = createOperationalLogStore({ directory });
+  const now = Date.now();
+  await store.record({
+    task_id: "t1",
+    started_at_ms: now - 1_000,
+    ended_at_ms: now,
+    duration_ms: 1_000,
+    model: "qwen/default",
+    status: "failed",
+    error_code: "inference_failed",
+  } as never);
+
+  const stats = await getOffloadStats(directory, now);
+  const serialized = JSON.stringify(stats.reliability);
+  // Only counters, codes, and names — never free text.
+  assert.equal(
+    /secret|token|password|source|excerpt|patch/iu.test(serialized),
+    false,
+  );
+});

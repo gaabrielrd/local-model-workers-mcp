@@ -1,6 +1,6 @@
 # Task 055: Fault-Injection Test Suite
 
-**Status:** Planned (v2.11.0)
+**Status:** Implemented (v2.11.0)
 **Depends on:** Task 039 (circuit breaker), Task 038 (streaming/SSE), Task 043 (daemon supervision)
 
 ## Objective
@@ -29,11 +29,11 @@ are caught before they surface in production.
 
 ## Acceptance Criteria
 
-- [ ] Injected transport faults never orphan capacity, locks, or temp files.
-- [ ] Truncated/invalid SSE is handled without crashing or hanging.
-- [ ] Circuit breaker transitions and recovery are exercised end to end.
-- [ ] Tasks reach the documented terminal states under each fault class.
-- [ ] `npm run validate` green.
+- [x] Injected transport faults never orphan capacity, locks, or temp files.
+- [x] Truncated/invalid SSE is handled without crashing or hanging.
+- [x] Circuit breaker transitions and recovery are exercised end to end.
+- [x] Tasks reach the documented terminal states under each fault class.
+- [x] `npm run validate` green.
 
 ## Files Changed (anticipated)
 
@@ -43,3 +43,28 @@ are caught before they surface in production.
 - `src/features/` (MODIFIED only where a real defect surfaces)
 - `docs/testing.md` (MODIFIED — fault-injection guidance)
 - `docs/tasks/055-fault-injection-test-suite.md` (NEW — this document)
+
+## Implementation notes
+
+- `test/fault-injection/responder.ts` is an in-test HTTP server that misbehaves
+  on demand: dies mid-body, truncates SSE, interleaves keep-alive comments,
+  returns an HTML error page, answers slowly, returns an empty body, or returns
+  an arbitrary status. Faults are queued per request.
+- `test/fault-injection.test.ts` covers three fault classes: transport
+  (mid-body disconnect, non-JSON page, empty body, deadline cut-off, caller
+  cancellation), stream (truncated frame, keep-alive interleaving, mid-flight
+  stream error), and capacity state (thrown task, dead-process owner, corrupt
+  state file, concurrency ceiling).
+- Assertions are on the contract, not the implementation: every fault must
+  produce a typed `InferenceError`, and the shared capacity state must end with
+  zero active and zero queued entries however the task settled.
+
+### One finding, deliberately not "fixed"
+
+A truncated SSE frame *is* flushed to the caller rather than discarded. That
+looked like a defect at first. It is not: a well-formed final frame may
+legitimately arrive without a terminating newline, and the parser cannot tell
+that apart from a truncation syntactically. The real guarantee is downstream —
+a truncated payload does not parse as JSON, so schema validation rejects it and
+the task fails closed. The test now documents that contract explicitly instead
+of asserting a behavior the parser was never meant to have.

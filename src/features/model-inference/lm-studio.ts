@@ -11,6 +11,7 @@ import {
   type StructuredInferenceRequest,
   type StructuredInferenceResult,
 } from "./contracts.js";
+import { transportError } from "./transport-security.js";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1_024 * 1_024;
 const INVALID_PROBE_TOKEN = "lmw-deliberately-invalid-health-probe";
@@ -331,7 +332,7 @@ async function inferStructured<Output>(
         options.bearerToken,
         context,
       );
-      return parseInferenceResponse(responsePayload, requestInput);
+      return parseInferenceResponse(responsePayload, requestInput, attempt);
     } catch (error: unknown) {
       if (!(error instanceof InferenceError) || !error.retryable) {
         throw error;
@@ -481,6 +482,7 @@ function parseEmbeddingResponse(
 function parseInferenceResponse<Output>(
   payload: unknown,
   requestInput: StructuredInferenceRequest<Output>,
+  retries: number,
 ): StructuredInferenceResult<Output> {
   const parsed = ChatResponseSchema.safeParse(payload);
   if (!parsed.success) {
@@ -519,6 +521,7 @@ function parseInferenceResponse<Output>(
     model: parsed.data.model,
     output: output.data,
     usage: usage(parsed.data.usage),
+    retries,
   };
 }
 
@@ -563,12 +566,9 @@ async function requestJson(
         "The LM Studio request exceeded its deadline.",
       );
     }
-    void error;
-    throw new InferenceError(
-      "endpoint_unreachable",
-      "The LM Studio endpoint could not be reached.",
-      true,
-    );
+    // A rejected certificate is a configuration failure, not a transient
+    // blip: retrying would only repeat the same rejection.
+    throw transportError(error, "The LM Studio endpoint could not be reached.");
   }
 
   try {

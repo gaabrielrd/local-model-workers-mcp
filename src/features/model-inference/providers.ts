@@ -8,6 +8,7 @@ import {
   type ProviderAdapter,
   type ProviderConfig,
 } from "./contracts.js";
+import { assertTransportSecurity } from "./transport-security.js";
 
 export function createProviderAdapter(
   configuration: ProviderConfig,
@@ -16,6 +17,12 @@ export function createProviderAdapter(
     "fetch" | "retryCount" | "maxResponseBytes"
   > = {},
 ): ProviderAdapter {
+  // Refuse at construction when a provider demands verification it cannot get,
+  // so the failure surfaces at startup rather than mid-task.
+  assertTransportSecurity({
+    baseUrl: configuration.base_url,
+    tlsVerify: configuration.tls_verify,
+  });
   if (configuration.type === "ollama") {
     return createOllamaAdapter({
       configuration,

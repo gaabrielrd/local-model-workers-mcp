@@ -1,6 +1,6 @@
 # Task 056: Error-Rate Observability
 
-**Status:** Planned (v2.12.0)
+**Status:** Implemented (v2.12.0)
 **Depends on:** Task 032 (token offload stats), Task 013 (operational logging)
 
 ## Objective
@@ -27,12 +27,27 @@ aggregated view of failures.
 
 ## Acceptance Criteria
 
-- [ ] Failure, retry, and breaker-state metrics aggregate over week, month, and
+- [x] Failure, retry, and breaker-state metrics aggregate over week, month, and
       lifetime windows.
-- [ ] Multi-provider failures are attributed per provider.
-- [ ] No repository content or credentials enter the metrics.
-- [ ] Existing `get_offload_stats` fields and schemas unchanged.
-- [ ] `npm run validate` green.
+- [x] Multi-provider failures are attributed per provider.
+- [x] No repository content or credentials enter the metrics.
+- [x] Existing `get_offload_stats` fields and schemas unchanged.
+- [x] `npm run validate` green.
+
+## Implementation notes
+
+- `rollup.json` (owner-only, retained 400 days) rolls every event up by UTC day
+  so month/lifetime windows survive the seven-day raw-event pruning; logs from
+  before the feature fall back to raw events.
+- The router (`execute`) attaches `provider` and `retries` (adapter-internal
+  retries plus provider failovers) to inference results and the failing provider
+  to the error thrown when every candidate is transient; the task runtime
+  captures both into `TaskTerminalMetadata`.
+- `ProviderStatus` exposes the real `circuit_state` from the breaker
+  (`closed`/`open`/`half-open`), surfaced per provider in the reliability
+  section.
+
+See [ADR-0015](../decisions/0015-error-rate-observability.md).
 
 ## Files Changed (anticipated)
 

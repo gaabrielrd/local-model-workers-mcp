@@ -40,7 +40,8 @@ strict objects with this shape:
   "base_url": "http://model-host.local:1234/v1",
   "bearer_token": "optional-secret",
   "allowed_models": ["publisher/model-id"],
-  "priority": 0
+  "priority": 0,
+  "tls_verify": false
 }
 ```
 
@@ -52,6 +53,33 @@ present it replaces the legacy provider variables; when absent, those variables
 are projected as one `lm-studio` provider for backward compatibility. Provider
 credentials remain protected and never enter editable preference files or
 public configuration.
+
+`tls_verify` (default `false`) opts a provider into a verified transport. With
+it enabled the adapter refuses to start when the base URL is plain `http:` to a
+non-loopback host, or when `NODE_TLS_REJECT_UNAUTHORIZED=0` has disabled
+certificate validation process-wide — both are ways the trusted-LAN posture is
+silently lost. Loopback HTTP stays allowed because it never leaves the machine.
+Certificate rejections surface as a non-retryable `invalid_configuration` rather
+than a retryable network error. The flag is protected: it lives in the process
+environment only, so editable preferences and repository content cannot weaken
+it. Leaving it unset preserves the documented trusted-LAN behavior exactly.
+
+## Repository size guidance
+
+The semantic index covers repositories up to a documented ceiling:
+
+| Limit | Value | Meaning |
+| --- | --- | --- |
+| `index_max_files` | 25,000 files | Largest repository the index fully covers |
+| `index_max_bytes` | 512 MiB | Largest total source volume the index embeds |
+
+These are policy, not security. A repository past either ceiling is still
+indexed — up to the ceiling — and `search_semantic` attaches an
+`index_limitation` reporting the reason (`file_count` or `byte_volume`) and how
+many files were not indexed, so a caller can tell "not indexed" from "no match".
+Work stops at the ceiling rather than walking an unbounded tree. Repositories
+under the ceiling behave exactly as before, and the repository read boundary is
+unchanged either way.
 
 Use the placeholder-only [`.env.example`](../.env.example) as a reference. The
 application does not load `.env` files. The launcher or harness supplies the

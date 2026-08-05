@@ -1,7 +1,7 @@
 # Operational logging
 
 **Status:** Implemented  
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-05
 
 Operational logs are local, metadata-only records. The lifecycle exposes a
 narrow terminal observer containing exactly:
@@ -9,14 +9,28 @@ narrow terminal observer containing exactly:
 - `task_id`;
 - `started_at_ms`, `ended_at_ms`, and `duration_ms`;
 - `model`;
-- terminal `status`; and
-- nullable `error_code`.
+- terminal `status`;
+- nullable `error_code`;
+- optional `provider` (the provider that served the task's inference, set by
+  the router when attributable); and
+- optional `retry_count` (retry attempts performed by the inference layer for
+  the task, set when greater than zero).
 
 The runtime schema rejects unknown keys, control characters, inconsistent
 timestamps, status/error mismatches, and identifiers longer than 256 ASCII
 characters. There is no message, exception, arbitrary metadata, goal, path,
 prompt, response, evidence, patch, token, or header field. Observer failures are
 absorbed and cannot change a task result. The adapter never writes stdout.
+
+## Durable rollup
+
+Raw events are pruned after seven days, but the weekly/monthly/lifetime
+`get_offload_stats` windows must outlive that. Each recorded event is therefore
+also rolled up into a single owner-only `rollup.json` summary keyed by UTC day.
+The rollup holds only numbers, status names, error codes, and provider names —
+never repository content — and is retained for 400 days. A missing or corrupt
+rollup restarts accumulation rather than failing the task that triggered it;
+logs written before this feature fall back to the raw events still on disk.
 
 ## Locations
 

@@ -40,6 +40,7 @@ import {
   getOffloadStats,
   resolveOperationalLogDirectory,
   type OperationalEventRecorder,
+  type ProviderReliabilityState,
 } from "../operational-logging/index.js";
 import {
   createRepositoryReadCapability,
@@ -90,6 +91,7 @@ import { createProcessSupervisor } from "../process-supervision/index.js";
 import { createConfigurationReloader } from "./config-reload.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
 import { renderToolResult } from "./result-compaction.js";
+import { redactSecrets, redactText } from "./secret-redaction.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
 const LanguageSchema = z
@@ -683,7 +685,9 @@ export function createMcpServer(
             runtime.homeDirectory,
             runtime.environment,
           );
-        return await getOffloadStats(logDir);
+        return await getOffloadStats(logDir, Date.now(), {
+          providers: providerReliability(runtime),
+        });
       }),
   );
 
@@ -990,17 +994,22 @@ async function callTool(
     const output = await work();
     const structured = asStructuredContent(output);
     const verbosity = runtime.currentConfiguration().result_verbosity;
-    return { ...renderToolResult(structured, verbosity) };
+    // Scrub credentials once, on the final payload, so both the text block and
+    // structuredContent are covered by construction.
+    const safe = redactSecrets(structured, {
+      knownSecrets: runtimeSecrets(runtime),
+    });
+    return { ...renderToolResult(safe, verbosity) };
   } catch (error: unknown) {
-    if (error instanceof LintFixError) {
+    const secrets = runtimeSecrets(runtime);
+    if (error instanceof LintFixError || error instanceof DocsGenerationError) {
       return {
-        content: [{ type: "text", text: error.message }],
-        isError: true,
-      };
-    }
-    if (error instanceof DocsGenerationError) {
-      return {
-        content: [{ type: "text", text: error.message }],
+        content: [
+          {
+            type: "text",
+            text: redactText(error.message, { knownSecrets: secrets }),
+          },
+        ],
         isError: true,
       };
     }
@@ -1012,12 +1021,49 @@ async function callTool(
       content: [
         {
           type: "text",
-          text: message,
+          text: redactText(message, { knownSecrets: secrets }),
         },
       ],
       isError: true,
     };
   }
+}
+
+/**
+ * Live provider health and breaker state for the reliability report.
+ *
+ * Read from the router at call time so an operator sees current degradation,
+ * not only what the historical log happens to contain.
+ */
+function providerReliability(
+  runtime: McpApplicationRuntime,
+): readonly ProviderReliabilityState[] {
+  return runtime.inference.getProviderStatus().map((status) => ({
+    name: status.name,
+    status: status.status,
+    circuit_state: status.circuit_state,
+    last_checked_at: status.last_checked_at,
+    ...(status.error_code === undefined
+      ? {}
+      : { error_code: status.error_code }),
+  }));
+}
+
+/** Every credential this process holds, for exact-match redaction. */
+function runtimeSecrets(runtime: McpApplicationRuntime): readonly string[] {
+  const secrets: string[] = [];
+  if (runtime.bearerToken !== undefined && runtime.bearerToken.length > 0) {
+    secrets.push(runtime.bearerToken);
+  }
+  for (const provider of runtime.providers) {
+    if (
+      provider.bearer_token !== undefined &&
+      provider.bearer_token.length > 0
+    ) {
+      secrets.push(provider.bearer_token);
+    }
+  }
+  return secrets;
 }
 
 function asStructuredContent(output: unknown): Record<string, unknown> {

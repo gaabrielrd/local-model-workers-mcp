@@ -33,7 +33,7 @@ Omitting `enabled_features` registers every group for backward compatibility.
 | `propose_tests` | `goal`, `repository_root` | Validated, unapplied test-only diff; optional scope and language |
 | `check_health` | none | Repository-free configuration and per-provider health |
 | `get_config` | none | Redacted configuration, provider status, and active default-model route; optional `project_root` |
-| `get_offload_stats` | none | Weekly, monthly, and lifetime token savings and queries offloaded; optional `period` and `log_directory` |
+| `get_offload_stats` | none | Weekly, monthly, and lifetime token savings and queries offloaded, plus a `reliability` section (failure/retry counters, per-provider failure breakdown, and live circuit-breaker state); optional `period` and `log_directory` |
 | `validate_config` | `project_root`, `expected_revision`, `changes` | Read-only project proposal validation |
 | `update_config` | validation fields | Atomic write only with matching explicit `confirmation` |
 | `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` and `additional_repositories` |
