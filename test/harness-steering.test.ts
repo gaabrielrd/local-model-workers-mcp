@@ -413,6 +413,30 @@ void test("builds steering instructions customized to enabled feature groups", (
   assert.doesNotMatch(lintOnly.block, /explore_repository/);
 });
 
+void test("includes context-efficiency directives in steering instructions", () => {
+  const plain = buildSteeringInstructions();
+  assert.match(
+    plain.block,
+    /Do not echo large tool results verbatim into the conversation/,
+  );
+
+  const exploration = buildSteeringInstructions({
+    enabled_features: ["exploration"],
+  });
+  assert.match(
+    exploration.block,
+    /Prefer targeted `query_code_graph`, `search_semantic`, and `summarize_module` calls/,
+  );
+
+  const tests = buildSteeringInstructions({
+    enabled_features: ["tests"],
+  });
+  assert.match(
+    tests.block,
+    /Do not echo `auto_validate_tests` iteration output/,
+  );
+});
+
 void test("resolves steering_prompt from global and project preferences", async (t) => {
   const fixture = await createConfigurationFixture(t);
   await fixture.writeGlobal({
@@ -527,6 +551,36 @@ void test("configure-global writes a custom steering prompt", async (t) => {
   };
   assert.equal(written.steering_prompt, "Always prefer semantic search.");
   assert.match(output.join(""), /Always prefer semantic search\./);
+});
+
+void test("configure-global writes result verbosity preferences", async (t) => {
+  const fixture = await createHarnessFixture(t);
+  const output: string[] = [];
+  const exitCode = await runInstallationCommand(
+    ["configure-global", "--result-verbosity", "terse", "--yes"],
+    buildIo(fixture, output),
+  );
+  assert.equal(exitCode, 0);
+  const globalPath = resolveGlobalPreferencesPath({
+    platform: PLATFORM,
+    homeDirectory: fixture.home,
+    environment: protectedEnvironment,
+  });
+  const written = JSON.parse(await readFile(globalPath, "utf8")) as {
+    result_verbosity: string;
+  };
+  assert.equal(written.result_verbosity, "terse");
+});
+
+void test("configure-global rejects an invalid result verbosity", async (t) => {
+  const fixture = await createHarnessFixture(t);
+  const output: string[] = [];
+  const exitCode = await runInstallationCommand(
+    ["configure-global", "--result-verbosity", "chatty", "--yes"],
+    buildIo(fixture, output),
+  );
+  assert.equal(exitCode, 65);
+  assert.match(output.join(""), /must be one of: terse, standard, verbose/);
 });
 
 interface HarnessFixture {

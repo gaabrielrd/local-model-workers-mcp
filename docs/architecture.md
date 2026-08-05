@@ -217,6 +217,13 @@ and omission rules for non-task tools are documented in
 [contracts.md](contracts.md). MCP and LM Studio wire types remain outside these
 contracts.
 
+Result rendering is verbosity-aware at the MCP composition boundary: when the
+effective `result_verbosity` preference is `terse`, the `callTool` wrapper
+compacts the highest-payload tool results through `renderToolResult` so both the
+text content block and `structuredContent` carry the same reduced object. Feature
+code is verbosity-unaware. The design is recorded in
+[ADR-0013](decisions/0013-result-verbosity-compaction.md).
+
 ## Known limitations
 
 - The V1 six-tool server was extended with the code-graph, semantic-search, and

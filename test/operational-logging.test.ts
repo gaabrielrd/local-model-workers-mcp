@@ -256,6 +256,7 @@ function configuration(): EffectiveConfiguration {
     fixed_limits: FIXED_LIMITS,
     profile: "balanced",
     post_processing_hooks: [],
+    result_verbosity: "standard",
     origins: {
       "lm_studio.base_url": "protected",
       "lm_studio.authentication": "protected",
@@ -289,6 +290,7 @@ function configuration(): EffectiveConfiguration {
       "fixed_limits.inference_retry_count": "protected",
       profile: "built_in",
       post_processing_hooks: "built_in",
+      result_verbosity: "built_in",
     },
   };
 }

@@ -15,7 +15,10 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.5.0 publicado (`main` inclui cobertura ampliada de linguagens no
+- Release 2.6.0 publicado (`main` inclui gerenciamento de contexto do harness —
+  preferência `result_verbosity` (`terse`/`standard`/`verbose`), compactação de
+  resultados em modo `terse` para os tools de maior payload e diretivas de
+  steering context-efficientes — além de cobertura ampliada de linguagens no
   code graph e na destilação de contexto — Kotlin, Swift, Scala, PHP, Ruby e
   Elixir, além de TypeScript/JS, Python, Go, Rust, Java e C#; mantém hooks de
   pós-processamento customizados, perfis de workspace, harness JetBrains, daemon
@@ -26,7 +29,7 @@ com fallback não interativo via flags como `--target all --yes`.
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
   e testes.
-- Roadmap concluído até v2.5.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`);
+- Roadmap concluído até v2.6.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`);
   a direção candidata v3.0 está documentada mas não planejada.
 - Versionamento: cada implementação do roadmap vira uma release minor; `main`
   avança o minor a cada pilar concluído com `npm run validate` verde.

@@ -1,8 +1,8 @@
 # Implementation plan
 
-**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5  
+**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5; Task 050 implemented for v2.6  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
-**Last reviewed:** 2026-08-04
+**Last reviewed:** 2026-08-05
 
 ## Objective
 
@@ -112,6 +112,8 @@ The [PRD](../../prd.md), not this summary, is authoritative when wording differs
 | 046 | JetBrains support | Setup for IDEA, PyCharm, WebStorm, GoLand, CLion | Implemented |
 | 047 | Post-processing hooks | User-defined local scripts after patch generation | Implemented |
 | 048 | Workspace profiles | Project/workspace presets switchable via `update_config` | Implemented |
+| 049 | Broader language coverage | Code graph and context distillation for Kotlin, Swift, Scala, PHP, Ruby, Elixir | Implemented |
+| 050 | Harness context management | `result_verbosity` preference and terse result compaction | Implemented |
 
 ## Sequential tasks
 
@@ -213,6 +215,15 @@ Task 049 shipped in v2.5.0 (see [roadmap.md](../roadmap.md)).
 | Order | Task | Primary outcome | Depends on | Release |
 | --- | --- | --- | --- | --- |
 | 049 | [Broader language coverage](049-broader-language-coverage.md) | Code graph and context distillation for Kotlin, Swift, Scala, PHP, Ruby, Elixir | 040 | v2.5.0 |
+
+### Phase 10 — V2.6 roadmap
+
+Task 050 shipped in v2.6.0 (see [roadmap.md](../roadmap.md) and
+[ADR-0013](../decisions/0013-result-verbosity-compaction.md)).
+
+| Order | Task | Primary outcome | Depends on | Release |
+| --- | --- | --- | --- | --- |
+| 050 | [Harness context management](050-harness-context-management.md) | `result_verbosity` preference, terse result compaction, context-efficiency steering | 026, 040 | v2.6.0 |
 
 
 ## Global completion rule

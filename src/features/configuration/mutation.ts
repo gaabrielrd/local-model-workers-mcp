@@ -14,6 +14,7 @@ import {
   CONFIGURATION_PROFILES,
   PostProcessingHookSchema,
   ProjectPreferencesSchema,
+  RESULT_VERBOSITY_LEVELS,
   getEffectiveConfiguration,
   isContainedPath,
   type ConfigurationFileSystem,
@@ -97,6 +98,7 @@ const ProjectChangesSchema = z
     limits: MutableLimitsSchema.optional(),
     profile: z.enum(CONFIGURATION_PROFILES).nullable().optional(),
     post_processing_hooks: MutablePostProcessingHooksSchema,
+    result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).nullable().optional(),
   })
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, {
@@ -201,6 +203,7 @@ type MutableConfigurationField =
   | "steering_prompt"
   | "profile"
   | "post_processing_hooks"
+  | "result_verbosity"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -224,6 +227,7 @@ const mutableFields: readonly MutableConfigurationField[] = [
   "steering_prompt",
   "profile",
   "post_processing_hooks",
+  "result_verbosity",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
   "limits.processing_timeout_ms",
@@ -483,6 +487,7 @@ function applyChanges(
     limits?: Record<string, number>;
     profile?: string;
     post_processing_hooks?: unknown;
+    result_verbosity?: string;
   } = {
     schema_version: CONFIGURATION_SCHEMA_VERSION,
     ...(current.default_model === undefined
@@ -501,6 +506,9 @@ function applyChanges(
     ...(current.post_processing_hooks === undefined
       ? {}
       : { post_processing_hooks: current.post_processing_hooks }),
+    ...(current.result_verbosity === undefined
+      ? {}
+      : { result_verbosity: current.result_verbosity }),
   };
 
   if ("default_model" in changes) {
@@ -564,6 +572,14 @@ function applyChanges(
       delete candidate.post_processing_hooks;
     } else if (changes.post_processing_hooks !== undefined) {
       candidate.post_processing_hooks = changes.post_processing_hooks;
+    }
+  }
+
+  if ("result_verbosity" in changes) {
+    if (changes.result_verbosity === null) {
+      delete candidate.result_verbosity;
+    } else if (changes.result_verbosity !== undefined) {
+      candidate.result_verbosity = changes.result_verbosity;
     }
   }
 
@@ -673,6 +689,8 @@ function effectiveValue(
       return configuration.profile;
     case "post_processing_hooks":
       return JSON.stringify(configuration.post_processing_hooks);
+    case "result_verbosity":
+      return configuration.result_verbosity;
     case "limits.max_concurrency":
       return configuration.limits.max_concurrency;
     case "limits.queue_timeout_ms":

@@ -57,6 +57,53 @@ void test("validates a proposal without writing and binds approval to it", async
   );
 });
 
+void test("updates and clears result_verbosity in project preferences", async (t) => {
+  const fixture = await createFixture(t);
+  const current = await fixture.snapshot();
+
+  const proposal = await fixture.validate(current.revision, {
+    result_verbosity: "terse",
+  });
+  assert.equal(proposal.valid, true);
+  if (!proposal.valid) return;
+  assert.deepEqual(proposal.changes[0], {
+    field: "result_verbosity",
+    old_value: "standard",
+    new_value: "terse",
+    old_origin: "built_in",
+    new_origin: "project",
+  });
+
+  const updated = await updateConfig({
+    ...fixture.input(),
+    expected_revision: current.revision,
+    changes: { result_verbosity: "terse" },
+    confirmation: {
+      approved: true as const,
+      proposal_id: proposal.proposal_id,
+    },
+  });
+  assert.equal(updated.updated, true);
+  assert.equal(updated.configuration.result_verbosity, "terse");
+  assert.equal(updated.configuration.origins["result_verbosity"], "project");
+
+  const after = await fixture.snapshot();
+  const clear = await fixture.validate(after.revision, {
+    result_verbosity: null,
+  });
+  assert.equal(clear.valid, true);
+  if (!clear.valid) return;
+  await updateConfig({
+    ...fixture.input(),
+    expected_revision: after.revision,
+    changes: { result_verbosity: null },
+    confirmation: { approved: true as const, proposal_id: clear.proposal_id },
+  });
+  const cleared = await fixture.snapshot();
+  assert.equal(cleared.result_verbosity, "standard");
+  assert.equal(cleared.origins["result_verbosity"], "built_in");
+});
+
 void test("requires matching explicit confirmation without changing bytes", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeProject({

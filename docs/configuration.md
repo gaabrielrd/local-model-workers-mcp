@@ -73,6 +73,7 @@ tool list is fixed when the MCP process starts; project preferences reject it.
     "embedding": "embedding/model-id"
   },
   "steering_prompt": "Prefer semantic search for descriptive queries.",
+  "result_verbosity": "standard",
   "enabled_features": ["exploration", "tests", "docs", "lint"],
   "profile": "balanced",
   "post_processing_hooks": [
@@ -118,6 +119,18 @@ values for the editable `limits`; any explicit limit at project or global scope
 wins over the active preset. Switching the profile through `update_config`
 applies immediately to the next tool call without a server restart. See
 [workspace profiles](tasks/048-workspace-profiles.md).
+
+### Result verbosity
+
+`result_verbosity` is an optional project or global override (project over global
+over the `"standard"` built-in default) selecting how detailed tool results are.
+Accepted values are `"terse"`, `"standard"`, and `"verbose"`. `"standard"` and
+`"verbose"` render results exactly as before; `"terse"` compacts the
+highest-payload tool responses so they consume less of the harness context
+window. The effective value is exposed by `get_config` and can be changed at
+runtime through `validate_config`/`update_config` or the
+`configure-global --result-verbosity` CLI flag. See
+[harness context management](tasks/050-harness-context-management.md).
 
 ### Custom post-processing hooks
 
@@ -209,8 +222,8 @@ implemented and registered as the `validate_config` and `update_config` MCP
 tools.
 
 A proposal is a non-empty partial object containing only `default_model`,
-`model_routing`, `steering_prompt`, `profile`, `post_processing_hooks`,
-and/or the editable children of `limits`.
+`model_routing`, `steering_prompt`, `result_verbosity`, `profile`,
+`post_processing_hooks`, and/or the editable children of `limits`.
 A value changes the project override. `null` removes that override so
 resolution falls back to global preferences or a built-in default. Routing
 entries in `model_routing` follow the same strict per-entry model schema and
@@ -274,14 +287,14 @@ release-level portability coverage in Task 015.
 
 Global preferences are changed only by the local
 `local-model-workers-mcp configure-global` command. It accepts
-`--default-model`, `--steering-prompt`, and the documented limit fields in kebab
-case, displays the complete proposed secret-free preference document, and
-requires `--yes` before writing. `--dry-run` performs validation and discovery
-without a write. The command applies this same strict schema and model
-allowlist; it cannot persist protected fields. Global `model_routing` entries
-can be added directly to the global preference file; they are validated by the
-same strict schema and allowlist when the file is read. See [installation.md](installation.md)
-for examples and recovery behavior.
+`--default-model`, `--steering-prompt`, `--result-verbosity`, and the documented
+limit fields in kebab case, displays the complete proposed secret-free
+preference document, and requires `--yes` before writing. `--dry-run` performs
+validation and discovery without a write. The command applies this same strict
+schema and model allowlist; it cannot persist protected fields. Global
+`model_routing` entries can be added directly to the global preference file;
+they are validated by the same strict schema and allowlist when the file is
+read. See [installation.md](installation.md) for examples and recovery behavior.
 
 Project `.mcp-agent-ignore` handling is implemented by the outbound repository
 content boundary and cannot re-enable Git-ignored or mandatory-sensitive paths.

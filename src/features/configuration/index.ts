@@ -28,6 +28,7 @@ export {
   PreferencesSchema,
   ProjectPreferencesSchema,
   resolveModelForTask,
+  RESULT_VERBOSITY_LEVELS,
   type ConfigurationErrorCode,
   type ConfigurationField,
   type ConfigurationProfile,
@@ -44,6 +45,7 @@ export {
   type Preferences,
   type ProjectPreferences,
   type ProtectedProviderConfiguration,
+  type ResultVerbosity,
 } from "./configuration.js";
 export {
   updateConfig,

@@ -28,18 +28,24 @@ export function buildSteeringInstructions(
   const features = input.enabled_features ?? FEATURE_GROUPS;
   const directives: string[] = [];
 
+  directives.push(
+    "Do not echo large tool results verbatim into the conversation; reference paths and summarize findings instead.",
+  );
+
   if (features.includes("exploration")) {
     directives.push(
       "Use `explore_repository` for goal-directed repository exploration instead of scanning raw files directly.",
       "Use `search_semantic` for natural-language code search.",
       "Use `query_code_graph` for symbol, caller, dependency, and export queries.",
       "Use `summarize_module` for structured file or directory summaries.",
+      "Prefer targeted `query_code_graph`, `search_semantic`, and `summarize_module` calls over a broad `explore_repository` when a focused lookup suffices.",
     );
   }
   if (features.includes("tests")) {
     directives.push(
       "Use `propose_tests` when generating unit test proposals.",
       "Use `auto_validate_tests` to generate and run unit tests iteratively in an isolated sandbox.",
+      "Do not echo `auto_validate_tests` iteration output; rely on its progress notifications and the final patch.",
     );
   }
   if (features.includes("docs")) {

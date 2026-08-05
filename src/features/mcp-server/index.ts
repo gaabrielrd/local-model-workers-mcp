@@ -28,3 +28,8 @@ export {
   type ServerSupervisionPort,
   type SupervisionHandlers,
 } from "./server.js";
+export {
+  compactTerseResult,
+  renderToolResult,
+  type RenderedToolResult,
+} from "./result-compaction.js";

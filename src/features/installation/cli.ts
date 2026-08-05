@@ -3,6 +3,7 @@ import process from "node:process";
 
 import {
   CONFIGURATION_SCHEMA_VERSION,
+  RESULT_VERBOSITY_LEVELS,
   getEffectiveConfiguration,
 } from "../configuration/index.js";
 import {
@@ -43,13 +44,13 @@ export async function runInstallationCommand(
     const command = arguments_[0];
     const options = parseOptions(arguments_.slice(1));
     if (command === "init" || command === "setup" || command === "quickstart") {
-      return runInteractiveSetup(options, io);
+      return await runInteractiveSetup(options, io);
     }
     if (command === "configure-harness") {
-      return configureHarness(options, io);
+      return await configureHarness(options, io);
     }
     if (command === "configure-global") {
-      return configureGlobal(options, io);
+      return await configureGlobal(options, io);
     }
     io.write("Unknown installation command.\n");
     return 64;
@@ -162,6 +163,7 @@ async function configureGlobal(
   assertAllowedOptions(options, [
     "default-model",
     "steering-prompt",
+    "result-verbosity",
     ...limitNames,
     "home",
     "dry-run",
@@ -177,13 +179,19 @@ async function configureGlobal(
   );
   const defaultModel = stringOption(options, "default-model");
   const steeringPrompt = stringOption(options, "steering-prompt");
+  const resultVerbosity = enumOption(
+    options,
+    "result-verbosity",
+    RESULT_VERBOSITY_LEVELS,
+  );
   if (
     defaultModel === undefined &&
     steeringPrompt === undefined &&
+    resultVerbosity === undefined &&
     Object.keys(limits).length === 0
   ) {
     throw new Error(
-      "At least --default-model, --steering-prompt, or one limit is required.",
+      "At least --default-model, --steering-prompt, --result-verbosity, or one limit is required.",
     );
   }
   const homeDirectory =
@@ -195,6 +203,9 @@ async function configureGlobal(
       ...(steeringPrompt === undefined
         ? {}
         : { steering_prompt: steeringPrompt }),
+      ...(resultVerbosity === undefined
+        ? {}
+        : { result_verbosity: resultVerbosity }),
       ...(Object.keys(limits).length === 0 ? {} : { limits }),
     },
     environment: io.environment ?? process.env,
@@ -334,6 +345,21 @@ function positiveIntegerOption(
   const value = Number(requiredOption(options, name));
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new Error(`Option --${name} must be a positive integer.`);
+  }
+  return value;
+}
+
+function enumOption(
+  options: ReadonlyMap<string, string | true>,
+  name: string,
+  allowed: readonly string[],
+): string | undefined {
+  const value = stringOption(options, name);
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!allowed.includes(value)) {
+    throw new Error(`Option --${name} must be one of: ${allowed.join(", ")}.`);
   }
   return value;
 }

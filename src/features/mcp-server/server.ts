@@ -89,6 +89,7 @@ import { AnalyzeDiffInputSchema, analyzeDiff } from "../diff-analysis/index.js";
 import { createProcessSupervisor } from "../process-supervision/index.js";
 import { createConfigurationReloader } from "./config-reload.js";
 import { PACKAGE_INFO } from "../../shared/package-info.js";
+import { renderToolResult } from "./result-compaction.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
 const LanguageSchema = z
@@ -227,6 +228,9 @@ export function createMcpServer(
     capabilities: { tools: {} },
   });
   const taskSignal = supervision?.taskSignal ?? (() => shutdownSignal);
+  const safeToolCall = (
+    work: () => Promise<unknown>,
+  ): Promise<CallToolResult> => callTool(runtime, work);
 
   if (featureEnabled(runtime, "exploration")) {
     server.registerTool(
@@ -978,16 +982,15 @@ function repositoryRequest(
   };
 }
 
-async function safeToolCall(
+async function callTool(
+  runtime: McpApplicationRuntime,
   work: () => Promise<unknown>,
 ): Promise<CallToolResult> {
   try {
     const output = await work();
     const structured = asStructuredContent(output);
-    return {
-      content: [{ type: "text", text: JSON.stringify(structured) }],
-      structuredContent: structured,
-    };
+    const verbosity = runtime.currentConfiguration().result_verbosity;
+    return { ...renderToolResult(structured, verbosity) };
   } catch (error: unknown) {
     if (error instanceof LintFixError) {
       return {

@@ -50,6 +50,16 @@ the MCP SDK before a feature is invoked. Results are returned in both a JSON
 text content block and `structuredContent`. Task tools retain the common
 terminal envelope; non-task tools retain their domain contracts.
 
+With the `result_verbosity` preference set to `terse` (project, global, or the
+`configure-global --result-verbosity` flag), the high-payload tools
+(`explore_repository`, `auto_validate_tests`, `analyze_diff`) return a single
+compacted representation in both the text block and `structuredContent`:
+prose-only fields (`risks`, `next_steps`, `limitation_impact`,
+`architectural_notes`, per-evidence `explanation`, per-attempt `patch`) are
+dropped while structural data (paths, line ranges, symbols, diffs, status)
+remains. `standard` (the default) and `verbose` render exactly as before. See
+[harness context management](tasks/050-harness-context-management.md).
+
 `query_code_graph` and `summarize_module` recognize symbols in TypeScript/JS,
 Python, Go, Rust, Java, C#, Kotlin, Swift, Scala, PHP, Ruby, and Elixir files.
 Unsupported extensions are ignored without failing.

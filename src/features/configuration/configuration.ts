@@ -102,6 +102,16 @@ export const CONFIGURATION_PROFILES = ["fast", "thorough", "balanced"] as const;
 
 export type ConfigurationProfile = (typeof CONFIGURATION_PROFILES)[number];
 
+export const RESULT_VERBOSITY_LEVELS = [
+  "terse",
+  "standard",
+  "verbose",
+] as const;
+
+export type ResultVerbosity = (typeof RESULT_VERBOSITY_LEVELS)[number];
+
+const DEFAULT_RESULT_VERBOSITY: ResultVerbosity = "standard";
+
 export const PostProcessingHookSchema = z
   .object({
     command: z.string().trim().min(1).max(4_096),
@@ -142,6 +152,7 @@ export const PreferencesSchema = z
     supervision: SupervisionSchema.optional(),
     limits: LimitsSchema.optional(),
     post_processing_hooks: PostProcessingHooksSchema.optional(),
+    result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).optional(),
   })
   .strict();
 
@@ -273,6 +284,7 @@ export interface EffectiveConfiguration {
   readonly enabled_features?: readonly FeatureGroup[];
   readonly profile: ConfigurationProfile;
   readonly post_processing_hooks: readonly PostProcessingHook[];
+  readonly result_verbosity: ResultVerbosity;
   readonly providers?: readonly EffectiveProviderConfiguration[];
   readonly provider_routing?: {
     readonly strategy: "priority";
@@ -306,6 +318,7 @@ export type ConfigurationField =
   | "steering_prompt"
   | "profile"
   | "post_processing_hooks"
+  | "result_verbosity"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -415,6 +428,13 @@ export async function getEffectiveConfiguration(
     [],
   );
 
+  const resultVerbosity = selectValue(
+    projectPreferences?.result_verbosity,
+    globalPreferences?.result_verbosity,
+    DEFAULT_RESULT_VERBOSITY,
+  );
+  const activeResultVerbosity: ResultVerbosity = resultVerbosity.value;
+
   const embeddingModel = selectOptionalValue(
     projectPreferences?.embedding_model,
     globalPreferences?.embedding_model,
@@ -478,6 +498,7 @@ export async function getEffectiveConfiguration(
     steering_prompt: steeringPrompt.origin,
     profile: profile.origin,
     post_processing_hooks: postProcessingHooks.origin,
+    result_verbosity: resultVerbosity.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -517,6 +538,7 @@ export async function getEffectiveConfiguration(
       : { steering_prompt: steeringPrompt.value }),
     enabled_features: [...enabledFeatures.value],
     profile: activeProfile,
+    result_verbosity: activeResultVerbosity,
     post_processing_hooks: postProcessingHooks.value.map((hook) => ({
       command: hook.command,
       ...(hook.args === undefined ? {} : { args: [...hook.args] }),

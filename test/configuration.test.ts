@@ -272,6 +272,36 @@ void test("applies project over global over built-in precedence with field origi
   );
 });
 
+void test("resolves result_verbosity with project over global precedence and built-in default", async (t) => {
+  const fixture = await createFixture(t);
+
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "another/model",
+  });
+  const absent = await getEffectiveConfiguration(fixture.input());
+  assert.equal(absent.result_verbosity, "standard");
+  assert.equal(absent.origins["result_verbosity"], "built_in");
+
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "another/model",
+    result_verbosity: "terse",
+  });
+  const globalOnly = await getEffectiveConfiguration(fixture.input());
+  assert.equal(globalOnly.result_verbosity, "terse");
+  assert.equal(globalOnly.origins["result_verbosity"], "global");
+
+  await fixture.writeProject({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    result_verbosity: "verbose",
+  });
+  const projectWins = await getEffectiveConfiguration(fixture.input(true));
+  assert.equal(projectWins.result_verbosity, "verbose");
+  assert.equal(projectWins.origins["result_verbosity"], "project");
+});
+
 void test("allows project preferences to supply the required default model", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeProject({

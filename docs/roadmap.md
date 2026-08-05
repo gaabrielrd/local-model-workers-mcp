@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last reviewed:** 2026-08-04
+**Last reviewed:** 2026-08-05
 
 ## Vision
 
@@ -11,11 +11,11 @@ all major IDEs.
 
 ---
 
-## Delivered — v1.0 to v2.5
+## Delivered — v1.0 to v2.6
 
-Releases 1.0.0 through 2.5.0 delivered a complete, 15-tool local offloading
+Releases 1.0.0 through 2.6.0 delivered a complete, 15-tool local offloading
 engine, its operator-grade stability layer, the ecosystem harnesses, the
-extensibility pillar, and broader language coverage:
+extensibility pillar, broader language coverage, and harness context management:
 
 - **15 MCP tools** across `exploration`, `tests`, `docs`, and `lint` feature
   groups plus always-on administration tools;
@@ -109,6 +109,35 @@ Task tracking: docs/tasks 049.
 - **Comment-style-aware distillation** in `distillContext`: hash (`#`) comments
   are now stripped for Ruby, Elixir, and PHP in addition to the C-style
   (`//`, `/* */`) and Python docstring handling.
+
+---
+
+## v2.6.0 — Harness context management (implemented)
+
+V2.6 reduces how much of the coding assistant's context window tool responses
+consume, without changing default behavior. Task tracking: docs/tasks 050.
+
+- **`result_verbosity` preference**:
+  A `"terse" | "standard" | "verbose"` preference (default `"standard"`)
+  resolved with the existing project > global > built-in precedence, exposed by
+  `get_config`, mutable through `validate_config`/`update_config`, and settable
+  via `configure-global --result-verbosity`.
+- **Terse result compaction**:
+  In `terse` mode, high-payload tools return a single compacted representation
+  in both the text block and `structuredContent`. `explore_repository` drops
+  `risks`, `next_steps`, and `limitation_impact` and strips per-evidence
+  `explanation`; `auto_validate_tests` drops per-attempt `patch` (the final
+  validated patch stays); `analyze_diff` drops `architectural_notes`. Structural
+  data (paths, line ranges, symbols, diffs, status) is preserved.
+- **Context-efficiency steering**:
+  `buildSteeringInstructions` gains a universal directive (do not echo large
+  tool results) plus feature-gated directives steering toward targeted lookups
+  (`query_code_graph`, `search_semantic`, `summarize_module`) and away from
+  echoing `auto_validate_tests` iteration output.
+- **No default regression**: `standard` and `verbose` render byte-identical to
+  v2.5; public tool schemas and the MCP API are unchanged.
+
+The design is recorded in [ADR-0013](decisions/0013-result-verbosity-compaction.md).
 
 ---
 

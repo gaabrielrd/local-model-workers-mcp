@@ -184,6 +184,13 @@ function mergePreferences(
           steering_prompt:
             requested.steering_prompt ?? current?.steering_prompt,
         }),
+    ...(current?.result_verbosity === undefined &&
+    requested.result_verbosity === undefined
+      ? {}
+      : {
+          result_verbosity:
+            requested.result_verbosity ?? current?.result_verbosity,
+        }),
     ...(current?.enabled_features === undefined &&
     requested.enabled_features === undefined
       ? {}

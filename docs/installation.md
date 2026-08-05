@@ -124,6 +124,7 @@ with the local command:
 local-model-workers-mcp configure-global \
   --default-model qwen/qwen3.5-9b \
   --steering-prompt "Prefer semantic search for descriptive queries." \
+  --result-verbosity terse \
   --max-concurrency 2 \
   --processing-timeout-ms 600000 \
   --dry-run
@@ -131,12 +132,14 @@ local-model-workers-mcp configure-global \
 local-model-workers-mcp configure-global \
   --default-model qwen/qwen3.5-9b \
   --steering-prompt "Prefer semantic search for descriptive queries." \
+  --result-verbosity terse \
   --max-concurrency 2 \
   --processing-timeout-ms 600000 \
   --yes
 ```
 
-The command accepts the documented limit names in kebab case, applies the same
+The command accepts the documented limit names in kebab case, plus
+`--result-verbosity` (`terse`, `standard`, or `verbose`), applies the same
 strict schema and administrative maxima as runtime loading, and rejects a
 default model absent from `LMW_ALLOWED_MODELS`. Protected connection, token,
 allowlist, and fixed policy fields cannot be written.
