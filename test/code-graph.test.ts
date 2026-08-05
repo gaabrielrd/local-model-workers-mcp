@@ -210,3 +210,253 @@ public class OrderProcessor {
   assert.ok(csSymbols.some((s) => s.name === "OrderProcessor" && s.exported));
   assert.ok(csSymbols.some((s) => s.name === "ProcessOrder" && s.exported));
 });
+
+void test("parse Kotlin, Swift, and Scala files with symbols and export status", () => {
+  const kotlinFixture = `
+import kotlinx.coroutines.launch
+
+data class User(val id: String)
+
+interface UserRepository {
+    fun findById(id: String): User?
+}
+
+class UserService {
+    private fun helper() {}
+    fun process(): User { return User("1") }
+}
+
+fun topLevel() {
+    val x = 1
+}
+`;
+  const kotlinSymbols = parseSourceSymbols("UserService.kt", kotlinFixture);
+  assert.ok(
+    kotlinSymbols.some(
+      (s) => s.name === "kotlinx.coroutines.launch" && s.kind === "import",
+    ),
+  );
+  assert.ok(kotlinSymbols.some((s) => s.name === "User" && s.kind === "class"));
+  assert.ok(
+    kotlinSymbols.some(
+      (s) => s.name === "UserRepository" && s.kind === "interface",
+    ),
+  );
+  assert.ok(
+    kotlinSymbols.some(
+      (s) => s.name === "helper" && s.kind === "method" && !s.exported,
+    ),
+  );
+  assert.ok(
+    kotlinSymbols.some(
+      (s) => s.name === "process" && s.kind === "method" && s.exported,
+    ),
+  );
+  assert.ok(
+    kotlinSymbols.some(
+      (s) => s.name === "topLevel" && s.kind === "function" && s.exported,
+    ),
+  );
+
+  const swiftFixture = `
+import Foundation
+
+public protocol CartStore: AnyObject {
+    func load() -> [String]
+}
+
+public struct CartItem {
+    let id: String
+}
+
+class CheckoutService {
+    private func secret() {}
+    func total() -> Double { return 0 }
+}
+`;
+  const swiftSymbols = parseSourceSymbols("CartService.swift", swiftFixture);
+  assert.ok(
+    swiftSymbols.some((s) => s.name === "Foundation" && s.kind === "import"),
+  );
+  assert.ok(
+    swiftSymbols.some(
+      (s) => s.name === "CartStore" && s.kind === "interface" && s.exported,
+    ),
+  );
+  assert.ok(
+    swiftSymbols.some(
+      (s) => s.name === "CartItem" && s.kind === "class" && s.exported,
+    ),
+  );
+  assert.ok(
+    swiftSymbols.some(
+      (s) => s.name === "CheckoutService" && s.kind === "class",
+    ),
+  );
+  assert.ok(swiftSymbols.some((s) => s.name === "secret" && !s.exported));
+  assert.ok(
+    swiftSymbols.some((s) => s.name === "total" && s.kind === "function"),
+  );
+
+  const scalaFixture = `
+import akka.actor.ActorSystem
+
+trait Repository[T] {
+  def find(id: String): Option[T]
+}
+
+case class User(id: String)
+
+object Main {
+  def run(): Unit = {}
+  private def helper(): Unit = {}
+}
+`;
+  const scalaSymbols = parseSourceSymbols("Main.scala", scalaFixture);
+  assert.ok(
+    scalaSymbols.some(
+      (s) => s.name === "akka.actor.ActorSystem" && s.kind === "import",
+    ),
+  );
+  assert.ok(
+    scalaSymbols.some(
+      (s) => s.name === "Repository" && s.kind === "interface" && s.exported,
+    ),
+  );
+  assert.ok(scalaSymbols.some((s) => s.name === "User" && s.kind === "class"));
+  assert.ok(scalaSymbols.some((s) => s.name === "Main" && s.kind === "class"));
+  assert.ok(
+    scalaSymbols.some(
+      (s) => s.name === "run" && s.kind === "method" && s.exported,
+    ),
+  );
+  assert.ok(
+    scalaSymbols.some(
+      (s) => s.name === "helper" && s.kind === "method" && !s.exported,
+    ),
+  );
+});
+
+void test("parse PHP, Ruby, and Elixir files with symbols and export status", () => {
+  const phpFixture = `
+<?php
+namespace App\\Service;
+
+use App\\Model\\User;
+
+interface UserGateway {
+    public function find(int $id): ?User;
+}
+
+class UserService {
+    private function helper(): void {}
+    public function process(User $user): User { return $user; }
+}
+
+function top_level(): void {}
+`;
+  const phpSymbols = parseSourceSymbols("UserService.php", phpFixture);
+  assert.ok(
+    phpSymbols.some(
+      (s) => s.name === "App\\Model\\User" && s.kind === "import",
+    ),
+  );
+  assert.ok(
+    phpSymbols.some((s) => s.name === "UserGateway" && s.kind === "interface"),
+  );
+  assert.ok(
+    phpSymbols.some((s) => s.name === "UserService" && s.kind === "class"),
+  );
+  assert.ok(
+    phpSymbols.some(
+      (s) => s.name === "helper" && s.kind === "method" && !s.exported,
+    ),
+  );
+  assert.ok(
+    phpSymbols.some(
+      (s) => s.name === "process" && s.kind === "method" && s.exported,
+    ),
+  );
+  assert.ok(
+    phpSymbols.some(
+      (s) => s.name === "top_level" && s.kind === "function" && s.exported,
+    ),
+  );
+
+  const rubyFixture = `
+require "json"
+
+class ReportGenerator
+  def build(data)
+    data
+  end
+
+  private
+
+  def _format(row)
+    row
+  end
+end
+
+def standalone
+  true
+end
+`;
+  const rubySymbols = parseSourceSymbols("report.rb", rubyFixture);
+  assert.ok(rubySymbols.some((s) => s.name === "json" && s.kind === "import"));
+  assert.ok(
+    rubySymbols.some((s) => s.name === "ReportGenerator" && s.kind === "class"),
+  );
+  assert.ok(
+    rubySymbols.some(
+      (s) => s.name === "build" && s.kind === "method" && s.exported,
+    ),
+  );
+  assert.ok(
+    rubySymbols.some(
+      (s) => s.name === "_format" && s.kind === "method" && !s.exported,
+    ),
+  );
+  assert.ok(
+    rubySymbols.some(
+      (s) => s.name === "standalone" && s.kind === "function" && s.exported,
+    ),
+  );
+
+  const elixirFixture = `
+defmodule MyApp.Payment do
+  @moduledoc "Payment processing"
+
+  def charge(amount) do
+    amount
+  end
+
+  defp internal(total) do
+    total
+  end
+end
+
+defmodule MyApp.Gateway do
+  def pay(order) do
+    order
+  end
+end
+`;
+  const elixirSymbols = parseSourceSymbols("payment.ex", elixirFixture);
+  assert.ok(
+    elixirSymbols.some((s) => s.name === "MyApp.Payment" && s.kind === "class"),
+  );
+  assert.ok(
+    elixirSymbols.some(
+      (s) => s.name === "charge" && s.kind === "function" && s.exported,
+    ),
+  );
+  assert.ok(
+    elixirSymbols.some(
+      (s) => s.name === "internal" && s.kind === "function" && !s.exported,
+    ),
+  );
+  assert.ok(
+    elixirSymbols.some((s) => s.name === "MyApp.Gateway" && s.kind === "class"),
+  );
+});

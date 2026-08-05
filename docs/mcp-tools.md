@@ -50,6 +50,10 @@ the MCP SDK before a feature is invoked. Results are returned in both a JSON
 text content block and `structuredContent`. Task tools retain the common
 terminal envelope; non-task tools retain their domain contracts.
 
+`query_code_graph` and `summarize_module` recognize symbols in TypeScript/JS,
+Python, Go, Rust, Java, C#, Kotlin, Swift, Scala, PHP, Ruby, and Elixir files.
+Unsupported extensions are ignored without failing.
+
 Task calls propagate the MCP request abort signal into queueing, repository
 work, and HTTP inference. Client cancellation or orderly process shutdown aborts
 owned work and releases global capacity. Legacy clients that request progress

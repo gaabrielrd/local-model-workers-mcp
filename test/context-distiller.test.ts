@@ -61,3 +61,80 @@ void test("distillContext handles empty source code", () => {
   const result = distillContext("   ");
   assert.equal(result.compressionRatio, 1.0);
 });
+
+void test("distillContext strips hash comments in Ruby and Elixir", () => {
+  const ruby = `
+class Report
+  # Builds the report body
+  def build(data)
+    data # inline note
+  end
+end
+`;
+  const rubyResult = distillContext(ruby, { language: "ruby" });
+  assert.ok(!rubyResult.distilledContent.includes("# Builds"));
+  assert.ok(!rubyResult.distilledContent.includes("inline note"));
+  assert.ok(rubyResult.distilledContent.includes("def build(data)"));
+
+  const elixir = `
+# Payment module
+defmodule Payment do
+  # Charges the amount
+  def charge(amount) do
+    amount
+  end
+end
+`;
+  const elixirResult = distillContext(elixir, { language: "elixir" });
+  assert.ok(!elixirResult.distilledContent.includes("# Payment module"));
+  assert.ok(!elixirResult.distilledContent.includes("# Charges"));
+  assert.ok(elixirResult.distilledContent.includes("defmodule Payment do"));
+});
+
+void test("distillContext strips hash, slash, and block comments in PHP", () => {
+  const php = `
+<?php
+# Config bootstrap
+/* Block comment */
+class Service {
+  // Line comment
+  public function run() { return 1; } # trailing
+}
+`;
+  const result = distillContext(php, { language: "php" });
+
+  assert.ok(!result.distilledContent.includes("# Config bootstrap"));
+  assert.ok(!result.distilledContent.includes("Block comment"));
+  assert.ok(!result.distilledContent.includes("Line comment"));
+  assert.ok(!result.distilledContent.includes("trailing"));
+  assert.ok(result.distilledContent.includes("public function run"));
+});
+
+void test("distillContext keeps C-style stripping for Kotlin, Swift, and Scala", () => {
+  const kotlin = `
+// Kotlin comment
+fun process() {
+  /* block */ return 1
+}
+`;
+  const kotlinResult = distillContext(kotlin, { language: "kotlin" });
+  assert.ok(!kotlinResult.distilledContent.includes("Kotlin comment"));
+  assert.ok(!kotlinResult.distilledContent.includes("block"));
+  assert.ok(kotlinResult.distilledContent.includes("fun process()"));
+
+  const swift = `
+// Swift comment
+func load() { return 1 }
+`;
+  const swiftResult = distillContext(swift, { language: "swift" });
+  assert.ok(!swiftResult.distilledContent.includes("Swift comment"));
+  assert.ok(swiftResult.distilledContent.includes("func load()"));
+
+  const scala = `
+// Scala comment
+def run(): Int = 1
+`;
+  const scalaResult = distillContext(scala, { language: "scala" });
+  assert.ok(!scalaResult.distilledContent.includes("Scala comment"));
+  assert.ok(scalaResult.distilledContent.includes("def run()"));
+});

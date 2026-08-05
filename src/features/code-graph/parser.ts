@@ -14,8 +14,27 @@ export function parseSourceSymbols(
   const isRust = filePath.endsWith(".rs");
   const isJava = filePath.endsWith(".java");
   const isCSharp = filePath.endsWith(".cs");
+  const isKotlin = filePath.endsWith(".kt") || filePath.endsWith(".kts");
+  const isSwift = filePath.endsWith(".swift");
+  const isScala = filePath.endsWith(".scala");
+  const isPhp = filePath.endsWith(".php");
+  const isRuby = filePath.endsWith(".rb");
+  const isElixir = filePath.endsWith(".ex") || filePath.endsWith(".exs");
 
-  if (!isPython && !isTypeScript && !isGo && !isRust && !isJava && !isCSharp) {
+  if (
+    !isPython &&
+    !isTypeScript &&
+    !isGo &&
+    !isRust &&
+    !isJava &&
+    !isCSharp &&
+    !isKotlin &&
+    !isSwift &&
+    !isScala &&
+    !isPhp &&
+    !isRuby &&
+    !isElixir
+  ) {
     return [];
   }
 
@@ -48,6 +67,18 @@ export function parseSourceSymbols(
       parseJavaLine(filePath, line, lineNum, lines, symbols);
     } else if (isCSharp) {
       parseCSharpLine(filePath, line, lineNum, lines, symbols);
+    } else if (isKotlin) {
+      parseKotlinLine(filePath, rawLine, line, lineNum, lines, symbols);
+    } else if (isSwift) {
+      parseSwiftLine(filePath, line, lineNum, lines, symbols);
+    } else if (isScala) {
+      parseScalaLine(filePath, rawLine, line, lineNum, lines, symbols);
+    } else if (isPhp) {
+      parsePhpLine(filePath, rawLine, line, lineNum, lines, symbols);
+    } else if (isRuby) {
+      parseRubyLine(filePath, rawLine, line, lineNum, lines, symbols);
+    } else if (isElixir) {
+      parseElixirLine(filePath, line, lineNum, lines, symbols);
     }
   }
 
@@ -281,6 +312,10 @@ function estimatePythonEndLine(
     }
   }
   return lines.length;
+}
+
+function isIndented(rawLine: string): boolean {
+  return rawLine[0] === " " || rawLine[0] === "\t";
 }
 
 function getIndentLevel(line: string): number {
@@ -547,6 +582,398 @@ function parseCSharpLine(
   if (usingMatch?.[1] !== undefined) {
     symbols.push({
       name: usingMatch[1].trim(),
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseKotlinLine(
+  filePath: string,
+  rawLine: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isMethod = isIndented(rawLine);
+  const isExported = !/\b(private|internal|protected)\b/u.test(line);
+
+  const funMatch = /\bfun\s+([A-Za-z0-9_]+)\s*\(/u.exec(line);
+  if (funMatch?.[1] !== undefined) {
+    symbols.push({
+      name: funMatch[1],
+      kind: isMethod ? "method" : "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const classMatch =
+    /^(?:[A-Za-z0-9_]+\s+)*(class|interface|object|enum)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (classMatch?.[2] !== undefined) {
+    symbols.push({
+      name: classMatch[2],
+      kind: classMatch[1] === "interface" ? "interface" : "class",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeMatch = /\btypealias\s+([A-Za-z0-9_]+)/u.exec(line);
+  if (typeMatch?.[1] !== undefined) {
+    symbols.push({
+      name: typeMatch[1],
+      kind: "type_alias",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const importMatch = /^import\s+([A-Za-z0-9_.*]+)/u.exec(line);
+  if (importMatch?.[1] !== undefined) {
+    symbols.push({
+      name: importMatch[1],
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseSwiftLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isExported = /\b(public|open)\b/u.test(line);
+
+  const funcMatch = /\bfunc\s+([A-Za-z0-9_]+)\s*\(/u.exec(line);
+  if (funcMatch?.[1] !== undefined) {
+    symbols.push({
+      name: funcMatch[1],
+      kind: "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeMatch =
+    /^(?:[A-Za-z0-9_]+\s+)*(class|struct|enum|protocol|extension)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (typeMatch?.[2] !== undefined) {
+    const rawKind = typeMatch[1];
+    const kind =
+      rawKind === "protocol"
+        ? "interface"
+        : rawKind === "extension"
+          ? "type_alias"
+          : "class";
+    symbols.push({
+      name: typeMatch[2],
+      kind,
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeAliasMatch = /^typealias\s+([A-Za-z0-9_]+)/u.exec(line);
+  if (typeAliasMatch?.[1] !== undefined) {
+    symbols.push({
+      name: typeAliasMatch[1],
+      kind: "type_alias",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const importMatch = /^import\s+(?:[A-Za-z0-9_]+\.)*([A-Za-z0-9_]+)/u.exec(
+    line,
+  );
+  if (importMatch?.[1] !== undefined) {
+    symbols.push({
+      name: importMatch[1],
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseScalaLine(
+  filePath: string,
+  rawLine: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isMethod = isIndented(rawLine);
+  const isExported = !/\b(private|protected)\b/u.test(line);
+
+  const defMatch = /\bdef\s+([A-Za-z0-9_]+)\s*\(/u.exec(line);
+  if (defMatch?.[1] !== undefined) {
+    symbols.push({
+      name: defMatch[1],
+      kind: isMethod ? "method" : "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeMatch =
+    /^(?:[A-Za-z0-9_]+\s+)*(class|trait|object|enum)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (typeMatch?.[2] !== undefined) {
+    symbols.push({
+      name: typeMatch[2],
+      kind: typeMatch[1] === "trait" ? "interface" : "class",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const typeAliasMatch = /^type\s+([A-Za-z0-9_]+)\s*=/u.exec(line);
+  if (typeAliasMatch?.[1] !== undefined) {
+    symbols.push({
+      name: typeAliasMatch[1],
+      kind: "type_alias",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const importMatch = /^import\s+([A-Za-z0-9_.*]+)/u.exec(line);
+  if (importMatch?.[1] !== undefined) {
+    symbols.push({
+      name: importMatch[1],
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parsePhpLine(
+  filePath: string,
+  rawLine: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const isMethod = isIndented(rawLine);
+  const isExported = !/\b(private|protected)\b/u.test(line);
+
+  const funcMatch = /\bfunction\s+([A-Za-z0-9_]+)\s*\(/u.exec(line);
+  if (funcMatch?.[1] !== undefined) {
+    symbols.push({
+      name: funcMatch[1],
+      kind: isMethod ? "method" : "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const classMatch =
+    /^(?:[A-Za-z0-9_]+\s+)*(class|interface|trait|enum)\s+([A-Za-z0-9_]+)/u.exec(
+      line,
+    );
+  if (classMatch?.[2] !== undefined) {
+    symbols.push({
+      name: classMatch[2],
+      kind: classMatch[1] === "interface" ? "interface" : "class",
+      filePath,
+      startLine: lineNum,
+      endLine: estimateEndLine(lineNum, lines, "{", "}"),
+      signature: line,
+      exported: isExported,
+    });
+    return;
+  }
+
+  const useMatch = /^use\s+([A-Za-z0-9_\\]+)/u.exec(line);
+  if (useMatch?.[1] !== undefined) {
+    symbols.push({
+      name: useMatch[1],
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseRubyLine(
+  filePath: string,
+  rawLine: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const defMatch = /\bdef\s+(?:self\.)?([A-Za-z0-9_]+)/u.exec(line);
+  if (defMatch?.[1] !== undefined) {
+    const name = defMatch[1];
+    const isMethod = isIndented(rawLine);
+    symbols.push({
+      name,
+      kind: isMethod ? "method" : "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimatePythonEndLine(lineNum, lines),
+      signature: line,
+      exported: !name.startsWith("_"),
+    });
+    return;
+  }
+
+  const classMatch = /\b(class|module)\s+([A-Za-z0-9_:]+)/u.exec(line);
+  if (classMatch?.[2] !== undefined) {
+    const name = classMatch[2].replace(/::/gu, ".");
+    symbols.push({
+      name,
+      kind: "class",
+      filePath,
+      startLine: lineNum,
+      endLine: estimatePythonEndLine(lineNum, lines),
+      signature: line,
+      exported: !name.startsWith("_"),
+    });
+    return;
+  }
+
+  const requireMatch = /^require(?:_relative)?\s+['"]([^'"]+)['"]/u.exec(line);
+  if (requireMatch?.[1] !== undefined) {
+    symbols.push({
+      name: requireMatch[1],
+      kind: "import",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: false,
+    });
+  }
+}
+
+function parseElixirLine(
+  filePath: string,
+  line: string,
+  lineNum: number,
+  lines: readonly string[],
+  symbols: CodeSymbol[],
+): void {
+  const defMatch = /\b(defp?)\s+([A-Za-z0-9_]+)/u.exec(line);
+  if (defMatch?.[2] !== undefined) {
+    const isPrivate = defMatch[1] === "defp";
+    symbols.push({
+      name: defMatch[2],
+      kind: "function",
+      filePath,
+      startLine: lineNum,
+      endLine: estimatePythonEndLine(lineNum, lines),
+      signature: line,
+      exported: !isPrivate,
+    });
+    return;
+  }
+
+  const moduleMatch = /\bdef(module|protocol|struct)\s+([A-Za-z0-9_.]+)/u.exec(
+    line,
+  );
+  if (moduleMatch?.[2] !== undefined) {
+    symbols.push({
+      name: moduleMatch[2],
+      kind: moduleMatch[1] === "protocol" ? "interface" : "class",
+      filePath,
+      startLine: lineNum,
+      endLine: estimatePythonEndLine(lineNum, lines),
+      signature: line,
+      exported: true,
+    });
+    return;
+  }
+
+  const typeMatch = /\btype\s+([A-Za-z0-9_]+)\s*::/u.exec(line);
+  if (typeMatch?.[1] !== undefined) {
+    symbols.push({
+      name: typeMatch[1],
+      kind: "type_alias",
+      filePath,
+      startLine: lineNum,
+      endLine: lineNum,
+      signature: line,
+      exported: true,
+    });
+    return;
+  }
+
+  const importMatch = /^alias\s+([A-Za-z0-9_.]+)/u.exec(line);
+  if (importMatch?.[1] !== undefined) {
+    symbols.push({
+      name: importMatch[1],
       kind: "import",
       filePath,
       startLine: lineNum,

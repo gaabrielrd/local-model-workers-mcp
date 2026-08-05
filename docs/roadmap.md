@@ -11,14 +11,17 @@ all major IDEs.
 
 ---
 
-## Delivered — v1.0 to v2.4
+## Delivered — v1.0 to v2.5
 
-Releases 1.0.0 through 2.4.0 delivered a complete, 15-tool local offloading
-engine, its operator-grade stability layer, the ecosystem harnesses, and the
-extensibility pillar:
+Releases 1.0.0 through 2.5.0 delivered a complete, 15-tool local offloading
+engine, its operator-grade stability layer, the ecosystem harnesses, the
+extensibility pillar, and broader language coverage:
 
 - **15 MCP tools** across `exploration`, `tests`, `docs`, and `lint` feature
   groups plus always-on administration tools;
+- **Broader language coverage** — code graph and context distillation for
+  Kotlin, Swift, Scala, PHP, Ruby, and Elixir on top of the original six
+  languages;
 - **SQLite vector storage** — persistent `SqliteVectorIndex` on native
   `node:sqlite`;
 - **Circuit breaker resiliency** — automated 3-state breaker for model
@@ -93,6 +96,22 @@ docs/tasks 047–048.
 
 ---
 
+## v2.5.0 — Broader language coverage (implemented)
+
+V2.5 extends the code graph and context distillation to six new languages.
+Task tracking: docs/tasks 049.
+
+- **Six new languages** in `parseSourceSymbols`: Kotlin (`.kt`, `.kts`),
+  Swift (`.swift`), Scala (`.scala`), PHP (`.php`), Ruby (`.rb`), and Elixir
+  (`.ex`, `.exs`) — functions, classes, interfaces, type aliases, methods,
+  imports, and export-status heuristics per language, on top of the existing
+  TypeScript/JS, Python, Go, Rust, Java, and C# support.
+- **Comment-style-aware distillation** in `distillContext`: hash (`#`) comments
+  are now stripped for Ruby, Elixir, and PHP in addition to the C-style
+  (`//`, `/* */`) and Python docstring handling.
+
+---
+
 ## Version 3.0 — Candidate direction (not committed)
 
 Direction is under discussion and nothing here is planned for an upcoming
@@ -100,7 +119,6 @@ release:
 
 - Team administration and multi-account isolation for shared LM Studio or vLLM
   infrastructure.
-- Broader language coverage for the code graph and context distillation.
 - Deeper harness-specific rendering (e.g., IDE inline diff previews) through
   the MCP SDK's evolving capabilities.
 

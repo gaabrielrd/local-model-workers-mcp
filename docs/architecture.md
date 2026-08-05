@@ -86,7 +86,9 @@ The initial feature boundaries are expected to be:
 - `health`: configuration and provider diagnostics without repository access;
 - `model-inference`: provider adapters and health-aware inference routing;
 - `operational-logging`: metadata-only records and seven-day retention;
-- `code-graph`: structural symbol extraction and queryable in-memory index;
+- `code-graph`: structural symbol extraction and queryable in-memory index for
+  TypeScript/JS, Python, Go, Rust, Java, C#, Kotlin, Swift, Scala, PHP, Ruby,
+  and Elixir, with comment-style-aware context distillation;
 - `semantic-search`: embedding service and local vector index with persistence;
 - `module-summary`: structured file and directory summaries cached by content
   hash, combining code-graph metadata with structured inference;

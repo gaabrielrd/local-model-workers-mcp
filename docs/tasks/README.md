@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Status:** Tasks 001-048 implemented (released as v1.0, v1.1, v1.2, v2.0, v2.1, v2.2, v2.3; Tasks 047-048 implemented for v2.4)  
+**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Task 049 implemented for v2.5  
 **Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
 **Last reviewed:** 2026-08-04
 
@@ -205,6 +205,14 @@ are implemented for v2.4.0 (see [roadmap.md](../roadmap.md)).
 | 046 | [JetBrains IDE suite](046-jetbrains-ide-suite.md) | Setup for IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion | 031 | v2.3.0 |
 | 047 | [Custom post-processing hooks](047-custom-post-processing-hooks.md) | User-defined local scripts after patch generation | 011, 021 | v2.4.0 |
 | 048 | [Workspace profiles](048-workspace-profiles.md) | Project/workspace presets switchable via `update_config` | 003, 040 | v2.4.0 |
+
+### Phase 9 — V2.5 roadmap
+
+Task 049 shipped in v2.5.0 (see [roadmap.md](../roadmap.md)).
+
+| Order | Task | Primary outcome | Depends on | Release |
+| --- | --- | --- | --- | --- |
+| 049 | [Broader language coverage](049-broader-language-coverage.md) | Code graph and context distillation for Kotlin, Swift, Scala, PHP, Ruby, Elixir | 040 | v2.5.0 |
 
 
 ## Global completion rule

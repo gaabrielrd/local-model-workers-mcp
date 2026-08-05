@@ -3,7 +3,7 @@ export interface DistillOptions {
   readonly stripComments?: boolean;
   /** Collapse consecutive empty lines into a single empty line. Default: true */
   readonly collapseEmptyLines?: boolean;
-  /** Language identifier (e.g., "typescript", "python", "go", "rust", "java", "csharp"). Default: "typescript" */
+  /** Language identifier (e.g., "typescript", "python", "go", "rust", "java", "csharp", "kotlin", "swift", "scala", "php", "ruby", "elixir"). Default: "typescript" */
   readonly language?: string;
 }
 
@@ -40,35 +40,17 @@ export function distillContext(
   if (stripComments) {
     const lang = options.language?.toLowerCase() ?? "typescript";
     if (lang === "python") {
-      // Strip Python triple-quoted docstrings and # comments
+      // Python triple-quoted docstrings and # comments
       result = result.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/gu, "");
-      result = result
-        .split("\n")
-        .map((line) => {
-          const commentIdx = line.indexOf("#");
-          if (commentIdx >= 0) {
-            const before = line.slice(0, commentIdx);
-            if (before.trim().length > 0) return before;
-            return "";
-          }
-          return line;
-        })
-        .join("\n");
+      result = stripLineComments(result, "#");
     } else {
-      // Strip JS/TS/Go/Rust/Java/C# block comments /* ... */ and line comments //
+      // C-style block and line comments for JS/TS/Go/Rust/Java/C#/Kotlin/
+      // Swift/Scala/PHP; hash comments additionally for Ruby, Elixir, and PHP
       result = result.replace(/\/\*[\s\S]*?\*\//gu, "");
-      result = result
-        .split("\n")
-        .map((line) => {
-          const commentIdx = line.indexOf("//");
-          if (commentIdx >= 0) {
-            const before = line.slice(0, commentIdx);
-            if (before.trim().length > 0) return before;
-            return "";
-          }
-          return line;
-        })
-        .join("\n");
+      result = stripLineComments(result, "//");
+      if (lang === "ruby" || lang === "elixir" || lang === "php") {
+        result = stripLineComments(result, "#");
+      }
     }
   }
 
@@ -87,4 +69,19 @@ export function distillContext(
     distilledLength,
     compressionRatio: Math.round(compressionRatio * 1_000) / 1_000,
   };
+}
+
+function stripLineComments(source: string, marker: string): string {
+  return source
+    .split("\n")
+    .map((line) => {
+      const commentIdx = line.indexOf(marker);
+      if (commentIdx >= 0) {
+        const before = line.slice(0, commentIdx);
+        if (before.trim().length > 0) return before;
+        return "";
+      }
+      return line;
+    })
+    .join("\n");
 }

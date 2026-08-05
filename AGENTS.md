@@ -15,18 +15,19 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.4.0 publicado (`main` inclui hooks de pós-processamento customizados
-  e perfis de workspace; mantém harness JetBrains, daemon supervision, hot-reload
-  de configuração, setup nativo WSL2, SQLite vector storage, circuit breaker
-  resiliency, multi-repo cross-referencing, context distillation, `analyze_diff`,
-  SSE streaming, perfis dinâmicos, hardware-aware concurrency e
-  containerização Docker).
+- Release 2.5.0 publicado (`main` inclui cobertura ampliada de linguagens no
+  code graph e na destilação de contexto — Kotlin, Swift, Scala, PHP, Ruby e
+  Elixir, além de TypeScript/JS, Python, Go, Rust, Java e C#; mantém hooks de
+  pós-processamento customizados, perfis de workspace, harness JetBrains, daemon
+  supervision, hot-reload de configuração, setup nativo WSL2, SQLite vector
+  storage, circuit breaker resiliency, multi-repo cross-referencing, context
+  distillation, `analyze_diff`, SSE streaming, perfis dinâmicos,
+  hardware-aware concurrency e containerização Docker).
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
-  e testes (438 no total).
-- Roadmap concluído até v2.4.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`):
-  todos os pilares implementados; a direção candidata v3.0 está documentada mas
-  não planejada.
+  e testes.
+- Roadmap concluído até v2.5.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`);
+  a direção candidata v3.0 está documentada mas não planejada.
 - Versionamento: cada implementação do roadmap vira uma release minor; `main`
   avança o minor a cada pilar concluído com `npm run validate` verde.
 
