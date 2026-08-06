@@ -16,3 +16,10 @@ export {
   type DistillOptions,
   type DistillResult,
 } from "./context-distiller.js";
+export {
+  extractCallEdges,
+  supportsCallExtraction,
+  type CallConfidence,
+  type CallEdge,
+  type ExtractCallEdgesInput,
+} from "./call-edges.js";
