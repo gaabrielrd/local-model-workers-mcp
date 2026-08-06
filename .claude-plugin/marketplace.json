@@ -12,7 +12,7 @@
       "source": "./plugin",
       "displayName": "Local Model Workers",
       "description": "Offload repository exploration, semantic search, code-graph queries, test generation, docs, and lint or type fixes to a model you run yourself on LM Studio, Ollama, vLLM, or LocalAI. Returns validated, unapplied diffs; repository content never leaves your network.",
-      "version": "2.13.0",
+      "version": "3.2.0",
       "author": {
         "name": "Gabriel Roda",
         "url": "https://github.com/gaabrielrd"

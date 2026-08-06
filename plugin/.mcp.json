@@ -2,7 +2,7 @@
   "mcpServers": {
     "local-model-workers": {
       "command": "npx",
-      "args": ["-y", "local-model-workers-mcp@3.1.0"],
+      "args": ["-y", "local-model-workers-mcp@3.2.0"],
       "env": {
         "LMW_PROVIDERS": "${LMW_PROVIDERS:-}",
         "LMW_PROVIDER_RECHECK_INTERVAL_MS": "${LMW_PROVIDER_RECHECK_INTERVAL_MS:-}"

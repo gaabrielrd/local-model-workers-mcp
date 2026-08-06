@@ -59,7 +59,7 @@
     "test:unit": "node --import tsx --test --test-concurrency=4 --test-timeout=30000 test/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 --test-timeout=30000 test/integration/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate": "npm run format:check && npm run lint && npm run check:boundaries && npm run typecheck && npm test"
+    "validate": "npm run format:check && npm run lint && npm run check:boundaries && npm run check:plugin && npm run typecheck && npm test"
   },
   "engines": {
     "node": ">=24.18.0 <25",
