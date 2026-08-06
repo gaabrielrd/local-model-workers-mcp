@@ -47,3 +47,10 @@ export {
   type SandboxProcessRun,
 } from "./sandbox.js";
 export { autoValidateTests, type AutoValidateTestsInput } from "./loop.js";
+export {
+  verifyPatchInSandbox,
+  type DiffCarrier,
+  type SandboxVerification,
+  type VerificationCommand,
+  type VerifyPatchInSandboxInput,
+} from "./verification.js";

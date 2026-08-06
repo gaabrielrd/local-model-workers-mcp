@@ -2,7 +2,6 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { isPathContained } from "../repository-exploration/index.js";
-import type { ValidatedTestPatch } from "../test-proposal/index.js";
 
 export type PatchApplyErrorCode =
   "malformed_patch" | "path_not_allowed" | "not_applicable";
@@ -25,7 +24,11 @@ export class PatchApplyError extends Error {
 
 export interface ApplyValidatedPatchInput {
   readonly root: string;
-  readonly patch: ValidatedTestPatch;
+  /**
+   * Only the unified diff is read — it is re-parsed here — so any validated
+   * patch type satisfies this structurally without coupling to one feature.
+   */
+  readonly patch: { readonly patch: string };
 }
 
 interface HunkLine {

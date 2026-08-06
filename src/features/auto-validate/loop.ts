@@ -45,11 +45,10 @@ import {
   type TestRunSummary,
 } from "./contracts.js";
 import { measureCoverage, type CoverageMeasurement } from "./coverage.js";
-import { applyValidatedPatch, PatchApplyError } from "./patch-apply.js";
+import { verifyPatchInSandbox } from "./verification.js";
 import {
   createSandbox,
   detectTestCommand,
-  runSandboxProcess,
   splitCommand,
   type CreateSandboxOptions,
   type DetectedTestCommand,
@@ -550,37 +549,38 @@ async function runAttempt(
 ): Promise<AutoValidateAttempt> {
   input.onIterationProgress?.({ iteration, status: "applying" });
   const affectedFiles = validated.files.map((file) => file.path);
-  try {
-    await applyValidatedPatch({ root: sandboxRoot, patch: validated });
-  } catch (error: unknown) {
-    if (error instanceof PatchApplyError) {
-      return AutoValidateAttemptSchema.parse({
-        iteration,
-        patch: validated.patch,
-        affected_files: affectedFiles,
-        passed: false,
-        exit_code: null,
-        timed_out: false,
-        test_results: emptyResults(),
-        apply_error: error.message,
-        stdout_truncated: false,
-        stderr_truncated: false,
-        stdout_excerpt: "",
-        stderr_excerpt: error.message,
-      });
-    }
-    throw error;
-  }
 
-  input.onIterationProgress?.({ iteration, status: "running" });
-  const runner = input.commandRunner ?? runSandboxProcess;
-  const run = await runner({
-    command: testCommand.command,
-    args: [...testCommand.args],
-    cwd: sandboxRoot,
+  const verification = await verifyPatchInSandbox({
+    root: sandboxRoot,
+    patch: validated,
+    command: testCommand,
     timeout_ms: request.timeout_per_iteration_ms,
     signal: context.signal,
+    ...(input.commandRunner === undefined
+      ? {}
+      : { commandRunner: input.commandRunner }),
+    onBeforeRun: () =>
+      input.onIterationProgress?.({ iteration, status: "running" }),
   });
+
+  if (verification.status === "apply_failed") {
+    return AutoValidateAttemptSchema.parse({
+      iteration,
+      patch: validated.patch,
+      affected_files: affectedFiles,
+      passed: false,
+      exit_code: null,
+      timed_out: false,
+      test_results: emptyResults(),
+      apply_error: verification.error,
+      stdout_truncated: false,
+      stderr_truncated: false,
+      stdout_excerpt: "",
+      stderr_excerpt: verification.error,
+    });
+  }
+
+  const run = verification.run;
   const testResults = parseTestResults(run);
   const passed =
     run.error === null &&
