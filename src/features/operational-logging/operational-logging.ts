@@ -37,6 +37,56 @@ interface RollupDay {
   retries: number;
   by_error_code: Record<string, number>;
   by_provider: Record<string, number>;
+  by_task_model: Record<string, TaskModelCounters>;
+}
+
+/**
+ * Per-`(task_type, model)` counters backing adaptive routing.
+ *
+ * Counters only, in keeping with the rollup discipline: no prompts, no outputs,
+ * no repository content.
+ */
+interface TaskModelCounters {
+  attempts: number;
+  completed: number;
+  /** Failures the model is answerable for: bad output, blown budgets. */
+  model_faults: number;
+  /** Patches the model produced that policy refused. */
+  patch_rejections: number;
+  duration_ms_total: number;
+}
+
+/**
+ * Error codes a model is answerable for.
+ *
+ * Deliberately narrow. A provider outage (`model_unavailable`), a bad request,
+ * or a cancelled task says nothing about the model's quality — counting those
+ * would route away from a perfectly good model every time the server was down.
+ */
+const MODEL_FAULT_CODES = new Set([
+  "inference_failed",
+  "context_limit_exceeded",
+  "interaction_limit_exceeded",
+]);
+
+const PATCH_REJECTION_CODES = new Set([
+  "patch_not_allowed",
+  "patch_limit_exceeded",
+]);
+
+function emptyTaskModelCounters(): TaskModelCounters {
+  return {
+    attempts: 0,
+    completed: 0,
+    model_faults: 0,
+    patch_rejections: 0,
+    duration_ms_total: 0,
+  };
+}
+
+/** Composite key; `::` cannot occur in a validated identifier. */
+function taskModelKey(taskType: string, model: string): string {
+  return `${taskType}::${model}`;
 }
 
 interface RollupDocument {
@@ -57,6 +107,7 @@ function emptyRollupDay(): RollupDay {
     retries: 0,
     by_error_code: {},
     by_provider: {},
+    by_task_model: {},
   };
 }
 
@@ -78,6 +129,11 @@ async function readRollupDocument(directory: string): Promise<RollupDocument> {
     if (parsed.schema_version !== 1 || typeof parsed.days !== "object") {
       return { schema_version: 1, days: {} };
     }
+    // A rollup written before per-(task_type, model) scoring existed has no
+    // by_task_model map. Backfill it rather than losing the whole history.
+    for (const day of Object.values(parsed.days)) {
+      day.by_task_model ??= {};
+    }
     return parsed;
   } catch {
     return { schema_version: 1, days: {} };
@@ -93,6 +149,7 @@ const SafeIdentifierSchema = z
 export const OperationalEventSchema = z
   .object({
     task_id: SafeIdentifierSchema,
+    task_type: SafeIdentifierSchema.optional(),
     started_at_ms: z.number().int().nonnegative(),
     ended_at_ms: z.number().int().nonnegative(),
     duration_ms: z.number().int().nonnegative(),
@@ -265,6 +322,24 @@ export function createOperationalLogStore(
       day.by_error_code[code] = (day.by_error_code[code] ?? 0) + 1;
       const provider = parsed.provider ?? "unknown";
       day.by_provider[provider] = (day.by_provider[provider] ?? 0) + 1;
+    }
+
+    // Scoring is per routing slot, so an event without one is not scoreable.
+    if (parsed.task_type !== undefined) {
+      const key = taskModelKey(parsed.task_type, parsed.model);
+      const counters = day.by_task_model[key] ?? emptyTaskModelCounters();
+      counters.attempts += 1;
+      counters.duration_ms_total += parsed.duration_ms;
+      if (parsed.status === "completed") {
+        counters.completed += 1;
+      } else if (parsed.error_code !== null) {
+        if (MODEL_FAULT_CODES.has(parsed.error_code)) {
+          counters.model_faults += 1;
+        } else if (PATCH_REJECTION_CODES.has(parsed.error_code)) {
+          counters.patch_rejections += 1;
+        }
+      }
+      day.by_task_model[key] = counters;
     }
 
     rollup.days[key] = day;
@@ -605,4 +680,67 @@ function isFileSystemError(error: unknown, code: string): boolean {
     "code" in error &&
     error.code === code
   );
+}
+
+/**
+ * One model's record for one routing slot, over the retained rollup window.
+ *
+ * Rates are reported alongside `attempts` on purpose: 1 of 1 and 90 of 100 are
+ * both "0.9-ish" to a ratio and nothing alike to a decision.
+ */
+export interface RoutingScore {
+  readonly task_type: string;
+  readonly model: string;
+  readonly attempts: number;
+  readonly completion_rate: number;
+  readonly model_fault_rate: number;
+  readonly patch_rejection_rate: number;
+  readonly mean_duration_ms: number;
+}
+
+export type RoutingScoreSnapshot = readonly RoutingScore[];
+
+/**
+ * Reads per-`(task_type, model)` outcomes out of the durable rollup.
+ *
+ * Returns an empty snapshot when nothing has been recorded, which callers must
+ * treat as "no basis to adapt" rather than "every model is bad".
+ */
+export async function readRoutingScores(
+  directory: string,
+): Promise<RoutingScoreSnapshot> {
+  const rollup = await readRollupDocument(directory);
+  const totals = new Map<string, TaskModelCounters>();
+
+  for (const day of Object.values(rollup.days)) {
+    for (const [key, counters] of Object.entries(day.by_task_model ?? {})) {
+      const running = totals.get(key) ?? emptyTaskModelCounters();
+      running.attempts += counters.attempts;
+      running.completed += counters.completed;
+      running.model_faults += counters.model_faults;
+      running.patch_rejections += counters.patch_rejections;
+      running.duration_ms_total += counters.duration_ms_total;
+      totals.set(key, running);
+    }
+  }
+
+  const scores: RoutingScore[] = [];
+  for (const [key, counters] of totals) {
+    const separator = key.indexOf("::");
+    if (separator <= 0 || counters.attempts === 0) {
+      continue;
+    }
+    scores.push({
+      task_type: key.slice(0, separator),
+      model: key.slice(separator + 2),
+      attempts: counters.attempts,
+      completion_rate: counters.completed / counters.attempts,
+      model_fault_rate: counters.model_faults / counters.attempts,
+      patch_rejection_rate: counters.patch_rejections / counters.attempts,
+      mean_duration_ms: Math.round(
+        counters.duration_ms_total / counters.attempts,
+      ),
+    });
+  }
+  return Object.freeze(scores);
 }

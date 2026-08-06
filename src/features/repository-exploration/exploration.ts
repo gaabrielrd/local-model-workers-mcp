@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   resolveModelForTask,
   type EffectiveConfiguration,
+  type ModelScore,
 } from "../configuration/index.js";
 import {
   composeSystemProtocol,
@@ -123,6 +124,8 @@ export interface ExploreRepositoryInput {
   readonly onProgress?: (event: TaskProgressEvent) => void;
   readonly createTaskId?: () => string;
   readonly onTerminal?: (event: TaskTerminalMetadata) => void | Promise<void>;
+  /** Recorded outcomes for adaptive routing; absent means route statically. */
+  readonly routingScores?: readonly ModelScore[] | undefined;
   readonly capabilityFactory?: (
     input: CreateRepositoryReadCapabilityInput,
   ) => Promise<RepositoryReadCapability>;
@@ -177,7 +180,12 @@ export async function exploreRepository(
     resultSchema: ExplorationResultSchema,
     inference: input.inference,
     language: input.language,
-    model: resolveModelForTask(input.configuration, "exploration"),
+    model: resolveModelForTask(input.configuration, "exploration", {
+      ...(input.routingScores === undefined
+        ? {}
+        : { scores: input.routingScores }),
+    }),
+    taskType: "exploration",
     ...(input.signal === undefined ? {} : { callerSignal: input.signal }),
     ...(input.onProgress === undefined ? {} : { onProgress: input.onProgress }),
     ...(input.createTaskId === undefined

@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
 
-import type { EffectiveConfiguration } from "../configuration/index.js";
+import type {
+  EffectiveConfiguration,
+  ModelTaskType,
+} from "../configuration/index.js";
 import {
   InferenceError,
   type InferenceMessage,
@@ -89,6 +92,8 @@ export interface CreateTaskRuntimeOptions<Output> {
   readonly inference: ModelInferencePort;
   readonly language: RequestLanguage;
   readonly model?: string;
+  /** Routing slot this task used, for per-(task_type, model) scoring. */
+  readonly taskType?: ModelTaskType;
   readonly callerSignal?: AbortSignal;
   readonly clock?: TaskClock;
   readonly createTaskId?: () => string;
@@ -102,6 +107,8 @@ export interface TaskTerminalMetadata {
   readonly ended_at_ms: number;
   readonly duration_ms: number;
   readonly model: string;
+  /** Routing slot this task used, when the caller declared one. */
+  readonly task_type?: ModelTaskType;
   readonly status: TerminalStatus;
   readonly error_code: ErrorCode | null;
   /** Provider that served the task's inference, when attributable. */
@@ -377,6 +384,9 @@ export function createTaskRuntime<Output>(
         ended_at_ms: endedAt,
         duration_ms: Math.max(0, endedAt - taskStartedAt),
         model,
+        ...(options.taskType === undefined
+          ? {}
+          : { task_type: options.taskType }),
         status: response.status,
         error_code:
           response.status === "completed" ? null : response.diagnostic.code,

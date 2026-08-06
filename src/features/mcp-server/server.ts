@@ -24,6 +24,7 @@ import {
   validateConfig,
   type EffectiveConfiguration,
   type FeatureGroup,
+  type ModelScore,
   type ProtectedProviderConfiguration,
 } from "../configuration/index.js";
 import { checkHealth } from "../health/index.js";
@@ -37,6 +38,7 @@ import {
   GetOffloadStatsInputSchema,
   createOperationalLogStore,
   getOffloadStats,
+  readRoutingScores,
   resolveOperationalLogDirectory,
   type OperationalEventRecorder,
   type ProviderReliabilityState,
@@ -95,6 +97,9 @@ import { renderToolResult } from "./result-compaction.js";
 import { redactSecrets, redactText } from "./secret-redaction.js";
 import { TOOL_NAMES } from "./tool-names.js";
 
+/** Rollup reads are cheap but not free; a minute is fresh enough to steer on. */
+const ROUTING_SCORE_CACHE_MS = 60_000;
+
 const LanguageSchema = z
   .string()
   .trim()
@@ -143,6 +148,11 @@ export interface McpApplicationRuntime {
   readonly providers: readonly ProtectedProviderConfiguration[];
   readonly inference: ProviderRouterPort;
   readonly operationalEvents: OperationalEventRecorder;
+  /**
+   * Recorded per-`(task_type, model)` outcomes for adaptive routing, cached so
+   * a tool call does not re-read the rollup. Empty when nothing is recorded.
+   */
+  routingScores(): Promise<readonly ModelScore[]>;
 }
 
 export interface CreateMcpApplicationRuntimeInput {
@@ -188,15 +198,31 @@ export async function createMcpApplicationRuntime(
         }),
   });
   await inference.refreshHealth({ timeout_ms: 5_000 });
+  const logDirectory = resolveOperationalLogDirectory(
+    platform,
+    homeDirectory,
+    environment,
+  );
   const operationalEvents =
     input.operationalEvents ??
-    createOperationalLogStore({
-      directory: resolveOperationalLogDirectory(
-        platform,
-        homeDirectory,
-        environment,
-      ),
-    });
+    createOperationalLogStore({ directory: logDirectory });
+
+  let cachedScores: readonly ModelScore[] = [];
+  let cachedScoresAt = 0;
+  const routingScores = async (): Promise<readonly ModelScore[]> => {
+    const nowMs = Date.now();
+    if (nowMs - cachedScoresAt < ROUTING_SCORE_CACHE_MS) {
+      return cachedScores;
+    }
+    try {
+      cachedScores = await readRoutingScores(logDirectory);
+    } catch {
+      // Scoring is an optimization; an unreadable rollup must not fail a task.
+      cachedScores = [];
+    }
+    cachedScoresAt = nowMs;
+    return cachedScores;
+  };
   return Object.freeze({
     environment,
     platform,
@@ -209,6 +235,7 @@ export async function createMcpApplicationRuntime(
     providers,
     inference,
     operationalEvents,
+    routingScores,
   });
 }
 
@@ -256,6 +283,9 @@ export function createMcpServer(
             ]),
             onProgress: progressReporter(context),
             onTerminal: (event) => runtime.operationalEvents.record(event),
+            ...(dependencies.routingScores === undefined
+              ? {}
+              : { routingScores: dependencies.routingScores }),
           });
         }),
     );
@@ -291,6 +321,9 @@ export function createMcpServer(
             ]),
             onProgress: progressReporter(context),
             onTerminal: (event) => runtime.operationalEvents.record(event),
+            ...(dependencies.routingScores === undefined
+              ? {}
+              : { routingScores: dependencies.routingScores }),
           });
         }),
     );
@@ -327,6 +360,9 @@ export function createMcpServer(
               parsed.max_iterations ?? 3,
             ),
             onTerminal: (event) => runtime.operationalEvents.record(event),
+            ...(dependencies.routingScores === undefined
+              ? {}
+              : { routingScores: dependencies.routingScores }),
           });
         }),
     );
@@ -924,12 +960,17 @@ async function taskDependencies(
     repositoryRoot: projectRoot,
   });
   const postProcessing = createPostProcessingRunner();
+  const routingScores =
+    configuration.routing_strategy === "adaptive"
+      ? await runtime.routingScores()
+      : undefined;
   return {
     configuration,
     inference,
     coordinator,
     repositoryRead,
     postProcessing,
+    routingScores,
   };
 }
 

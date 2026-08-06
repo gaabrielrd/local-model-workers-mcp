@@ -257,6 +257,7 @@ function configuration(): EffectiveConfiguration {
     profile: "balanced",
     post_processing_hooks: [],
     result_verbosity: "standard",
+    routing_strategy: "static",
     origins: {
       "lm_studio.base_url": "protected",
       "lm_studio.authentication": "protected",
@@ -291,6 +292,7 @@ function configuration(): EffectiveConfiguration {
       profile: "built_in",
       post_processing_hooks: "built_in",
       result_verbosity: "built_in",
+      routing_strategy: "built_in",
     },
   };
 }

@@ -32,6 +32,7 @@ export {
   ProjectPreferencesSchema,
   resolveModelForTask,
   RESULT_VERBOSITY_LEVELS,
+  ROUTING_STRATEGIES,
   type ConfigurationErrorCode,
   type ConfigurationField,
   type ConfigurationProfile,
@@ -41,6 +42,7 @@ export {
   type EffectiveConfigurationView,
   type EffectiveLimits,
   type EffectiveProviderConfiguration,
+  type RoutingStrategy,
   type FeatureGroup,
   type GetConfigurationInput,
   type ModelTaskType,
@@ -71,3 +73,10 @@ export {
   resolveProjectPreferencesPath,
   type ConfigurationPathInput,
 } from "./paths.js";
+export {
+  EXPLORATION_MIN_ATTEMPTS,
+  selectAdaptiveModel,
+  type AdaptiveSelection,
+  type ModelScore,
+  type SelectAdaptiveModelInput,
+} from "./adaptive-routing.js";

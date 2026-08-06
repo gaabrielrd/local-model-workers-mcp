@@ -23,6 +23,7 @@ import {
   resolveGlobalPreferencesPath,
   resolveProjectPreferencesPath,
 } from "./paths.js";
+import { selectAdaptiveModel, type ModelScore } from "./adaptive-routing.js";
 
 export const MODEL_TASK_TYPES = [
   "embedding",
@@ -113,6 +114,17 @@ export type ResultVerbosity = (typeof RESULT_VERBOSITY_LEVELS)[number];
 
 const DEFAULT_RESULT_VERBOSITY: ResultVerbosity = "standard";
 
+export const ROUTING_STRATEGIES = ["static", "adaptive"] as const;
+
+export type RoutingStrategy = (typeof ROUTING_STRATEGIES)[number];
+
+/**
+ * Static by default. Adaptive routing makes behavior depend on history, which
+ * costs the predictability the rest of the product is built on; it is offered,
+ * not assumed.
+ */
+const DEFAULT_ROUTING_STRATEGY: RoutingStrategy = "static";
+
 export const PostProcessingHookSchema = z
   .object({
     command: z.string().trim().min(1).max(4_096),
@@ -154,6 +166,7 @@ export const PreferencesSchema = z
     limits: LimitsSchema.optional(),
     post_processing_hooks: PostProcessingHooksSchema.optional(),
     result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).optional(),
+    routing_strategy: z.enum(ROUTING_STRATEGIES).optional(),
   })
   .strict();
 
@@ -295,6 +308,7 @@ export interface EffectiveConfiguration {
   readonly profile: ConfigurationProfile;
   readonly post_processing_hooks: readonly PostProcessingHook[];
   readonly result_verbosity: ResultVerbosity;
+  readonly routing_strategy: RoutingStrategy;
   readonly providers?: readonly EffectiveProviderConfiguration[];
   readonly provider_routing?: {
     readonly strategy: "priority";
@@ -329,6 +343,7 @@ export type ConfigurationField =
   | "profile"
   | "post_processing_hooks"
   | "result_verbosity"
+  | "routing_strategy"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -445,6 +460,12 @@ export async function getEffectiveConfiguration(
   );
   const activeResultVerbosity: ResultVerbosity = resultVerbosity.value;
 
+  const routingStrategy = selectValue(
+    projectPreferences?.routing_strategy,
+    globalPreferences?.routing_strategy,
+    DEFAULT_ROUTING_STRATEGY,
+  );
+
   const embeddingModel = selectOptionalValue(
     projectPreferences?.embedding_model,
     globalPreferences?.embedding_model,
@@ -509,6 +530,7 @@ export async function getEffectiveConfiguration(
     profile: profile.origin,
     post_processing_hooks: postProcessingHooks.origin,
     result_verbosity: resultVerbosity.origin,
+    routing_strategy: routingStrategy.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -549,6 +571,7 @@ export async function getEffectiveConfiguration(
     enabled_features: [...enabledFeatures.value],
     profile: activeProfile,
     result_verbosity: activeResultVerbosity,
+    routing_strategy: routingStrategy.value,
     post_processing_hooks: postProcessingHooks.value.map((hook) => ({
       command: hook.command,
       ...(hook.args === undefined ? {} : { args: [...hook.args] }),
@@ -608,6 +631,13 @@ export async function getConfig(
 
 export interface ResolveModelOptions {
   readonly contextTokenCount?: number | undefined;
+  /**
+   * Recorded per-`(task_type, model)` outcomes. Consulted only when
+   * `routing_strategy` is `adaptive` and the slot has no explicit
+   * `model_routing` entry. Passed in rather than read here so this stays
+   * synchronous and side-effect free.
+   */
+  readonly scores?: readonly ModelScore[] | undefined;
 }
 
 export function resolveModelForTask(
@@ -617,7 +647,22 @@ export function resolveModelForTask(
 ): string {
   const configured = configuration.lm_studio.model_routing?.[taskType];
   if (configured !== undefined) {
+    // An explicit routing entry is a decision someone wrote down; adaptation
+    // never overrides it.
     return configured;
+  }
+  if (
+    configuration.routing_strategy === "adaptive" &&
+    options?.scores !== undefined
+  ) {
+    const adaptive = selectAdaptiveModel({
+      taskType,
+      candidates: configuration.lm_studio.allowed_models,
+      scores: options.scores,
+    });
+    if (adaptive !== undefined) {
+      return adaptive.model;
+    }
   }
   if (
     options?.contextTokenCount !== undefined &&

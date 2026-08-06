@@ -15,6 +15,7 @@ import {
   PostProcessingHookSchema,
   ProjectPreferencesSchema,
   RESULT_VERBOSITY_LEVELS,
+  ROUTING_STRATEGIES,
   getEffectiveConfiguration,
   isContainedPath,
   type ConfigurationFileSystem,
@@ -99,6 +100,7 @@ const ProjectChangesSchema = z
     profile: z.enum(CONFIGURATION_PROFILES).nullable().optional(),
     post_processing_hooks: MutablePostProcessingHooksSchema,
     result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).nullable().optional(),
+    routing_strategy: z.enum(ROUTING_STRATEGIES).nullable().optional(),
   })
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, {
@@ -204,6 +206,7 @@ type MutableConfigurationField =
   | "profile"
   | "post_processing_hooks"
   | "result_verbosity"
+  | "routing_strategy"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -228,6 +231,7 @@ const mutableFields: readonly MutableConfigurationField[] = [
   "profile",
   "post_processing_hooks",
   "result_verbosity",
+  "routing_strategy",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
   "limits.processing_timeout_ms",

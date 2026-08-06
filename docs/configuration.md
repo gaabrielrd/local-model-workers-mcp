@@ -107,6 +107,7 @@ tool list is fixed when the MCP process starts; project preferences reject it.
   },
   "steering_prompt": "Prefer semantic search for descriptive queries.",
   "result_verbosity": "standard",
+  "routing_strategy": "static",
   "enabled_features": ["exploration", "tests", "docs", "lint"],
   "profile": "balanced",
   "post_processing_hooks": [
@@ -152,6 +153,40 @@ values for the editable `limits`; any explicit limit at project or global scope
 wins over the active preset. Switching the profile through `update_config`
 applies immediately to the next tool call without a server restart. See
 [workspace profiles](tasks/048-workspace-profiles.md).
+
+### Routing strategy
+
+`routing_strategy` is an optional project or global override selecting how a
+model is chosen for a task slot. It accepts `"static"` and `"adaptive"`, and
+defaults to `"static"`.
+
+`"static"` is the historical behavior: the configured `model_routing` entry, or
+the default model. Predictable and blind — a model that fails half the time
+keeps getting the work.
+
+`"adaptive"` ranks the allowed models for a slot by what they actually did,
+using counters kept in the durable rollup: completion rate, model-fault rate,
+patch-rejection rate, and mean latency. Three rules bound it:
+
+- an explicit `model_routing` entry always wins, so adaptation never overrides a
+  decision someone wrote down;
+- a model with fewer than five recorded attempts for a slot is **explored**
+  before it is judged, so a newly added model is tried rather than starved;
+- with no recorded outcomes there is no basis to adapt, and the static answer
+  stands.
+
+Only failures a model is answerable for count against it —
+`inference_failed`, `context_limit_exceeded`, `interaction_limit_exceeded` for
+faults, and `patch_not_allowed` / `patch_limit_exceeded` for rejected patches. A
+provider outage or a bad request does not, because penalizing a model for the
+server being down would route away from it during every outage.
+
+Latency is a tiebreaker, never a goal: a fast model that produces unusable
+output costs more than a slow one that works.
+
+The underlying counters are numbers only — no prompts, no outputs, no repository
+content — and are readable through `get_offload_stats`, so a human can make the
+routing call instead of delegating it.
 
 ### Result verbosity
 
@@ -255,8 +290,8 @@ implemented and registered as the `validate_config` and `update_config` MCP
 tools.
 
 A proposal is a non-empty partial object containing only `default_model`,
-`model_routing`, `steering_prompt`, `result_verbosity`, `profile`,
-`post_processing_hooks`, and/or the editable children of `limits`.
+`model_routing`, `steering_prompt`, `result_verbosity`, `routing_strategy`,
+`profile`, `post_processing_hooks`, and/or the editable children of `limits`.
 A value changes the project override. `null` removes that override so
 resolution falls back to global preferences or a built-in default. Routing
 entries in `model_routing` follow the same strict per-entry model schema and

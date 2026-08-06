@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   resolveModelForTask,
   type EffectiveConfiguration,
+  type ModelScore,
 } from "../configuration/index.js";
 import {
   composeSystemProtocol,
@@ -95,6 +96,8 @@ export interface AutoValidateTestsInput {
   readonly onIterationProgress?: (event: AutoValidateProgressEvent) => void;
   readonly createTaskId?: () => string;
   readonly onTerminal?: (event: TaskTerminalMetadata) => void | Promise<void>;
+  /** Recorded outcomes for adaptive routing; absent means route statically. */
+  readonly routingScores?: readonly ModelScore[] | undefined;
   readonly capabilityFactory?: (
     input: CreateRepositoryReadCapabilityInput,
   ) => Promise<RepositoryReadCapability>;
@@ -137,7 +140,12 @@ export async function autoValidateTests(
     resultSchema: AutoValidateResultSchema,
     inference: input.inference,
     language: input.language,
-    model: resolveModelForTask(input.configuration, "test_proposal"),
+    model: resolveModelForTask(input.configuration, "test_proposal", {
+      ...(input.routingScores === undefined
+        ? {}
+        : { scores: input.routingScores }),
+    }),
+    taskType: "test_proposal",
     ...(input.signal === undefined ? {} : { callerSignal: input.signal }),
     ...(input.onProgress === undefined ? {} : { onProgress: input.onProgress }),
     ...(input.createTaskId === undefined

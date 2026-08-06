@@ -860,3 +860,97 @@ function isConfigurationError(code: string): (error: unknown) => boolean {
   return (error: unknown) =>
     error instanceof ConfigurationError && error.code === code;
 }
+
+void test("routing is static by default and adaptive only when asked", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+  });
+
+  const byDefault = await getEffectiveConfiguration(fixture.input());
+  assert.equal(byDefault.routing_strategy, "static");
+  assert.equal(byDefault.origins.routing_strategy, "built_in");
+
+  const scores = [
+    {
+      task_type: "exploration",
+      model: "another/model",
+      attempts: 100,
+      completion_rate: 1,
+      model_fault_rate: 0,
+      patch_rejection_rate: 0,
+      mean_duration_ms: 100,
+    },
+    {
+      task_type: "exploration",
+      model: "qwen/test-model",
+      attempts: 100,
+      completion_rate: 0.2,
+      model_fault_rate: 0.8,
+      patch_rejection_rate: 0,
+      mean_duration_ms: 5_000,
+    },
+  ];
+
+  // Static routing ignores the record entirely, even a damning one.
+  assert.equal(
+    resolveModelForTask(byDefault, "exploration", { scores }),
+    "qwen/test-model",
+  );
+
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    routing_strategy: "adaptive",
+  });
+  const adaptive = await getEffectiveConfiguration(fixture.input());
+  assert.equal(adaptive.routing_strategy, "adaptive");
+  assert.equal(adaptive.origins.routing_strategy, "global");
+  assert.equal(
+    resolveModelForTask(adaptive, "exploration", { scores }),
+    "another/model",
+  );
+
+  // Without a snapshot there is no basis to adapt, so the static answer stands.
+  assert.equal(resolveModelForTask(adaptive, "exploration"), "qwen/test-model");
+});
+
+void test("explicit model routing always beats adaptation", async (t) => {
+  const fixture = await createFixture(t);
+  await fixture.writeGlobal({
+    schema_version: 1,
+    default_model: "qwen/test-model",
+    routing_strategy: "adaptive",
+    model_routing: { exploration: "another/model" },
+  });
+  const configuration = await getEffectiveConfiguration(fixture.input());
+
+  // The scores say the configured model is the worse of the two; a decision
+  // someone wrote down is not overridden by history.
+  assert.equal(
+    resolveModelForTask(configuration, "exploration", {
+      scores: [
+        {
+          task_type: "exploration",
+          model: "another/model",
+          attempts: 100,
+          completion_rate: 0,
+          model_fault_rate: 1,
+          patch_rejection_rate: 0,
+          mean_duration_ms: 9_000,
+        },
+        {
+          task_type: "exploration",
+          model: "qwen/test-model",
+          attempts: 100,
+          completion_rate: 1,
+          model_fault_rate: 0,
+          patch_rejection_rate: 0,
+          mean_duration_ms: 100,
+        },
+      ],
+    }),
+    "another/model",
+  );
+});
