@@ -42,6 +42,7 @@
   "scripts": {
     "build": "npm run clean && tsc -p tsconfig.build.json && node scripts/set-executable.mjs",
     "check:boundaries": "node --import tsx scripts/check-feature-boundaries.ts",
+    "check:plugin": "node scripts/check-plugin-version.mjs",
     "clean": "node scripts/clean.mjs",
     "format": "prettier . --write --ignore-unknown",
     "format:check": "prettier . --check --ignore-unknown",

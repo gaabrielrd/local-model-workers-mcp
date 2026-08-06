@@ -30,6 +30,8 @@ jobs:
         run: npm run lint
       - name: Check architecture boundaries
         run: npm run check:boundaries
+      - name: Check Claude Code plugin version sync
+        run: npm run check:plugin
       - name: Type check
         run: npm run typecheck
       - name: Run unit tests

@@ -37,6 +37,11 @@ Code uses global `~/.claude.json` or project `.mcp.json` entries:
 }
 ```
 
+Claude Code can also install the server as a plugin, which supplies the same
+stdio entry plus usage skills and replaces both the harness registration and the
+managed `CLAUDE.md` block. See
+[claude-code-plugin.md](claude-code-plugin.md).
+
 Codex CLI 0.145.0 uses a user `~/.codex/config.toml` table and inherits named
 variables from its process:
 

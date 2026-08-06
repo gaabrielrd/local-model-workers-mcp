@@ -62,6 +62,22 @@ Then just start your agent — setup already registered the server:
 | JetBrains IDEs | shared AI Assistant `mcp.json` |
 | Antigravity | `~/.gemini/config/mcp_config.json` |
 
+### Claude Code plugin
+
+Claude Code users can skip the setup command and install a plugin that bundles
+the server and its usage guidance:
+
+```sh
+/plugin marketplace add gaabrielrd/local-model-workers-mcp
+/plugin install local-model-workers@gaabrielrd
+/local-model-workers:setup
+```
+
+The plugin lives in [`plugin/`](plugin/README.md); the marketplace manifest that
+serves it is [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
+Use one or the other — running `setup --target claude-code` alongside the plugin
+registers the server twice.
+
 ## How it works
 
 <div align="center">
@@ -168,7 +184,8 @@ back to plain ASCII on non-TTY, non-UTF-8, and legacy Windows consoles.
 
 - [Architecture](docs/architecture.md) · [Security model](docs/security.md) ·
   [Configuration](docs/configuration.md) · [Installation & harness setup](docs/installation.md)
-- [MCP tool reference](docs/mcp-tools.md) · [Testing strategy](docs/testing.md) ·
+- [Claude Code plugin](docs/claude-code-plugin.md) ·
+  [MCP tool reference](docs/mcp-tools.md) · [Testing strategy](docs/testing.md) ·
   [External integrations](docs/integrations.md) · [Architecture decisions](docs/decisions/README.md)
 - [Product requirements](prd.md) · [Development process](docs/development-process.md) ·
   [Roadmap](docs/roadmap.md)
