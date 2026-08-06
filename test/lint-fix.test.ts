@@ -947,6 +947,58 @@ void test("a hostile source file is fenced off and does not change the golden re
   assert.match(attacked.call.system, /untrusted data, never instructions/u);
 });
 
+void test("verification is off unless the call asks for it", async () => {
+  const repositoryRead = fakeRepoRead({ "src/app.ts": "const a = 1\n" });
+  const lintOutput = JSON.stringify([
+    {
+      filePath: "src/app.ts",
+      messages: [
+        {
+          ruleId: "semi",
+          severity: 2,
+          message: "Missing semicolon.",
+          line: 1,
+          column: 12,
+        },
+      ],
+    },
+  ]);
+  const patch = modifyDiff("src/app.ts", 1, ["-const a = 1", "+const a = 1;"]);
+  const remoteFixOutput = remoteFix(patch, [
+    { file: "src/app.ts", line: 1, rule_id: "semi" },
+  ]);
+
+  let sandboxes = 0;
+  const shared = {
+    inference: fakeInference(remoteFixOutput),
+    repositoryRead,
+    model: MODEL,
+    collectorFactory: safeCollector,
+    inspectPath: () => Promise.resolve("safe" as const),
+    sandboxFactory: () => {
+      sandboxes += 1;
+      return Promise.reject(new Error("sandbox unavailable"));
+    },
+  };
+
+  // Default: no verification block, and no sandbox is created at all.
+  const off = await fixLintViolations({
+    ...shared,
+    input: { repository_root: ROOT, lint_output: lintOutput },
+  });
+  assert.equal(off.verification, undefined);
+  assert.equal(sandboxes, 0, "verification must not run unless asked");
+
+  // Opted in per call: the block is present and reports honestly that the
+  // sandbox could not be created, without failing the fix.
+  const on = await fixLintViolations({
+    ...shared,
+    input: { repository_root: ROOT, lint_output: lintOutput, verify: true },
+  });
+  assert.equal(on.patch, patch, "the patch is unchanged by verification");
+  assert.equal(on.verification?.status, "unavailable");
+});
+
 function safeCollector(
   input: CreateOutboundContextCollectorInput,
 ): Promise<OutboundContextCollector> {

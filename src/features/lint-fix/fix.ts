@@ -298,6 +298,7 @@ export async function fixLintViolations(
     validatedPatch,
   );
   return await withVerification(options, lintResult, {
+    requested: input.verify || options.verifyFixes === true,
     repositoryRoot: input.repository_root,
     command: resolveLintVerificationCommand(
       selectedLinter,
@@ -493,6 +494,7 @@ export async function fixTypeErrors(
     validatedPatch,
   );
   return await withVerification(options, typeResult, {
+    requested: input.verify || options.verifyFixes === true,
     repositoryRoot: input.repository_root,
     command: resolveTypeVerificationCommand(
       input.checker,
@@ -514,13 +516,14 @@ async function withVerification(
   options: FixLintViolationsOptions,
   result: FixLintViolationsResult,
   request: {
+    readonly requested: boolean;
     readonly repositoryRoot: string;
     readonly command: ReturnType<typeof resolveLintVerificationCommand>;
     readonly violationsBefore: number;
     readonly parse: (output: string) => readonly LintViolation[];
   },
 ): Promise<FixLintViolationsResult> {
-  if (options.verifyFixes !== true || result.patch.length === 0) {
+  if (!request.requested || result.patch.length === 0) {
     return result;
   }
   const verification = await verifyFix({

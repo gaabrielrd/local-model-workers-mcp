@@ -15,6 +15,11 @@ export const FixLintViolationsInputSchema = z
     repository_root: z.string().trim().min(1).max(4_096),
     lint_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
     linter: z.enum(["eslint", "biome", "ruff", "auto"]).default("auto"),
+    /**
+     * Re-run the linter against the patched sandbox copy and report what is
+     * left. Off by default: verification costs a real tool run.
+     */
+    verify: z.boolean().default(false),
     verify_command: z.string().trim().min(1).max(1_000).optional(),
     max_files: z
       .number()
@@ -34,6 +39,11 @@ export const FixTypeErrorsInputSchema = z
     repository_root: z.string().trim().min(1).max(4_096),
     type_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
     checker: z.enum(["tsc", "mypy", "pyright", "auto"]).default("auto"),
+    /**
+     * Re-run the type checker against the patched sandbox copy and report what
+     * is left. Off by default: verification costs a real tool run.
+     */
+    verify: z.boolean().default(false),
     verify_command: z.string().trim().min(1).max(1_000).optional(),
     max_files: z
       .number()
