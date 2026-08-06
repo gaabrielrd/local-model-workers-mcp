@@ -14,8 +14,15 @@ import {
 } from "../src/features/configuration/index.js";
 
 const environment = {
-  LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-  LMW_ALLOWED_MODELS: '["qwen/test-model"]',
+  LMW_PROVIDERS: JSON.stringify([
+    {
+      name: "lm-studio",
+      type: "lm-studio",
+      base_url: "http://127.0.0.1:1234/v1",
+      allowed_models: ["qwen/test-model"],
+      priority: 0,
+    },
+  ]),
 };
 
 function fakeWatch(): ConfigReloadWatchPort & {

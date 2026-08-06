@@ -18,14 +18,21 @@ import {
   resolveJetBrainsMcpConfigPath,
   resolveJetBrainsRulesPath,
 } from "./jetbrains.js";
+import { resolveProvidersValue } from "./provider-migration.js";
 
 const MANAGED_SERVER_NAME = "local-model-workers";
 const DEFAULT_COMMAND = "local-model-workers-mcp";
-const FORWARDED_ENVIRONMENT_NAMES = [
-  "LMW_LM_STUDIO_BASE_URL",
-  "LMW_LM_STUDIO_BEARER_TOKEN",
-  "LMW_ALLOWED_MODELS",
-] as const;
+const FORWARDED_ENVIRONMENT_NAMES = ["LMW_PROVIDERS"] as const;
+
+const DEFAULT_PROVIDERS_VALUE = JSON.stringify([
+  {
+    name: "lm-studio",
+    type: "lm-studio",
+    base_url: "http://localhost:1234/v1",
+    allowed_models: ["*"],
+    priority: 0,
+  },
+]);
 
 export type Harness =
   | "claude-code"
@@ -923,27 +930,72 @@ function buildMcpEnv(
   harness: Exclude<Harness, "codex">,
   environment?: Readonly<Record<string, string | undefined>>,
 ): Record<string, string> {
-  const env: Record<string, string> = {
-    LMW_LM_STUDIO_BASE_URL:
-      environment?.LMW_LM_STUDIO_BASE_URL ?? "http://localhost:1234/v1",
+  const providers =
+    (environment === undefined
+      ? undefined
+      : resolveProvidersValue(environment)) ?? DEFAULT_PROVIDERS_VALUE;
+  // Only harnesses that cannot inherit the shell environment get the
+  // credential written into their config file. The rest read it at run time.
+  const embedToken = harness === "antigravity" || harness === "jetbrains";
+  return {
+    LMW_PROVIDERS: embedToken ? providers : withoutBearerTokens(providers),
   };
-  const allowed = environment?.LMW_ALLOWED_MODELS?.trim();
-  if (allowed !== undefined && allowed.length > 0) {
-    env.LMW_ALLOWED_MODELS = allowed;
-  }
-  if (harness === "antigravity" || harness === "jetbrains") {
-    const token = environment?.LMW_LM_STUDIO_BEARER_TOKEN?.trim();
-    if (token !== undefined && token.length > 0) {
-      env.LMW_LM_STUDIO_BEARER_TOKEN = token;
-    }
-  }
-  return env;
+}
+
+/**
+ * Strips `bearer_token` from a providers value, leaving it otherwise intact.
+ *
+ * Returns the input unchanged when it cannot be parsed: an unreadable value is
+ * already rejected downstream, and rewriting it here would be a guess.
+ */
+function withoutBearerTokens(providers: string): string {
+  return mapProviderEntries(providers, (entry) => {
+    const { bearer_token, ...rest } = entry;
+    void bearer_token;
+    return rest;
+  });
 }
 
 function formatEnvPreview(envObj: Record<string, string>): string {
   const safeEnv = { ...envObj };
-  if (safeEnv.LMW_LM_STUDIO_BEARER_TOKEN !== undefined) {
-    safeEnv.LMW_LM_STUDIO_BEARER_TOKEN = "<redacted>";
+  if (safeEnv.LMW_PROVIDERS !== undefined) {
+    safeEnv.LMW_PROVIDERS = redactProviderTokens(safeEnv.LMW_PROVIDERS);
   }
   return JSON.stringify(safeEnv);
+}
+
+/** Replaces every provider credential with a placeholder, for display only. */
+function redactProviderTokens(providers: string): string {
+  return mapProviderEntries(providers, (entry) =>
+    "bearer_token" in entry ? { ...entry, bearer_token: "<redacted>" } : entry,
+  );
+}
+
+/**
+ * Rewrites each provider object in a `LMW_PROVIDERS` value.
+ *
+ * Returns the input unchanged when it cannot be parsed as an array: an
+ * unreadable value is already rejected downstream, and rewriting it here would
+ * be a guess.
+ */
+function mapProviderEntries(
+  providers: string,
+  rewrite: (entry: Record<string, unknown>) => Record<string, unknown>,
+): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(providers);
+  } catch {
+    return providers;
+  }
+  if (!Array.isArray(parsed)) {
+    return providers;
+  }
+  return JSON.stringify(
+    (parsed as readonly unknown[]).map((entry) =>
+      typeof entry === "object" && entry !== null
+        ? rewrite(entry as Record<string, unknown>)
+        : entry,
+    ),
+  );
 }

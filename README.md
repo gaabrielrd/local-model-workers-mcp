@@ -156,11 +156,12 @@ Full threat model: [docs/security.md](docs/security.md).
 Minimal environment:
 
 ```sh
-export LMW_LM_STUDIO_BASE_URL='http://localhost:1234/v1'
-export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]'   # optional: defaults to all served models
+export LMW_PROVIDERS='[{"name":"lm-studio","type":"lm-studio","base_url":"http://localhost:1234/v1","allowed_models":["qwen/qwen3.5-9b"],"priority":0}]'
 ```
 
-For multi-provider routing, set `LMW_PROVIDERS` to a protected JSON array — the
+Use `["*"]` for `allowed_models` to accept every served model.
+
+`LMW_PROVIDERS` is also how you configure multi-provider routing — the
 router picks the first healthy provider that serves the requested model, with
 priority routing, health checks, circuit breakers, and failover across LM
 Studio, Ollama, vLLM, and LocalAI. See

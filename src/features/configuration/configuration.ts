@@ -10,6 +10,7 @@ import {
   BUILT_IN_LIMITS,
   BUILT_IN_SUPERVISION,
   CONFIGURATION_ENVIRONMENT_VARIABLES,
+  LEGACY_ENVIRONMENT_VARIABLES,
   CONFIGURATION_SCHEMA_VERSION,
   DEFAULT_PROVIDER_RECHECK_INTERVAL_MS,
   FIXED_LIMITS,
@@ -218,8 +219,9 @@ export interface ProtectedProviderConfiguration {
   /**
    * Require TLS certificate validation for this provider. Protected: it lives
    * in the process environment only, so repository content and editable
-   * project/global preferences can never weaken it. Defaults to false, which
-   * preserves the documented trusted-LAN posture.
+   * project/global preferences can never weaken it. When unset, remote
+   * providers verify and loopback does not; opting out of verification for a
+   * remote provider requires writing `false` explicitly.
    */
   readonly tls_verify?: boolean;
 }
@@ -776,73 +778,103 @@ export function getProtectedProviderConfigurations(
 ): readonly ProtectedProviderConfiguration[] {
   const rawProviders =
     environment[CONFIGURATION_ENVIRONMENT_VARIABLES.providers]?.trim();
-  if (rawProviders !== undefined && rawProviders.length > 0) {
-    let parsed: z.infer<typeof ProvidersSchema>;
-    try {
-      parsed = ProvidersSchema.parse(JSON.parse(rawProviders) as unknown);
-    } catch {
-      throw invalidConfiguration(
-        "The protected provider configuration is invalid.",
-      );
-    }
-    return Object.freeze(
-      parsed
-        .map((provider) => ({
-          name: provider.name,
-          type: provider.type,
-          base_url: normalizeProviderUrl(provider.base_url),
-          ...(provider.bearer_token === undefined
-            ? {}
-            : { bearer_token: provider.bearer_token }),
-          allowed_models: Object.freeze([...provider.allowed_models]),
-          priority: provider.priority,
-          ...(provider.tls_verify === undefined
-            ? {}
-            : { tls_verify: provider.tls_verify }),
-        }))
-        .sort(
-          (left, right) =>
-            left.priority - right.priority ||
-            left.name.localeCompare(right.name),
-        ),
+  if (rawProviders === undefined || rawProviders.length === 0) {
+    throw invalidConfiguration(
+      hasLegacyProviderVariables(environment)
+        ? `${CONFIGURATION_ENVIRONMENT_VARIABLES.providers} is required. The single-provider variables (${LEGACY_ENVIRONMENT_VARIABLES.lmStudioBaseUrl}) are no longer read by the server; run "local-model-workers setup" to migrate them.`
+        : `${CONFIGURATION_ENVIRONMENT_VARIABLES.providers} is required.`,
     );
   }
-  const rawBaseUrlInput = requiredEnvironmentValue(
-    environment,
-    CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBaseUrl,
+
+  let parsed: z.infer<typeof ProvidersSchema>;
+  try {
+    parsed = ProvidersSchema.parse(JSON.parse(rawProviders) as unknown);
+  } catch {
+    throw invalidConfiguration(
+      "The protected provider configuration is invalid.",
+    );
+  }
+  return Object.freeze(
+    parsed
+      .map((provider) => ({
+        name: provider.name,
+        type: provider.type,
+        base_url: normalizeProviderUrl(provider.base_url),
+        ...(provider.bearer_token === undefined
+          ? {}
+          : { bearer_token: provider.bearer_token }),
+        allowed_models: Object.freeze([...provider.allowed_models]),
+        priority: provider.priority,
+        ...(provider.tls_verify === undefined
+          ? {}
+          : { tls_verify: provider.tls_verify }),
+      }))
+      .sort(
+        (left, right) =>
+          left.priority - right.priority || left.name.localeCompare(right.name),
+      ),
   );
+}
+
+/** True when the environment still carries a pre-`LMW_PROVIDERS` setup. */
+export function hasLegacyProviderVariables(
+  environment: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return Object.values(LEGACY_ENVIRONMENT_VARIABLES).some((name) => {
+    const value = environment[name]?.trim();
+    return value !== undefined && value.length > 0;
+  });
+}
+
+/**
+ * Translates a pre-`LMW_PROVIDERS` environment into one provider entry.
+ *
+ * Exists so `setup` can carry an existing installation forward. The server
+ * never calls it: a running process either has `LMW_PROVIDERS` or fails closed.
+ * Returns `undefined` when there is nothing to migrate or the legacy values are
+ * unusable — a broken migration must not be written out as if it worked.
+ */
+export function migrateLegacyProviders(
+  environment: Readonly<Record<string, string | undefined>>,
+): string | undefined {
   const rawBaseUrl =
-    rawBaseUrlInput.startsWith("${") && rawBaseUrlInput.includes("}")
+    environment[LEGACY_ENVIRONMENT_VARIABLES.lmStudioBaseUrl]?.trim();
+  if (rawBaseUrl === undefined || rawBaseUrl.length === 0) {
+    return undefined;
+  }
+  // Unexpanded `${...}` placeholders were tolerated by the old reader.
+  const resolvedBaseUrl =
+    rawBaseUrl.startsWith("${") && rawBaseUrl.includes("}")
       ? "http://localhost:1234/v1"
-      : rawBaseUrlInput;
+      : rawBaseUrl;
+
+  let baseUrl: string;
+  try {
+    baseUrl = normalizeProviderUrl(resolvedBaseUrl);
+  } catch {
+    return undefined;
+  }
+
   const bearerToken =
-    environment[
-      CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken
-    ]?.trim();
+    environment[LEGACY_ENVIRONMENT_VARIABLES.lmStudioBearerToken]?.trim();
   const rawAllowedModels =
-    environment[CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels]?.trim();
+    environment[LEGACY_ENVIRONMENT_VARIABLES.allowedModels]?.trim();
 
-  const baseUrl = normalizeProviderUrl(rawBaseUrl);
-
-  let allowedModels: readonly string[];
-  if (rawAllowedModels === undefined || rawAllowedModels.length === 0) {
-    allowedModels = ["*"];
-  } else {
+  let allowedModels: readonly string[] = ["*"];
+  if (rawAllowedModels !== undefined && rawAllowedModels.length > 0) {
     try {
       allowedModels = AllowedModelsSchema.parse(
         JSON.parse(rawAllowedModels) as unknown,
       );
     } catch {
-      throw invalidConfiguration(
-        "The protected allowed-model policy must be a JSON array of unique model identifiers.",
-      );
+      return undefined;
     }
   }
 
-  return Object.freeze([
+  return JSON.stringify([
     {
       name: "lm-studio",
-      type: "lm-studio" as const,
+      type: "lm-studio",
       base_url: baseUrl,
       ...(bearerToken === undefined || bearerToken.length === 0
         ? {}
@@ -872,19 +904,6 @@ function normalizeProviderUrl(value: string): string {
     );
   }
   return url.toString().replace(/\/$/u, "");
-}
-
-function requiredEnvironmentValue(
-  environment: Readonly<Record<string, string | undefined>>,
-  name: string,
-): string {
-  const value = environment[name];
-  if (value === undefined || value.trim().length === 0) {
-    throw invalidConfiguration(
-      `Required protected setting ${name} is missing.`,
-    );
-  }
-  return value.trim();
 }
 
 function selectValue<T>(

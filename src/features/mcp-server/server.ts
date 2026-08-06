@@ -14,7 +14,6 @@ import {
 import { z } from "zod";
 
 import {
-  CONFIGURATION_ENVIRONMENT_VARIABLES,
   FEATURE_GROUPS,
   getConfig,
   getEffectiveConfiguration,
@@ -141,7 +140,6 @@ export interface McpApplicationRuntime {
   readonly startupConfiguration: EffectiveConfiguration;
   currentConfiguration(): EffectiveConfiguration;
   applyConfiguration(configuration: EffectiveConfiguration): void;
-  readonly bearerToken?: string;
   readonly providers: readonly ProtectedProviderConfiguration[];
   readonly inference: ProviderRouterPort;
   readonly operationalEvents: OperationalEventRecorder;
@@ -190,10 +188,6 @@ export async function createMcpApplicationRuntime(
         }),
   });
   await inference.refreshHealth({ timeout_ms: 5_000 });
-  const bearerToken =
-    environment[
-      CONFIGURATION_ENVIRONMENT_VARIABLES.lmStudioBearerToken
-    ]?.trim();
   const operationalEvents =
     input.operationalEvents ??
     createOperationalLogStore({
@@ -214,9 +208,6 @@ export async function createMcpApplicationRuntime(
     },
     providers,
     inference,
-    ...(bearerToken === undefined || bearerToken.length === 0
-      ? {}
-      : { bearerToken }),
     operationalEvents,
   });
 }
@@ -643,9 +634,6 @@ export function createMcpServer(
           loadConfiguration: () =>
             Promise.resolve({
               effective: runtime.currentConfiguration(),
-              ...(runtime.bearerToken === undefined
-                ? {}
-                : { bearer_token: runtime.bearerToken }),
               providers: runtime.providers,
             }),
           providerRouter: runtime.inference,
@@ -1068,9 +1056,6 @@ function providerReliability(
 /** Every credential this process holds, for exact-match redaction. */
 function runtimeSecrets(runtime: McpApplicationRuntime): readonly string[] {
   const secrets: string[] = [];
-  if (runtime.bearerToken !== undefined && runtime.bearerToken.length > 0) {
-    secrets.push(runtime.bearerToken);
-  }
   for (const provider of runtime.providers) {
     if (
       provider.bearer_token !== undefined &&

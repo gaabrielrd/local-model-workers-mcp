@@ -71,3 +71,10 @@ export {
   type ThemeCapabilities,
 } from "./theme.js";
 export { renderBanner, type BannerInput } from "./banner.js";
+export {
+  buildProvidersValue,
+  needsPlainHttpOptOut,
+  readProviderSeed,
+  resolveProvidersValue,
+  type ProviderSeed,
+} from "./provider-migration.js";

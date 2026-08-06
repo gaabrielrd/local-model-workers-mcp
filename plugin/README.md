@@ -38,16 +38,14 @@ server in the terminal, the desktop app, and the IDE extensions:
 ```json
 {
   "env": {
-    "LMW_LM_STUDIO_BASE_URL": "http://localhost:1234/v1",
-    "LMW_ALLOWED_MODELS": "[\"qwen/qwen3.5-9b\"]"
+    "LMW_PROVIDERS": "[{\"name\":\"lm-studio\",\"type\":\"lm-studio\",\"base_url\":\"http://localhost:1234/v1\",\"allowed_models\":[\"qwen/qwen3.5-9b\"],\"priority\":0}]"
   }
 }
 ```
 
-`.mcp.json` forwards `LMW_LM_STUDIO_BASE_URL`, `LMW_LM_STUDIO_BEARER_TOKEN`,
-`LMW_ALLOWED_MODELS`, `LMW_PROVIDERS`, and
-`LMW_PROVIDER_RECHECK_INTERVAL_MS`, each with a fallback so an unset variable
-never blocks startup. The base URL falls back to `http://localhost:1234/v1`.
+`.mcp.json` forwards `LMW_PROVIDERS` and `LMW_PROVIDER_RECHECK_INTERVAL_MS`,
+each with a fallback so an unset variable never blocks startup. An unset
+`LMW_PROVIDERS` is reported at startup rather than guessed at.
 
 Do not also run `local-model-workers-mcp configure-harness --target
 claude-code`. That writes a second server entry alongside the one the plugin

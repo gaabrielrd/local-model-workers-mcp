@@ -2,11 +2,8 @@
   "mcpServers": {
     "local-model-workers": {
       "command": "npx",
-      "args": ["-y", "local-model-workers-mcp@2.13.0"],
+      "args": ["-y", "local-model-workers-mcp@3.0.0"],
       "env": {
-        "LMW_LM_STUDIO_BASE_URL": "${LMW_LM_STUDIO_BASE_URL:-http://localhost:1234/v1}",
-        "LMW_LM_STUDIO_BEARER_TOKEN": "${LMW_LM_STUDIO_BEARER_TOKEN:-}",
-        "LMW_ALLOWED_MODELS": "${LMW_ALLOWED_MODELS:-}",
         "LMW_PROVIDERS": "${LMW_PROVIDERS:-}",
         "LMW_PROVIDER_RECHECK_INTERVAL_MS": "${LMW_PROVIDER_RECHECK_INTERVAL_MS:-}"
       }

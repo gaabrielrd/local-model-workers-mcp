@@ -3,12 +3,12 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
-  CONFIGURATION_ENVIRONMENT_VARIABLES,
   PreferencesSchema,
   resolveGlobalPreferencesPath,
   writeConfigurationFileAtomically,
   type Preferences,
 } from "../configuration/index.js";
+import { resolveProvidersValue } from "./provider-migration.js";
 import type { HarnessConfirmation, InstallationState } from "./harnesses.js";
 
 export interface ProposeGlobalPreferencesInput {
@@ -128,26 +128,59 @@ function validateDefaultModel(
   if (preferences.default_model === undefined) {
     return;
   }
-  const raw = environment[CONFIGURATION_ENVIRONMENT_VARIABLES.allowedModels];
-  if (raw === undefined || raw.trim().length === 0) {
+  const allowedModels = protectedAllowedModels(environment);
+  if (allowedModels === undefined) {
     return;
   }
-  let allowedModels: unknown;
-  try {
-    allowedModels = JSON.parse(raw);
-  } catch {
-    throw new Error("Protected allowed-model policy is invalid.");
-  }
   if (
-    !Array.isArray(allowedModels) ||
-    !allowedModels.every((model) => typeof model === "string") ||
-    (!allowedModels.includes("*") &&
-      !allowedModels.includes(preferences.default_model))
+    !allowedModels.includes("*") &&
+    !allowedModels.includes(preferences.default_model)
   ) {
     throw new Error(
       "The global default model is not allowed by protected policy.",
     );
   }
+}
+
+/**
+ * The union of models the configured providers allow.
+ *
+ * Returns `undefined` when no policy is declared, which is not a failure: setup
+ * runs before providers exist. A declared but unreadable policy is a failure,
+ * because silently skipping it would let a disallowed default through.
+ */
+function protectedAllowedModels(
+  environment: Readonly<Record<string, string | undefined>>,
+): readonly string[] | undefined {
+  const raw = resolveProvidersValue(environment);
+  if (raw === undefined || raw.trim().length === 0) {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Protected allowed-model policy is invalid.");
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error("Protected allowed-model policy is invalid.");
+  }
+
+  const models: string[] = [];
+  for (const provider of parsed) {
+    if (typeof provider !== "object" || provider === null) {
+      throw new Error("Protected allowed-model policy is invalid.");
+    }
+    const declared = (provider as { allowed_models?: unknown }).allowed_models;
+    if (
+      !Array.isArray(declared) ||
+      !declared.every((model) => typeof model === "string")
+    ) {
+      throw new Error("Protected allowed-model policy is invalid.");
+    }
+    models.push(...declared);
+  }
+  return models;
 }
 
 function parseCurrentPreferences(

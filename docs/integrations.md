@@ -30,7 +30,7 @@ Code uses global `~/.claude.json` or project `.mcp.json` entries:
       "command": "local-model-workers-mcp",
       "args": [],
       "env": {
-        "LMW_LM_STUDIO_BASE_URL": "http://localhost:1234/v1"
+        "LMW_PROVIDERS": "[{\"name\":\"lm-studio\",\"type\":\"lm-studio\",\"base_url\":\"http://localhost:1234/v1\",\"allowed_models\":[\"*\"],\"priority\":0}]"
       }
     }
   }
@@ -50,7 +50,7 @@ variables from its process:
 [mcp_servers.local-model-workers]
 command = "local-model-workers-mcp"
 args = []
-env_vars = ["LMW_LM_STUDIO_BASE_URL", "LMW_LM_STUDIO_BEARER_TOKEN", "LMW_ALLOWED_MODELS"]
+env_vars = ["LMW_PROVIDERS"]
 # local-model-workers-mcp:end
 ```
 
@@ -119,7 +119,7 @@ validated structured results rather than remote tools.
 
 The tested `lms` instance returned HTTP 200 for a deliberately invalid Bearer
 token, which means authentication was unavailable. It is supported in explicit
-`none` mode: leave `LMW_LM_STUDIO_BEARER_TOKEN` unset. Supplying a token to such
+`none` mode: omit `bearer_token` from the provider entry. Supplying a token to such
 an endpoint intentionally remains unhealthy because the requested protection is
 not enforced.
 

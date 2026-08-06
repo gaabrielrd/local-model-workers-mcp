@@ -15,7 +15,8 @@
  * Options:
  *   --out <path>       where to write the evidence document (required)
  *   --harness <name>   restrict to claude-code | codex (repeatable)
- *   --base-url <url>   provider base URL (default $LMW_LM_STUDIO_BASE_URL)
+ *   --base-url <url>   provider base URL (default: the first entry of
+ *                      $LMW_PROVIDERS)
  *   --check            verify prerequisites and exit without running
  */
 
@@ -44,9 +45,27 @@ const FIXTURES = [
 
 const args = parseArguments(process.argv.slice(2));
 const baseUrl =
-  args.baseUrl ??
-  process.env.LMW_LM_STUDIO_BASE_URL ??
-  "http://localhost:1234/v1";
+  args.baseUrl ?? primaryProviderBaseUrl() ?? "http://localhost:1234/v1";
+
+/** Reads the highest-priority base URL out of the LMW_PROVIDERS contract. */
+function primaryProviderBaseUrl() {
+  const raw = process.env.LMW_PROVIDERS?.trim();
+  if (raw === undefined || raw.length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return undefined;
+    }
+    const primary = parsed
+      .filter((entry) => entry !== null && typeof entry === "object")
+      .sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0))[0];
+    return typeof primary?.base_url === "string" ? primary.base_url : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const selected =
   args.harness.length > 0 ? args.harness : Object.keys(HARNESSES);
 

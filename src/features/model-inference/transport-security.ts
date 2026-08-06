@@ -62,19 +62,46 @@ export function tlsValidationDisabled(
 
 export interface AssertTransportSecurityInput {
   readonly baseUrl: string;
-  /** Provider `tls_verify`. Defaults to false to preserve trusted-LAN behavior. */
+  /** Provider `tls_verify`. Unset means the default for the host. */
   readonly tlsVerify?: boolean | undefined;
   readonly environment?: Readonly<Record<string, string | undefined>>;
 }
 
 /**
+ * Whether a provider verifies certificates, given its declared preference.
+ *
+ * Unset defaults to verifying for any non-loopback host: a remote endpoint is
+ * off the machine, and silently accepting whatever certificate it presents is
+ * not a default anyone chose. Loopback keeps plain HTTP, which is what a local
+ * LM Studio actually serves. Opting out of verification for a remote provider
+ * now requires writing `tls_verify: false`.
+ */
+export function resolveTlsVerify(
+  baseUrl: string,
+  declared: boolean | undefined,
+): boolean {
+  if (declared !== undefined) {
+    return declared;
+  }
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    // An unusable URL fails elsewhere with a better message; default to the
+    // stricter posture rather than quietly relaxing it.
+    return true;
+  }
+  return !isLoopbackHost(url.hostname);
+}
+
+/**
  * Fails closed when a provider that requires verification cannot actually get
- * it. A no-op when `tls_verify` is disabled, which is the default.
+ * it.
  */
 export function assertTransportSecurity(
   input: AssertTransportSecurityInput,
 ): void {
-  if (input.tlsVerify !== true) {
+  if (!resolveTlsVerify(input.baseUrl, input.tlsVerify)) {
     return;
   }
 
@@ -91,7 +118,7 @@ export function assertTransportSecurity(
   if (url.protocol !== "https:" && !isLoopbackHost(url.hostname)) {
     throw new InferenceError(
       "invalid_configuration",
-      "This provider requires TLS verification, so a plain HTTP base URL to a remote host is refused.",
+      "TLS verification is required for remote providers, so a plain HTTP base URL is refused. Set tls_verify: false on this provider to opt out deliberately.",
     );
   }
 

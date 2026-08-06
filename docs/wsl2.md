@@ -66,9 +66,8 @@ Other options:
 | `--from-source` | Build and run from the local repository checkout. |
 | `-h`, `--help` | Show the script help. |
 
-The exported protected environment variables (`LMW_LM_STUDIO_BASE_URL`,
-`LMW_ALLOWED_MODELS`, and optionally `LMW_LM_STUDIO_BEARER_TOKEN`) are still
-respected when running inside WSL2.
+The exported protected environment variable `LMW_PROVIDERS` is still respected
+when running inside WSL2.
 
 ## Connecting to LM Studio on the Windows host
 
@@ -94,8 +93,7 @@ For a containerized run without a WSL2 toolchain, build and run the image:
 ```sh
 docker build -t local-model-workers-mcp .
 docker run --rm -i \
-  -e LMW_LM_STUDIO_BASE_URL=http://host.docker.internal:1234/v1 \
-  -e LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b"]' \
+  -e LMW_PROVIDERS='[{"name":"lm-studio","type":"lm-studio","base_url":"http://host.docker.internal:1234/v1","allowed_models":["qwen/qwen3.5-9b"],"priority":0,"tls_verify":false}]' \
   local-model-workers-mcp
 ```
 

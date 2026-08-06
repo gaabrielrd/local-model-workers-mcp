@@ -21,17 +21,8 @@ be set globally or by the project.
 
 ## Protected environment
 
-The legacy single-provider mode requires the URL and allowlist. The token is
-optional:
-
-| Variable | Type and validation |
-| --- | --- |
-| `LMW_LM_STUDIO_BASE_URL` | Absolute `http` or `https` URL without embedded credentials |
-| `LMW_LM_STUDIO_BEARER_TOKEN` | Optional non-empty Bearer credential; absent or blank selects `none` |
-| `LMW_ALLOWED_MODELS` | JSON array containing one or more unique, non-empty model identifiers |
-
-Multi-provider mode is enabled by `LMW_PROVIDERS`, a JSON array of one to 16
-strict objects with this shape:
+`LMW_PROVIDERS` is the only provider contract and is required. It is a JSON
+array of one to 16 strict objects with this shape:
 
 ```json
 {
@@ -48,21 +39,35 @@ strict objects with this shape:
 Names must be unique, URLs must be absolute HTTP(S) URLs without credentials,
 query, or fragment, and lower numeric priority wins.
 `LMW_PROVIDER_RECHECK_INTERVAL_MS` controls when an unhealthy provider becomes
-eligible for another health check (default `60000`). When `LMW_PROVIDERS` is
-present it replaces the legacy provider variables; when absent, those variables
-are projected as one `lm-studio` provider for backward compatibility. Provider
-credentials remain protected and never enter editable preference files or
-public configuration.
+eligible for another health check (default `60000`). Provider credentials remain
+protected and never enter editable preference files or public configuration.
 
-`tls_verify` (default `false`) opts a provider into a verified transport. With
-it enabled the adapter refuses to start when the base URL is plain `http:` to a
-non-loopback host, or when `NODE_TLS_REJECT_UNAUTHORIZED=0` has disabled
-certificate validation process-wide — both are ways the trusted-LAN posture is
-silently lost. Loopback HTTP stays allowed because it never leaves the machine.
-Certificate rejections surface as a non-retryable `invalid_configuration` rather
-than a retryable network error. The flag is protected: it lives in the process
-environment only, so editable preferences and repository content cannot weaken
-it. Leaving it unset preserves the documented trusted-LAN behavior exactly.
+### Retired variables
+
+`LMW_LM_STUDIO_BASE_URL`, `LMW_LM_STUDIO_BEARER_TOKEN`, and
+`LMW_ALLOWED_MODELS` were removed in 3.0.0. The server does not read them and
+starts with an `invalid_configuration` error naming `LMW_PROVIDERS` when only
+the retired variables are present. Run `local-model-workers setup` once: it
+reads them, writes the equivalent `LMW_PROVIDERS` value, and says that it did.
+
+### Transport verification
+
+`tls_verify` controls whether a provider's certificate is validated. When unset,
+the default follows the host: **remote providers verify, loopback does not**.
+Loopback HTTP stays allowed because it never leaves the machine.
+
+With verification in force the adapter refuses to start when the base URL is
+plain `http:` to a non-loopback host, or when `NODE_TLS_REJECT_UNAUTHORIZED=0`
+has disabled certificate validation process-wide. Certificate rejections surface
+as a non-retryable `invalid_configuration` rather than a retryable network
+error.
+
+Accepting an unencrypted or unverified remote endpoint now requires writing
+`tls_verify: false` on that provider. `setup` writes it automatically, with a
+warning, when the URL you give it is remote and plain `http:` — so a trusted-LAN
+install keeps working, and the trade-off is recorded in the configuration rather
+than assumed. The flag is protected: it lives in the process environment only,
+so editable preferences and repository content cannot weaken it.
 
 ## Repository size guidance
 
@@ -122,10 +127,10 @@ tool list is fixed when the MCP process starts; project preferences reject it.
 ```
 
 `default_model` is optional in each individual file, but the resolved value is
-required and must be present in `LMW_ALLOWED_MODELS`. `model_routing` is an
+required and must be present in a provider's `allowed_models`. `model_routing` is an
 optional object mapping task types (`embedding`, `exploration`,
 `test_proposal`, `lint_fix`, `docs_generation`, `summarization`, `code_graph`)
-to model IDs from `LMW_ALLOWED_MODELS`; a task with no routing entry falls back
+to allowed model IDs; a task with no routing entry falls back
 to `default_model`, routing entries follow the same project > global > built-in
 precedence, and any entry that references an unauthorized model rejects the
 whole configuration. `steering_prompt` is an optional custom directive

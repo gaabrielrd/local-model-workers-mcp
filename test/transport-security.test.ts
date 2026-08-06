@@ -12,19 +12,40 @@ import {
   createProviderAdapter,
   isLoopbackHost,
   isTlsVerificationError,
+  resolveTlsVerify,
   tlsValidationDisabled,
   transportError,
 } from "../src/features/model-inference/index.js";
 
-void test("verification is off by default, preserving trusted-LAN behavior", () => {
-  assert.doesNotThrow(() =>
-    assertTransportSecurity({ baseUrl: "http://pc.local:1234/v1" }),
-  );
+void test("a remote provider verifies by default; loopback does not", () => {
+  assert.equal(resolveTlsVerify("http://pc.local:1234/v1", undefined), true);
+  assert.equal(resolveTlsVerify("https://models.remote/v1", undefined), true);
+  for (const host of ["localhost", "127.0.0.1", "[::1]"]) {
+    assert.equal(
+      resolveTlsVerify(`http://${host}:1234/v1`, undefined),
+      false,
+      host,
+    );
+  }
+  // An explicit value always wins over the default in both directions.
+  assert.equal(resolveTlsVerify("http://pc.local:1234/v1", false), false);
+  assert.equal(resolveTlsVerify("http://localhost:1234/v1", true), true);
+});
+
+void test("opting out of verification requires saying so explicitly", () => {
+  // The pre-3.0 trusted-LAN posture is still reachable, but only on purpose.
   assert.doesNotThrow(() =>
     assertTransportSecurity({
       baseUrl: "http://pc.local:1234/v1",
       tlsVerify: false,
     }),
+  );
+  assert.throws(
+    () => assertTransportSecurity({ baseUrl: "http://pc.local:1234/v1" }),
+    (error: unknown) =>
+      error instanceof InferenceError &&
+      error.code === "invalid_configuration" &&
+      /tls_verify: false/u.test(error.message),
   );
 });
 
@@ -111,7 +132,22 @@ void test("adapter construction fails closed on an unverifiable provider", () =>
       error instanceof InferenceError && error.code === "invalid_configuration",
   );
 
-  // The same provider without the flag keeps working.
+  // Without the flag the provider is now refused too: remote defaults to
+  // verifying, and plain HTTP cannot deliver that.
+  assert.throws(
+    () =>
+      createProviderAdapter({
+        name: "remote",
+        type: "lm-studio",
+        base_url: "http://models.remote:1234/v1",
+        allowed_models: ["*"],
+        priority: 0,
+      }),
+    (error: unknown) =>
+      error instanceof InferenceError && error.code === "invalid_configuration",
+  );
+
+  // The deliberate opt-out still constructs.
   assert.doesNotThrow(() =>
     createProviderAdapter({
       name: "remote",
@@ -119,6 +155,7 @@ void test("adapter construction fails closed on an unverifiable provider", () =>
       base_url: "http://models.remote:1234/v1",
       allowed_models: ["*"],
       priority: 0,
+      tls_verify: false,
     }),
   );
 });

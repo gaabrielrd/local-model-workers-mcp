@@ -137,10 +137,11 @@ errors, HTTP errors, and logs must redact protected values. `update_config`
 cannot alter protected settings and requires both explicit confirmation and a
 matching revision.
 
-The protected process environment requires `LMW_LM_STUDIO_BASE_URL` and
-`LMW_ALLOWED_MODELS`; `LMW_LM_STUDIO_BEARER_TOKEN` is optional. The
-placeholder-only `.env.example` documents their shape; the application does not
-load `.env` files. Editable global and project JSON cannot contain credentials
+The protected process environment requires `LMW_PROVIDERS`, which carries the
+base URL, optional Bearer credential, model allowlist, and `tls_verify` for each
+provider. The placeholder-only `.env.example` documents its shape; the
+application does not load `.env` files. Remote providers verify certificates
+unless a provider explicitly sets `tls_verify: false`. Editable global and project JSON cannot contain credentials
 or protected policy fields.
 
 Resolved snapshots never retain the token. They expose `authentication` as

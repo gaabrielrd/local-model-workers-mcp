@@ -215,7 +215,7 @@ void test("requires exact confirmation and writes secret-safe harness files", as
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
   assert.match(claude, /http:\/\/localhost:1234\/v1/);
-  assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  assert.match(codex, /LMW_PROVIDERS/);
   assert.equal(
     `${claude}${codex}`.includes(
       protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN,
@@ -457,7 +457,7 @@ void test("interactive setup command creates harness and global preference files
   const claude = await readFile(claudePath, "utf8");
   const codex = await readFile(codexPath, "utf8");
   assert.match(claude, /http:\/\/pc-gabriel\.local:1234\/v1/);
-  assert.match(codex, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  assert.match(codex, /LMW_PROVIDERS/);
   const text = output.join("");
   assert.match(text, /Setup Complete/);
   assert.match(text, /Health status/);
@@ -488,7 +488,7 @@ void test("setup never echoes the bearer token to the terminal", async (t) => {
     text.includes(protectedEnvironment.LMW_LM_STUDIO_BEARER_TOKEN),
     false,
   );
-  assert.match(text, /LMW_LM_STUDIO_BEARER_TOKEN/);
+  assert.match(text, /LMW_PROVIDERS/);
   assert.match(text, /value hidden/);
 });
 

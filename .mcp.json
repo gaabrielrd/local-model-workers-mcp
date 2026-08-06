@@ -4,8 +4,7 @@
       "command": "local-model-workers-mcp",
       "args": [],
       "env": {
-        "LMW_LM_STUDIO_BASE_URL": "http://pc-gabriel.local:1234/v1",
-        "LMW_ALLOWED_MODELS": "[\"qwen/qwen3.5-9b\",\"google/gemma-4-12b-qat\"]"
+        "LMW_PROVIDERS": "[{\"name\":\"lm-studio\",\"type\":\"lm-studio\",\"base_url\":\"http://pc-gabriel.local:1234/v1\",\"allowed_models\":[\"qwen/qwen3.5-9b\",\"google/gemma-4-12b-qat\"],\"priority\":0,\"tls_verify\":false}]"
       }
     }
   }

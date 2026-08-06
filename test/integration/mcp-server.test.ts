@@ -30,8 +30,15 @@ void test("creates an MCP runtime without the optional Bearer token", async (t) 
   const environment = stringEnvironment({
     HOME: home,
     XDG_CONFIG_HOME: path.join(home, ".config"),
-    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-    LMW_ALLOWED_MODELS: JSON.stringify([MODEL]),
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "lm-studio",
+        type: "lm-studio",
+        base_url: "http://127.0.0.1:1234/v1",
+        allowed_models: [MODEL],
+        priority: 0,
+      },
+    ]),
   });
   const preferencesPath = resolveGlobalPreferencesPath({
     platform: process.platform,
@@ -52,7 +59,6 @@ void test("creates an MCP runtime without the optional Bearer token", async (t) 
   });
   assert.equal(runtime.startupConfiguration.lm_studio.authentication, "none");
   assert.equal(runtime.startupConfiguration.lm_studio.token_configured, false);
-  assert.equal(runtime.bearerToken, undefined);
 });
 
 void test("creates the shared runtime from protected multi-provider settings", async (t) => {
@@ -387,9 +393,16 @@ async function applicationFixture(
     XDG_STATE_HOME: path.join(home, "state"),
     APPDATA: path.win32.join(home, "AppData", "Roaming"),
     LOCALAPPDATA: path.win32.join(home, "AppData", "Local"),
-    LMW_LM_STUDIO_BASE_URL: baseUrl,
-    LMW_LM_STUDIO_BEARER_TOKEN: TOKEN,
-    LMW_ALLOWED_MODELS: JSON.stringify([MODEL]),
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "lm-studio",
+        type: "lm-studio",
+        base_url: baseUrl,
+        bearer_token: TOKEN,
+        allowed_models: [MODEL],
+        priority: 0,
+      },
+    ]),
   });
   const preferencesPath = resolveGlobalPreferencesPath({
     platform: process.platform,

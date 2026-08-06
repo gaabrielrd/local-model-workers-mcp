@@ -36,15 +36,17 @@ update mechanism.
 
 ## Protected environment
 
-Before starting either harness, provide the URL and allowlist. Export the token
-only when that LM Studio deployment supports authentication:
+Before starting either harness, export `LMW_PROVIDERS`. Include `bearer_token`
+only when that LM Studio deployment supports authentication, and `tls_verify`
+only to opt out of certificate validation for a remote plain-HTTP endpoint:
 
 ```sh
-export LMW_LM_STUDIO_BASE_URL='http://pc-gabriel.local:1234/v1'
-export LMW_ALLOWED_MODELS='["qwen/qwen3.5-9b","google/gemma-4-12b-qat"]'
-# Optional:
-export LMW_LM_STUDIO_BEARER_TOKEN='<LM Studio API token>'
+export LMW_PROVIDERS='[{"name":"lm-studio","type":"lm-studio","base_url":"http://pc-gabriel.local:1234/v1","allowed_models":["qwen/qwen3.5-9b","google/gemma-4-12b-qat"],"priority":0,"tls_verify":false}]'
 ```
+
+Upgrading from 2.x? Run `local-model-workers setup` once. It reads the retired
+`LMW_LM_STUDIO_*` variables, writes the equivalent `LMW_PROVIDERS`, and reports
+the migration.
 
 Do not place actual credentials in `.mcp.json`, Codex `config.toml`, project
 files, command history, or support output. HTTP is supported only on a trusted
@@ -141,7 +143,7 @@ local-model-workers-mcp configure-global \
 The command accepts the documented limit names in kebab case, plus
 `--result-verbosity` (`terse`, `standard`, or `verbose`), applies the same
 strict schema and administrative maxima as runtime loading, and rejects a
-default model absent from `LMW_ALLOWED_MODELS`. Protected connection, token,
+default model absent from every provider's `allowed_models`. Protected connection, token,
 allowlist, and fixed policy fields cannot be written.
 
 ## Atomicity and recovery

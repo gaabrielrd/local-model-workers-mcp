@@ -5,11 +5,21 @@ export const CONFIGURATION_DIRECTORY_NAME = "local-model-workers";
 export const GLOBAL_PREFERENCES_FILENAME = "preferences.json";
 
 export const CONFIGURATION_ENVIRONMENT_VARIABLES = {
+  providers: "LMW_PROVIDERS",
+  providerRecheckIntervalMs: "LMW_PROVIDER_RECHECK_INTERVAL_MS",
+} as const;
+
+/**
+ * The single-provider variables that predate `LMW_PROVIDERS`.
+ *
+ * The server no longer reads these. `setup` reads them once to seed a migrated
+ * `LMW_PROVIDERS` value, so an existing installation is carried forward instead
+ * of silently losing its endpoint — but nothing downstream depends on them.
+ */
+export const LEGACY_ENVIRONMENT_VARIABLES = {
   lmStudioBaseUrl: "LMW_LM_STUDIO_BASE_URL",
   lmStudioBearerToken: "LMW_LM_STUDIO_BEARER_TOKEN",
   allowedModels: "LMW_ALLOWED_MODELS",
-  providers: "LMW_PROVIDERS",
-  providerRecheckIntervalMs: "LMW_PROVIDER_RECHECK_INTERVAL_MS",
 } as const;
 
 export const DEFAULT_PROVIDER_RECHECK_INTERVAL_MS = 60_000;

@@ -48,6 +48,7 @@ export {
   assertTransportSecurity,
   isLoopbackHost,
   isTlsVerificationError,
+  resolveTlsVerify,
   tlsValidationDisabled,
   transportError,
   type AssertTransportSecurityInput,

@@ -203,12 +203,15 @@ void test("proposes and applies jetbrains config without overwriting existing en
     env: Record<string, string>;
   };
   assert.equal(managed.command, "local-model-workers-mcp");
-  assert.equal(managed.env.LMW_LM_STUDIO_BASE_URL, "http://127.0.0.1:1234/v1");
-  assert.equal(managed.env.LMW_ALLOWED_MODELS, '["qwen/qwen3.5-9b"]');
-  assert.equal(
-    managed.env.LMW_LM_STUDIO_BEARER_TOKEN,
-    "fixture-secret-never-print",
-  );
+  // The retired variables in the fixture are migrated into LMW_PROVIDERS, and
+  // JetBrains is one of the harnesses that receives the credential.
+  const providers = JSON.parse(
+    managed.env.LMW_PROVIDERS ?? "[]",
+  ) as readonly Record<string, unknown>[];
+  assert.equal(providers.length, 1);
+  assert.equal(providers[0]?.base_url, "http://127.0.0.1:1234/v1");
+  assert.deepEqual(providers[0]?.allowed_models, ["qwen/qwen3.5-9b"]);
+  assert.equal(providers[0]?.bearer_token, "fixture-secret-never-print");
 
   const rules = await readFile(
     resolveJetBrainsRulesPath(fixture.project),

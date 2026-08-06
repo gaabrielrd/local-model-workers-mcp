@@ -30,24 +30,26 @@ app, and the IDE extensions alike:
 ```json
 {
   "env": {
-    "LMW_LM_STUDIO_BASE_URL": "http://localhost:1234/v1",
-    "LMW_ALLOWED_MODELS": "[\"qwen/qwen3.5-9b\"]"
+    "LMW_PROVIDERS": "[{\"name\":\"lm-studio\",\"type\":\"lm-studio\",\"base_url\":\"http://localhost:1234/v1\",\"allowed_models\":[\"qwen/qwen3.5-9b\"],\"priority\":0}]"
   }
 }
 ```
 
-- `LMW_LM_STUDIO_BASE_URL` — absolute `http(s)` URL ending in `/v1`, no
-  credentials, query, or fragment. Defaults to `http://localhost:1234/v1` when
-  unset. LM Studio serves `1234`, Ollama `11434/v1`, vLLM and LocalAI `8000/v1`.
-- `LMW_ALLOWED_MODELS` — JSON array of model identifiers the server may use.
-  Unset means "any served model".
-- `LMW_LM_STUDIO_BEARER_TOKEN` — optional; blank selects no authentication,
-  which is the expected posture for a trusted LAN.
+`LMW_PROVIDERS` is required: a JSON array of one to 16 objects with `name`,
+`type` (`lm-studio`, `ollama`, `vllm`, `localai`), `base_url`, optional
+`bearer_token`, `allowed_models`, `priority` (lower wins), and optional
+`tls_verify`.
 
-For more than one runtime, set `LMW_PROVIDERS` instead: a JSON array of objects
-with `name`, `type` (`lm-studio`, `ollama`, `vllm`, `localai`), `base_url`,
-optional `bearer_token`, `allowed_models`, and `priority` (lower wins). It
-replaces the single-provider variables.
+- `base_url` — absolute `http(s)` URL ending in `/v1`, no credentials, query, or
+  fragment. LM Studio serves `1234`, Ollama `11434/v1`, vLLM and LocalAI
+  `8000/v1`.
+- `allowed_models` — model identifiers the server may use. `["*"]` means "any
+  served model".
+- `bearer_token` — optional; omitting it selects no authentication, which is the
+  expected posture for a trusted LAN.
+- `tls_verify` — optional. Unset means remote providers verify certificates and
+  loopback does not. Set it to `false` to accept a remote plain-HTTP endpoint
+  deliberately.
 
 Claude Code must restart to pick up a changed `env` block.
 
@@ -55,7 +57,7 @@ Claude Code must restart to pick up a changed `env` block.
 
 These are global preferences, written by the CLI. Run it in a shell where the
 same `LMW_*` variables are exported, because the command rejects a default model
-that is absent from `LMW_ALLOWED_MODELS`:
+that is absent from every provider's `allowed_models`:
 
 ```bash
 npx -y local-model-workers-mcp@2.13.0 configure-global --default-model qwen/qwen3.5-9b --result-verbosity terse --dry-run
@@ -95,8 +97,8 @@ the environment changed.
 | Symptom                                          | Cause and fix                                                                 |
 | ------------------------------------------------ | ----------------------------------------------------------------------------- |
 | `invalid_configuration`, default model missing   | Step 3 was skipped                                                            |
-| Provider unreachable                             | The runtime is not serving, or `LMW_LM_STUDIO_BASE_URL` lacks the `/v1` suffix |
-| Model rejected                                   | It is absent from `LMW_ALLOWED_MODELS`                                        |
+| Provider unreachable                             | The runtime is not serving, or `base_url` lacks the `/v1` suffix              |
+| Model rejected                                   | It is absent from the provider's `allowed_models`                            |
 | `authentication_not_enforced`                    | A token was supplied but the runtime accepted an unauthenticated request      |
 | Tools missing from the toolkit                   | The `enabled_features` preference excludes their group                        |
 | Two `local-model-workers` servers listed         | A previous `configure-harness` entry coexists with the plugin; remove one     |

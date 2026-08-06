@@ -13,6 +13,11 @@ import {
   proposeHarnessConfigurations,
   type Harness,
 } from "./harnesses.js";
+import {
+  buildProvidersValue,
+  needsPlainHttpOptOut,
+  readProviderSeed,
+} from "./provider-migration.js";
 import { selectOptions } from "./select-options.js";
 import type { InstallationCommandIo } from "./cli.js";
 import { renderBanner } from "./banner.js";
@@ -78,7 +83,16 @@ export async function runInteractiveSetup(
 
     // 1. Connection / LM Studio Base URL
     io.write(theme.section(1, TOTAL_STEPS, "Provider connection"));
-    const envUrl = env.LMW_LM_STUDIO_BASE_URL ?? "http://localhost:1234/v1";
+    const seed = readProviderSeed(env);
+    if (seed.migratedFromLegacy) {
+      io.write(
+        theme.status(
+          "pending",
+          "Migrating the retired LMW_LM_STUDIO_* variables into LMW_PROVIDERS.",
+        ),
+      );
+    }
+    const envUrl = seed.baseUrl;
     let baseUrl =
       stringOpt(optionsMap, "url") ?? stringOpt(optionsMap, "base-url");
 
@@ -91,7 +105,7 @@ export async function runInteractiveSetup(
     }
 
     // Optional Bearer Token (needed before model list probe if required)
-    const envToken = env.LMW_LM_STUDIO_BEARER_TOKEN ?? "";
+    const envToken = seed.bearerToken ?? "";
     let bearerToken =
       stringOpt(optionsMap, "token") ?? stringOpt(optionsMap, "bearer-token");
     if (bearerToken === undefined && !isNonInteractive && rl) {
@@ -105,21 +119,8 @@ export async function runInteractiveSetup(
 
     // 2. Allowed Models (Auto-populated if omitted)
     io.write(theme.section(2, TOTAL_STEPS, "Model access"));
-    const envModelsRaw = env.LMW_ALLOWED_MODELS;
-    let envModelsDefault: string[] | undefined;
-    if (envModelsRaw) {
-      try {
-        const parsed: unknown = JSON.parse(envModelsRaw);
-        if (
-          Array.isArray(parsed) &&
-          parsed.every((item): item is string => typeof item === "string")
-        ) {
-          envModelsDefault = parsed;
-        }
-      } catch {
-        // fallback
-      }
-    }
+    const envModelsDefault =
+      seed.allowedModels === undefined ? undefined : [...seed.allowedModels];
 
     const rawModelsOpt =
       stringOpt(optionsMap, "allowed-models") ??
@@ -306,16 +307,30 @@ export async function runInteractiveSetup(
     }
 
     // Build environment object for runtime setup
+    // A remote plain-HTTP endpoint no longer verifies implicitly; record the
+    // opt-out the URL implies instead of letting the server refuse at startup.
+    const plainHttpOptOut = needsPlainHttpOptOut(baseUrl);
+    if (plainHttpOptOut) {
+      io.write(
+        theme.status(
+          "warning",
+          `${baseUrl} is a remote endpoint over plain HTTP, so tls_verify: false is being written. Traffic to it is unencrypted; move the provider to HTTPS to drop the opt-out.`,
+        ),
+      );
+    }
     const effectiveEnv: Record<string, string> = {
       ...(env as Record<string, string>),
-      LMW_LM_STUDIO_BASE_URL: baseUrl,
-      LMW_ALLOWED_MODELS: JSON.stringify(allowedModels),
+      LMW_PROVIDERS: buildProvidersValue({
+        baseUrl,
+        bearerToken,
+        allowedModels,
+        ...(plainHttpOptOut ? { tlsVerify: false } : {}),
+      }),
     };
-    if (bearerToken) {
-      effectiveEnv.LMW_LM_STUDIO_BEARER_TOKEN = bearerToken;
-    } else {
-      delete effectiveEnv.LMW_LM_STUDIO_BEARER_TOKEN;
-    }
+    // The retired variables must not survive into what setup writes out.
+    delete effectiveEnv.LMW_LM_STUDIO_BASE_URL;
+    delete effectiveEnv.LMW_LM_STUDIO_BEARER_TOKEN;
+    delete effectiveEnv.LMW_ALLOWED_MODELS;
 
     io.write(theme.section(5, TOTAL_STEPS, "Planned changes"));
 
@@ -529,17 +544,22 @@ export async function runInteractiveSetup(
       }
     }
 
-    io.write(`\n${theme.bold("Export these in your shell")}\n`);
+    io.write(`\n${theme.bold("Export this in your shell")}\n`);
+    // The credential is never echoed; setup already persisted it.
+    const displayProviders = buildProvidersValue({
+      baseUrl,
+      ...(bearerToken === undefined
+        ? {}
+        : { bearerToken: maskSecret(bearerToken) }),
+      allowedModels,
+      ...(plainHttpOptOut ? { tlsVerify: false } : {}),
+    });
     io.write(
-      `  ${theme.muted("export")} LMW_LM_STUDIO_BASE_URL=${theme.accent(`'${baseUrl}'`)}\n`,
-    );
-    io.write(
-      `  ${theme.muted("export")} LMW_ALLOWED_MODELS=${theme.accent(`'${JSON.stringify(allowedModels)}'`)}\n`,
+      `  ${theme.muted("export")} LMW_PROVIDERS=${theme.accent(`'${displayProviders}'`)}\n`,
     );
     if (bearerToken) {
-      // The value itself is never echoed; setup already persisted it.
       io.write(
-        `  ${theme.muted("export")} LMW_LM_STUDIO_BEARER_TOKEN=${theme.muted(`'${maskSecret(bearerToken)}'`)} ${theme.muted("(value hidden)")}\n`,
+        `  ${theme.muted("bearer_token shown masked (value hidden)")}\n`,
       );
     }
     io.write("\n");

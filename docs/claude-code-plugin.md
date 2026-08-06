@@ -39,10 +39,8 @@ forwards each `LMW_*` variable with `${VAR:-default}` expansion, which Claude
 Code resolves from its own process environment. Every forwarded variable has a
 fallback, so an unset variable never blocks startup:
 
-- `LMW_LM_STUDIO_BASE_URL` falls back to `http://localhost:1234/v1`;
-- an empty `LMW_ALLOWED_MODELS` resolves to `*`;
-- an empty `LMW_PROVIDERS` leaves single-provider mode active;
-- an empty `LMW_LM_STUDIO_BEARER_TOKEN` selects `none`;
+- an empty `LMW_PROVIDERS` leaves the server unconfigured, and it reports the
+  missing variable at startup rather than guessing an endpoint;
 - an empty `LMW_PROVIDER_RECHECK_INTERVAL_MS` selects the 60 s default.
 
 Users set the real values in the `env` block of `~/.claude/settings.json`, which

@@ -31,9 +31,16 @@ import {
 } from "../src/features/installation/index.js";
 
 const protectedEnvironment = {
-  LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-  LMW_LM_STUDIO_BEARER_TOKEN: "steering-secret-token",
-  LMW_ALLOWED_MODELS: '["qwen/qwen3.5-9b","qwen/test-model","another/model"]',
+  LMW_PROVIDERS: JSON.stringify([
+    {
+      name: "lm-studio",
+      type: "lm-studio",
+      base_url: "http://127.0.0.1:1234/v1",
+      bearer_token: "steering-secret-token",
+      allowed_models: ["qwen/qwen3.5-9b", "qwen/test-model", "another/model"],
+      priority: 0,
+    },
+  ]),
 };
 
 const TOOL_DIRECTIVES = [

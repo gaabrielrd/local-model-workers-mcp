@@ -88,8 +88,15 @@ try {
     LOCALAPPDATA: path.join(fakeHome, "AppData", "Local"),
     XDG_CONFIG_HOME: path.join(fakeHome, ".config"),
     XDG_STATE_HOME: path.join(fakeHome, ".local", "state"),
-    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-    LMW_ALLOWED_MODELS: '["release/smoke-model"]',
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "lm-studio",
+        type: "lm-studio",
+        base_url: "http://127.0.0.1:1234/v1",
+        allowed_models: ["release/smoke-model"],
+        priority: 0,
+      },
+    ]),
   });
   const harness = await execFileAsync(
     process.execPath,

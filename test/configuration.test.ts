@@ -18,11 +18,36 @@ import {
   resolveModelForTask,
 } from "../src/features/configuration/index.js";
 
-const protectedEnvironment = {
-  LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-  LMW_LM_STUDIO_BEARER_TOKEN: "super-secret-token",
-  LMW_ALLOWED_MODELS: '["qwen/test-model","another/model"]',
-};
+/** Builds the sole protected provider contract, `LMW_PROVIDERS`. */
+function providersEnv(overrides?: {
+  baseUrl?: string;
+  bearerToken?: string | undefined;
+  allowedModels?: readonly string[];
+}): Record<string, string> {
+  const bearerToken =
+    overrides !== undefined && "bearerToken" in overrides
+      ? overrides.bearerToken
+      : "super-secret-token";
+  return {
+    LMW_PROVIDERS: JSON.stringify([
+      {
+        name: "lm-studio",
+        type: "lm-studio",
+        base_url: overrides?.baseUrl ?? "http://127.0.0.1:1234/v1",
+        ...(bearerToken === undefined || bearerToken.trim().length === 0
+          ? {}
+          : { bearer_token: bearerToken }),
+        allowed_models: overrides?.allowedModels ?? [
+          "qwen/test-model",
+          "another/model",
+        ],
+        priority: 0,
+      },
+    ]),
+  };
+}
+
+const protectedEnvironment = providersEnv();
 
 void test("loads built-in defaults and returns a redacted effective view", async (t) => {
   const fixture = await createFixture(t);
@@ -204,10 +229,7 @@ void test("supports LM Studio without optional Bearer authentication", async (t)
     schema_version: 1,
     default_model: "qwen/test-model",
   });
-  const environment = {
-    ...protectedEnvironment,
-    LMW_LM_STUDIO_BEARER_TOKEN: "   ",
-  };
+  const environment = providersEnv({ bearerToken: "   " });
 
   const snapshot = await getEffectiveConfiguration({
     ...fixture.input(),
@@ -220,15 +242,16 @@ void test("supports LM Studio without optional Bearer authentication", async (t)
   assert.equal(view.lm_studio.bearer_token, null);
 });
 
-void test("supports missing LMW_ALLOWED_MODELS environment variable with wildcard default", async (t) => {
+void test("supports a provider without an explicit model allowlist", async (t) => {
   const fixture = await createFixture(t);
   await fixture.writeGlobal({
     schema_version: 1,
     default_model: "any/model",
   });
-  const environment = {
-    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-  };
+  const environment = providersEnv({
+    bearerToken: undefined,
+    allowedModels: ["*"],
+  });
 
   const snapshot = await getEffectiveConfiguration({
     ...fixture.input(),
@@ -397,11 +420,13 @@ void test("lets an explicit embedding routing entry override the legacy embeddin
 
 void test("auto-detects an embedding model from allowed_models when embedding routing is unconfigured", async (t) => {
   const fixture = await createFixture(t);
-  const environment = {
-    ...protectedEnvironment,
-    LMW_ALLOWED_MODELS:
-      '["google/gemma-4-12b-qat","qwen/qwen3.5-9b","text-embedding-nomic-embed-text-v1.5"]',
-  };
+  const environment = providersEnv({
+    allowedModels: [
+      "google/gemma-4-12b-qat",
+      "qwen/qwen3.5-9b",
+      "text-embedding-nomic-embed-text-v1.5",
+    ],
+  });
   await fixture.writeGlobal({
     schema_version: 1,
     default_model: "google/gemma-4-12b-qat",
@@ -420,11 +445,9 @@ void test("auto-detects an embedding model from allowed_models when embedding ro
 
 void test("resolveModelForTask routes to large-context model when contextTokenCount exceeds threshold", async (t) => {
   const fixture = await createFixture(t);
-  const environment = {
-    ...protectedEnvironment,
-    LMW_ALLOWED_MODELS:
-      '["qwen/test-model","qwen/qwen2.5-coder-32b-instruct-128k"]',
-  };
+  const environment = providersEnv({
+    allowedModels: ["qwen/test-model", "qwen/qwen2.5-coder-32b-instruct-128k"],
+  });
   await fixture.writeGlobal({
     schema_version: 1,
     default_model: "qwen/test-model",
@@ -468,9 +491,10 @@ void test("permits any routed model under a wildcard allowed-model policy", asyn
     default_model: "any/model",
     model_routing: { exploration: "anything/else", lint_fix: "third/one" },
   });
-  const environment = {
-    LMW_LM_STUDIO_BASE_URL: "http://127.0.0.1:1234/v1",
-  };
+  const environment = providersEnv({
+    bearerToken: undefined,
+    allowedModels: ["*"],
+  });
 
   const snapshot = await getEffectiveConfiguration({
     ...fixture.input(),
@@ -557,13 +581,10 @@ void test("requires valid protected settings and never repeats their raw values"
   });
 
   const invalidEnvironments: readonly Record<string, string | undefined>[] = [
-    { ...protectedEnvironment, LMW_LM_STUDIO_BASE_URL: undefined },
-    { ...protectedEnvironment, LMW_LM_STUDIO_BASE_URL: "file:///tmp/model" },
-    { ...protectedEnvironment, LMW_ALLOWED_MODELS: "not-json" },
-    {
-      ...protectedEnvironment,
-      LMW_ALLOWED_MODELS: '["duplicate","duplicate"]',
-    },
+    { LMW_PROVIDERS: undefined },
+    providersEnv({ baseUrl: "file:///tmp/model" }),
+    { LMW_PROVIDERS: "not-json" },
+    providersEnv({ allowedModels: ["duplicate", "duplicate"] }),
   ];
 
   for (const environment of invalidEnvironments) {
@@ -639,20 +660,14 @@ void test("produces deterministic secret-independent revisions", async (t) => {
   const second = await getEffectiveConfiguration(fixture.input());
   const rotatedToken = await getEffectiveConfiguration({
     ...fixture.input(),
-    environment: {
-      ...protectedEnvironment,
-      LMW_LM_STUDIO_BEARER_TOKEN: "rotated-secret-token",
-    },
+    environment: providersEnv({ bearerToken: "rotated-secret-token" }),
   });
 
   assert.equal(first.revision, second.revision);
   assert.equal(first.revision, rotatedToken.revision);
   const withoutToken = await getEffectiveConfiguration({
     ...fixture.input(),
-    environment: {
-      ...protectedEnvironment,
-      LMW_LM_STUDIO_BEARER_TOKEN: undefined,
-    },
+    environment: providersEnv({ bearerToken: undefined }),
   });
   assert.notEqual(first.revision, withoutToken.revision);
   assert.equal(first.revision.includes("super-secret-token"), false);

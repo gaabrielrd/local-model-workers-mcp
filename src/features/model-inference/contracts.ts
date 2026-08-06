@@ -124,7 +124,10 @@ export interface ProviderConfig {
   readonly bearer_token?: string;
   readonly allowed_models: readonly string[];
   readonly priority: number;
-  /** Require TLS certificate validation for this provider. */
+  /**
+   * Require TLS certificate validation for this provider. Unset means the
+   * default for the host: on for remote, off for loopback.
+   */
   readonly tls_verify?: boolean;
 }
 
