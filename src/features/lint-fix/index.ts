@@ -41,3 +41,15 @@ export {
   fixTypeErrors,
   type FixLintViolationsOptions,
 } from "./fix.js";
+export {
+  lintOutputParser,
+  resolveLintVerificationCommand,
+  resolveTypeVerificationCommand,
+  typeOutputParser,
+  verifyFix,
+  type FixVerification,
+  type VerificationCommandRunner,
+  type VerificationSandboxFactory,
+  type VerificationStatus,
+  type VerifyFixInput,
+} from "./verify.js";

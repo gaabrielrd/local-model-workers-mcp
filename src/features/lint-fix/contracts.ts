@@ -15,6 +15,7 @@ export const FixLintViolationsInputSchema = z
     repository_root: z.string().trim().min(1).max(4_096),
     lint_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
     linter: z.enum(["eslint", "biome", "ruff", "auto"]).default("auto"),
+    verify_command: z.string().trim().min(1).max(1_000).optional(),
     max_files: z
       .number()
       .int()
@@ -33,6 +34,7 @@ export const FixTypeErrorsInputSchema = z
     repository_root: z.string().trim().min(1).max(4_096),
     type_output: z.string().min(1).max(LINT_FIX_MAX_INPUT_BYTES),
     checker: z.enum(["tsc", "mypy", "pyright", "auto"]).default("auto"),
+    verify_command: z.string().trim().min(1).max(1_000).optional(),
     max_files: z
       .number()
       .int()
@@ -70,12 +72,24 @@ export const UnfixedViolationSchema = z
   })
   .strict();
 
+export const FixVerificationSchema = z
+  .object({
+    status: z.enum(["verified", "not_fixed", "unavailable", "apply_failed"]),
+    violations_before: z.number().int().nonnegative().max(100_000),
+    violations_after: z.number().int().nonnegative().max(100_000).optional(),
+    command: z.string().max(1_000).optional(),
+    reason: z.string().max(4_000).optional(),
+  })
+  .strict();
+
 export const FixLintViolationsResultSchema = z
   .object({
     patch: z.string().max(2 * 1_024 * 1_024),
     fixed_violations: z.array(FixedViolationSchema).max(500),
     unfixed_violations: z.array(UnfixedViolationSchema).max(500),
     summary: z.string().trim().min(1).max(8_000),
+    /** Additive: absent when verification did not run. */
+    verification: FixVerificationSchema.optional(),
   })
   .strict();
 

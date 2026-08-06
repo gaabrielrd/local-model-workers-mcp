@@ -33,8 +33,18 @@ import {
 } from "./contracts.js";
 import { detectLinter, parseLintOutput, parseTypeOutput } from "./parsers.js";
 import { validateLintPatch } from "./patch-policy.js";
+import {
+  lintOutputParser,
+  resolveLintVerificationCommand,
+  resolveTypeVerificationCommand,
+  typeOutputParser,
+  verifyFix,
+  type VerificationCommandRunner,
+  type VerificationSandboxFactory,
+} from "./verify.js";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_VERIFICATION_TIMEOUT_MS = 120_000;
 const SOURCE_CONTEXT_PADDING = 30;
 
 const RemoteViolationSchema = z
@@ -73,6 +83,14 @@ export interface FixLintViolationsOptions {
   ) => Promise<OutboundContextCollector>;
   readonly inspectPath?: (path: string) => Promise<"safe" | "unsafe">;
   readonly signal?: AbortSignal;
+  /**
+   * Re-runs the real tool against the patched sandbox copy. Off by default so
+   * existing callers keep today's behavior and today's latency.
+   */
+  readonly verifyFixes?: boolean;
+  readonly verificationTimeoutMs?: number;
+  readonly sandboxFactory?: VerificationSandboxFactory;
+  readonly commandRunner?: VerificationCommandRunner;
 }
 
 interface FileContext {
@@ -273,7 +291,21 @@ export async function fixLintViolations(
   }
   validatedPatch = postProcessing.patch;
 
-  return reconcile(contexts, unfixed, response.output, validatedPatch);
+  const lintResult = reconcile(
+    contexts,
+    unfixed,
+    response.output,
+    validatedPatch,
+  );
+  return await withVerification(options, lintResult, {
+    repositoryRoot: input.repository_root,
+    command: resolveLintVerificationCommand(
+      selectedLinter,
+      input.verify_command,
+    ),
+    violationsBefore: violations.length,
+    parse: lintOutputParser(selectedLinter),
+  });
 }
 
 export async function fixTypeErrors(
@@ -454,7 +486,60 @@ export async function fixTypeErrors(
   }
   validatedPatch = postProcessing.patch;
 
-  return reconcile(contexts, unfixed, response.output, validatedPatch);
+  const typeResult = reconcile(
+    contexts,
+    unfixed,
+    response.output,
+    validatedPatch,
+  );
+  return await withVerification(options, typeResult, {
+    repositoryRoot: input.repository_root,
+    command: resolveTypeVerificationCommand(
+      input.checker,
+      input.verify_command,
+    ),
+    violationsBefore: violations.length,
+    parse: typeOutputParser(input.checker),
+  });
+}
+
+/**
+ * Attaches semantic verification to a finished repair result.
+ *
+ * Verification never changes the patch and never blocks delivery: a caller that
+ * does not opt in, or a project where the tool cannot run, gets exactly the
+ * result it gets today.
+ */
+async function withVerification(
+  options: FixLintViolationsOptions,
+  result: FixLintViolationsResult,
+  request: {
+    readonly repositoryRoot: string;
+    readonly command: ReturnType<typeof resolveLintVerificationCommand>;
+    readonly violationsBefore: number;
+    readonly parse: (output: string) => readonly LintViolation[];
+  },
+): Promise<FixLintViolationsResult> {
+  if (options.verifyFixes !== true || result.patch.length === 0) {
+    return result;
+  }
+  const verification = await verifyFix({
+    repositoryRoot: request.repositoryRoot,
+    patch: { patch: result.patch },
+    command: request.command,
+    violationsBefore: request.violationsBefore,
+    timeout_ms:
+      options.verificationTimeoutMs ?? DEFAULT_VERIFICATION_TIMEOUT_MS,
+    parse: request.parse,
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+    ...(options.sandboxFactory === undefined
+      ? {}
+      : { sandboxFactory: options.sandboxFactory }),
+    ...(options.commandRunner === undefined
+      ? {}
+      : { commandRunner: options.commandRunner }),
+  });
+  return { ...result, verification };
 }
 
 function parseInput(
