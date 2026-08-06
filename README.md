@@ -121,11 +121,11 @@ Tools are grouped, and you choose which groups to register during setup.
 
 | Group | Tools | What you get |
 | --- | --- | --- |
-| **Exploration** | `explore_repository` · `query_code_graph` · `search_semantic` · `summarize_module` | Goal-directed analysis, symbol/caller/dependency queries, and a persistent SQLite vector index |
+| **Exploration** | `explore_repository` · `query_code_graph` · `search_semantic` · `summarize_module` | Goal-directed analysis, symbol/caller/dependency queries, `impact_of` call-graph analysis, `since_revision` delta caching, and a persistent SQLite vector index |
 | **Tests** | `propose_tests` · `auto_validate_tests` | Test-only diffs, optionally iterated in a sandbox until they actually pass |
 | **Docs** | `generate_docs_patch` · `analyze_diff` | Docs-only patches and semantic commit-range analysis |
-| **Lint** | `fix_lint_violations` · `fix_type_errors` | Narrow diffs for ESLint, Biome, Ruff, `tsc`, `mypy`, and `pyright` output |
-| **Administration** | `check_health` · `get_config` · `get_offload_stats` · `validate_config` · `update_config` | Per-provider health, redacted config, and measurable token savings |
+| **Lint** | `fix_lint_violations` · `fix_type_errors` | Verified diffs in temporary sandboxes for ESLint, Biome, Ruff, `tsc`, `mypy`, and `pyright` output |
+| **Administration** | `check_health` · `get_config` · `get_offload_stats` · `validate_config` · `update_config` | Per-provider health, redacted config, `workspace_label` header attribution, adaptive model routing, and measurable token savings |
 
 Symbols are recognized in TypeScript, JavaScript, Python, Go, Rust, Java, C#,
 Kotlin, Swift, Scala, PHP, Ruby, and Elixir.
@@ -177,7 +177,7 @@ back to plain ASCII on non-TTY, non-UTF-8, and legacy Windows consoles.
   [GitHub Release](https://github.com/gaabrielrd/local-model-workers-mcp/releases/latest)
   under the MIT license.
 - `npm run validate` is green on macOS, Linux, and Windows CI — formatting,
-  lint, feature boundaries, typecheck, build, and 553 automated tests.
+  lint, feature boundaries, typecheck, build, and 629 automated tests.
 - Release qualification verifies the packaged server registers all 15 tools and
   runs real-model structured-output probes.
 

@@ -29,16 +29,16 @@ Omitting `enabled_features` registers every group for backward compatibility.
 
 | Tool | Required input | Behavior |
 | --- | --- | --- |
-| `explore_repository` | `goal`, `repository_root` | Bounded exploration; optional `priority_paths` and `language` |
+| `explore_repository` | `goal`, `repository_root` | Bounded exploration; optional `priority_paths`, `language`, and `since_revision` |
 | `propose_tests` | `goal`, `repository_root` | Validated, unapplied test-only diff; optional scope and language |
 | `check_health` | none | Repository-free configuration and per-provider health |
 | `get_config` | none | Redacted configuration, provider status, and active default-model route; optional `project_root` |
 | `get_offload_stats` | none | Weekly, monthly, and lifetime token savings and queries offloaded, plus a `reliability` section (failure/retry counters, per-provider failure breakdown, and live circuit-breaker state); optional `period` and `log_directory` |
 | `validate_config` | `project_root`, `expected_revision`, `changes` | Read-only project proposal validation |
 | `update_config` | validation fields | Atomic write only with matching explicit `confirmation` |
-| `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter` and `additional_repositories` |
-| `search_semantic` | `query`, `repository_root` | Ranked embedding search over the local vector index; optional `top_k`, `reindex`, and `additional_repositories` |
-| `summarize_module` | `repository_root`, `target` | Structured file or directory summaries from code graph metadata and inference; optional `depth` (`shallow`/`deep`) and `force_refresh` |
+| `query_code_graph` | `repository_root`, `query`, `query_type` | Symbol, caller, dependency, and export queries against the code graph; optional `file_filter`, `additional_repositories`, and `since_revision` |
+| `search_semantic` | `query`, `repository_root` | Ranked embedding search over the local vector index; optional `top_k`, `reindex`, `additional_repositories`, and `since_revision` |
+| `summarize_module` | `repository_root`, `target` | Structured file or directory summaries from code graph metadata and inference; optional `depth` (`shallow`/`deep`), `force_refresh`, and `since_revision` |
 | `fix_lint_violations` | `repository_root`, `lint_output` | Validated, unapplied unified diff that fixes only the reported lint violations; optional `linter` (`eslint`/`biome`/`ruff`/`auto`) and `max_files` |
 | `fix_type_errors` | `repository_root`, `type_output` | Validated, unapplied unified diff that fixes compiler/type-checker errors; optional `checker` (`tsc`/`mypy`/`pyright`/`auto`) and `max_files` |
 | `generate_docs_patch` | `repository_root`, `target`, `doc_type` | Validated, unapplied docs-only unified diff (JSDoc/docstring inline comments and/or a `docs/<slug>.md` guide) for public symbols; optional `style` (`jsdoc`/`tsdoc`/`numpy`/`google`) and `force_refresh` |
@@ -59,6 +59,12 @@ prose-only fields (`risks`, `next_steps`, `limitation_impact`,
 dropped while structural data (paths, line ranges, symbols, diffs, status)
 remains. `standard` (the default) and `verbose` render exactly as before. See
 [harness context management](tasks/050-harness-context-management.md).
+
+Read tools (`explore_repository`, `query_code_graph`, `search_semantic`, `summarize_module`)
+include a deterministic `revision` token in every response. Passing an optional `since_revision`
+parameter with a previously received token returns an incremental delta (`unchanged: true` with
+empty items lists) when the underlying repository analysis state is unchanged. Stale or invalid
+tokens fail open by returning full payloads along with the updated `revision` token.
 
 `query_code_graph` and `summarize_module` recognize symbols in TypeScript/JS,
 Python, Go, Rust, Java, C#, Kotlin, Swift, Scala, PHP, Ruby, and Elixir files.

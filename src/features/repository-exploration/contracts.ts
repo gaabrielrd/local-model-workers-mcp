@@ -23,6 +23,7 @@ export const ExplorationRequestSchema = z
       .array(z.string().trim().min(1).max(4_096))
       .max(50)
       .optional(),
+    since_revision: z.string().trim().optional(),
   })
   .strict();
 
@@ -30,6 +31,7 @@ export interface ExplorationRequest {
   readonly goal: string;
   readonly repository_root: string;
   readonly priority_paths?: readonly string[];
+  readonly since_revision?: string;
 }
 
 export type RepositoryAccessErrorCode =

@@ -74,7 +74,18 @@ export async function executeSemanticSearch(
 
   const queryVector = queryResult.embeddings[0];
   if (queryVector === undefined) {
-    return { results: [] };
+    const revision =
+      "rev:" +
+      createHash("sha256")
+        .update(JSON.stringify({ query: input.query, topK, items: [] }))
+        .digest("hex");
+    if (
+      input.since_revision !== undefined &&
+      input.since_revision === revision
+    ) {
+      return { results: [], revision, unchanged: true };
+    }
+    return { results: [], revision };
   }
 
   // Vector search
@@ -89,8 +100,25 @@ export async function executeSemanticSearch(
 
   const matches = await vectorIndex.search(queryVector, topK);
   if (matches.length === 0) {
+    const revision =
+      "rev:" +
+      createHash("sha256")
+        .update(JSON.stringify({ query: input.query, topK, items: [] }))
+        .digest("hex");
+    if (
+      input.since_revision !== undefined &&
+      input.since_revision === revision
+    ) {
+      return {
+        results: [],
+        revision,
+        unchanged: true,
+        ...(limitation === undefined ? {} : { index_limitation: limitation }),
+      };
+    }
     return {
       results: [],
+      revision,
       ...(limitation === undefined ? {} : { index_limitation: limitation }),
     };
   }
@@ -141,8 +169,36 @@ export async function executeSemanticSearch(
   const staleRatio = staleCount / matches.length;
   const staleWarning = staleRatio > 0.2;
 
+  const revision =
+    "rev:" +
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          query: input.query,
+          topK,
+          items: items.map((i) => ({
+            path: i.path,
+            line_start: i.line_start,
+            line_end: i.line_end,
+            excerpt: i.excerpt,
+          })),
+        }),
+      )
+      .digest("hex");
+
+  if (input.since_revision !== undefined && input.since_revision === revision) {
+    return {
+      results: [],
+      revision,
+      unchanged: true,
+      ...(staleWarning ? { stale_warning: true } : {}),
+      ...(limitation === undefined ? {} : { index_limitation: limitation }),
+    };
+  }
+
   return {
     results: items,
+    revision,
     ...(staleWarning ? { stale_warning: true } : {}),
     ...(limitation === undefined ? {} : { index_limitation: limitation }),
   };

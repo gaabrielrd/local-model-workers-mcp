@@ -15,24 +15,11 @@ com fallback não interativo via flags como `--target all --yes`.
 
 ## Estado atual (main)
 
-- Release 2.6.0 publicado (`main` inclui gerenciamento de contexto do harness —
-  preferência `result_verbosity` (`terse`/`standard`/`verbose`), compactação de
-  resultados em modo `terse` para os tools de maior payload e diretivas de
-  steering context-efficientes — além de cobertura ampliada de linguagens no
-  code graph e na destilação de contexto — Kotlin, Swift, Scala, PHP, Ruby e
-  Elixir, além de TypeScript/JS, Python, Go, Rust, Java e C#; mantém hooks de
-  pós-processamento customizados, perfis de workspace, harness JetBrains, daemon
-  supervision, hot-reload de configuração, setup nativo WSL2, SQLite vector
-  storage, circuit breaker resiliency, multi-repo cross-referencing, context
-  distillation, `analyze_diff`, SSE streaming, perfis dinâmicos,
-  hardware-aware concurrency e containerização Docker).
+- Release 3.2.0 publicado (`main` inclui atribuição por `workspace_label` via cabeçalhos HTTP, resultados incrementais via `since_revision` para ferramentas de leitura, roteamento adaptativo de modelos, extração de arestas de chamada no code graph com suporte a `impact_of`, correções verificadas em sandbox e limpeza das variáveis legadas de provedor — além de cobertura de 12 linguagens, gerenciamento de contexto, SQLite vector storage e circuit breaker resiliency).
 - Existem exatamente 15 ferramentas MCP (veja `docs/mcp-tools.md`).
 - `npm run validate` roda format:check, lint, check:boundaries, typecheck, build
   e testes.
-- Roadmap concluído até v2.6.0 (veja `docs/roadmap.md` e `docs/tasks/README.md`);
-  as tarefas 051-057 de endurecimento de segurança e confiabilidade estão
-  planejadas para v2.7.0-v2.13.0; a direção candidata v3.0 está documentada mas
-  não planejada.
+- Roadmap v3 concluído até a tarefa 065 (v3.3 / release 3.2.0, veja `docs/plan-v3.md` e `docs/roadmap.md`).
 - Versionamento: cada implementação do roadmap vira uma release minor; `main`
   avança o minor a cada pilar concluído com `npm run validate` verde.
 

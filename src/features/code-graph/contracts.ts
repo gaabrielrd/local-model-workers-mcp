@@ -48,6 +48,7 @@ export const CodeGraphQueryInputSchema = z
       .array(z.string().trim().min(1).max(4_096))
       .max(10)
       .optional(),
+    since_revision: z.string().trim().optional(),
   })
   .strict();
 
@@ -93,4 +94,6 @@ export interface CodeGraphQueryResult {
   readonly symbols: readonly CodeSymbol[];
   readonly edges?: readonly CodeEdge[] | undefined;
   readonly impact?: ImpactAnalysis | undefined;
+  readonly revision?: string | undefined;
+  readonly unchanged?: boolean | undefined;
 }

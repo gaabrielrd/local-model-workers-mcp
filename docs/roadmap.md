@@ -266,13 +266,16 @@ fixtures. Task tracking: docs/tasks 057.
 
 ---
 
-## Version 3.0 — Candidate direction (not committed)
+## Version 3.0 Line — Delivered (v3.0 - v3.3 / Tasks 058-065)
 
-A full proposal is written up in
-[roadmap-v3-proposal.md](roadmap-v3-proposal.md): a headline capability
-(verified fixes), the breaking cleanups a major can carry, and three follow-on
-pillars, each traced to a structural gap the 2.x line leaves behind. Nothing
-there is committed and it carries open questions for the maintainer.
+The v3 release line delivers the full set of capabilities proposed in `docs/plan-v3.md`:
+
+- **v3.0 — Verified fixes**: `fix_lint_violations` and `fix_type_errors` verify patches in temporary sandboxes prior to returning proposals. Legacy provider environment variables retired in favor of strict multi-provider configuration. `tls_verify` enabled by default off loopback.
+- **v3.1 — Transitive call graph & `impact_of`**: extracted call edges with confidence levels for TypeScript/JS, Python, and Go, enabling `query_code_graph` to answer `impact_of` queries.
+- **v3.2 — Adaptive model routing**: per-task slot performance scoring and adaptive routing (disabled by default via `static` routing strategy).
+- **v3.3 — Incremental results & workspace attribution**: read tools return deterministic `revision` tokens and accept optional `since_revision` to return payload deltas (`unchanged: true` with empty lists). Operator-configured `workspace_label` tags outbound HTTP requests with `X-Workspace-Label` headers for shared infrastructure attribution. Task tracking: tasks 064, 065.
+
+---
 
 Earlier informal direction, now folded into that proposal:
 

@@ -81,10 +81,31 @@ export async function summarizeModule(
       timeout_ms,
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
+    const files = entry === undefined ? [] : [entry];
+    const revision =
+      "rev:" +
+      createHash("sha256")
+        .update(
+          JSON.stringify({ target: input.target, depth: input.depth, files }),
+        )
+        .digest("hex");
+    if (
+      input.since_revision !== undefined &&
+      input.since_revision === revision
+    ) {
+      return {
+        target: input.target,
+        depth: input.depth,
+        files: [],
+        revision,
+        unchanged: true,
+      };
+    }
     return {
       target: input.target,
       depth: input.depth,
-      files: entry === undefined ? [] : [entry],
+      files,
+      revision,
     };
   }
 
@@ -144,10 +165,37 @@ export async function summarizeModule(
     }
   }
 
+  const revision =
+    "rev:" +
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          target: input.target,
+          depth: input.depth,
+          files: entries,
+          aggregateSummary,
+        }),
+      )
+      .digest("hex");
+
+  if (input.since_revision !== undefined && input.since_revision === revision) {
+    return {
+      target: input.target,
+      depth: input.depth,
+      files: [],
+      revision,
+      unchanged: true,
+      ...(aggregateSummary === undefined
+        ? {}
+        : { aggregate_summary: aggregateSummary }),
+    };
+  }
+
   return {
     target: input.target,
     depth: input.depth,
     files: entries,
+    revision,
     ...(aggregateSummary === undefined
       ? {}
       : { aggregate_summary: aggregateSummary }),

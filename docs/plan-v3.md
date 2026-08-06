@@ -1,7 +1,6 @@
 # Plan — Version 3.0 line
 
-**Status:** Plan awaiting execution. Produced by `/plan-feature` from
-[roadmap-v3-proposal.md](roadmap-v3-proposal.md).
+**Status:** Completed — v3 line delivered (Tasks 058–066, Release 3.2.0).
 **Scope:** the full v3 line — v3.0 through v3.3.
 
 ---

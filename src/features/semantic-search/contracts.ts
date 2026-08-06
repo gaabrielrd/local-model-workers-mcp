@@ -32,6 +32,7 @@ export const SemanticSearchInputSchema = z
       .array(z.string().trim().min(1).max(4_096))
       .max(10)
       .optional(),
+    since_revision: z.string().trim().optional(),
   })
   .strict();
 
@@ -59,6 +60,8 @@ export interface SemanticSearchResult {
   readonly results: readonly SemanticSearchResultItem[];
   readonly stale_warning?: boolean | undefined;
   readonly index_limitation?: IndexLimitation | undefined;
+  readonly revision?: string | undefined;
+  readonly unchanged?: boolean | undefined;
 }
 
 export interface VectorIndex {

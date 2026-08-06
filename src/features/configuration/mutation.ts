@@ -101,6 +101,7 @@ const ProjectChangesSchema = z
     post_processing_hooks: MutablePostProcessingHooksSchema,
     result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).nullable().optional(),
     routing_strategy: z.enum(ROUTING_STRATEGIES).nullable().optional(),
+    workspace_label: z.string().trim().min(1).max(256).nullable().optional(),
   })
   .strict()
   .refine((changes) => Object.keys(changes).length > 0, {
@@ -207,6 +208,7 @@ type MutableConfigurationField =
   | "post_processing_hooks"
   | "result_verbosity"
   | "routing_strategy"
+  | "workspace_label"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -232,6 +234,7 @@ const mutableFields: readonly MutableConfigurationField[] = [
   "post_processing_hooks",
   "result_verbosity",
   "routing_strategy",
+  "workspace_label",
   "limits.max_concurrency",
   "limits.queue_timeout_ms",
   "limits.processing_timeout_ms",
@@ -492,6 +495,7 @@ function applyChanges(
     profile?: string;
     post_processing_hooks?: unknown;
     result_verbosity?: string;
+    workspace_label?: string;
   } = {
     schema_version: CONFIGURATION_SCHEMA_VERSION,
     ...(current.default_model === undefined
@@ -513,6 +517,9 @@ function applyChanges(
     ...(current.result_verbosity === undefined
       ? {}
       : { result_verbosity: current.result_verbosity }),
+    ...(current.workspace_label === undefined
+      ? {}
+      : { workspace_label: current.workspace_label }),
   };
 
   if ("default_model" in changes) {
@@ -584,6 +591,14 @@ function applyChanges(
       delete candidate.result_verbosity;
     } else if (changes.result_verbosity !== undefined) {
       candidate.result_verbosity = changes.result_verbosity;
+    }
+  }
+
+  if ("workspace_label" in changes) {
+    if (changes.workspace_label === null) {
+      delete candidate.workspace_label;
+    } else if (changes.workspace_label !== undefined) {
+      candidate.workspace_label = changes.workspace_label;
     }
   }
 
@@ -695,6 +710,10 @@ function effectiveValue(
       return JSON.stringify(configuration.post_processing_hooks);
     case "result_verbosity":
       return configuration.result_verbosity;
+    case "routing_strategy":
+      return configuration.routing_strategy;
+    case "workspace_label":
+      return configuration.workspace_label;
     case "limits.max_concurrency":
       return configuration.limits.max_concurrency;
     case "limits.queue_timeout_ms":

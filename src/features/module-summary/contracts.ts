@@ -9,6 +9,7 @@ export const SummarizationInputSchema = z
     target: z.string().trim().min(1).max(4_096),
     depth: z.enum(["shallow", "deep"]).default("shallow"),
     force_refresh: z.boolean().default(false),
+    since_revision: z.string().trim().optional(),
   })
   .strict();
 
@@ -19,6 +20,7 @@ export interface SummarizationInput {
   readonly target: string;
   readonly depth?: SummarizationDepth | undefined;
   readonly force_refresh?: boolean | undefined;
+  readonly since_revision?: string | undefined;
 }
 
 export const SummarizedSymbolSchema = z
@@ -59,6 +61,8 @@ export const SummarizationResultSchema = z
     depth: z.enum(["shallow", "deep"]),
     files: z.array(FileSummaryResultSchema),
     aggregate_summary: z.string().trim().min(1).optional(),
+    revision: z.string().optional(),
+    unchanged: z.boolean().optional(),
   })
   .strict();
 
@@ -67,6 +71,8 @@ export interface SummarizationResult {
   readonly depth: SummarizationDepth;
   readonly files: readonly FileSummaryResult[];
   readonly aggregate_summary?: string | undefined;
+  readonly revision?: string | undefined;
+  readonly unchanged?: boolean | undefined;
 }
 
 export type SummarizationCacheValue = FileSummaryResult | string;

@@ -135,6 +135,7 @@ export interface LmStudioClientOptions {
   readonly retryCount?: number;
   readonly maxResponseBytes?: number;
   readonly fetch?: typeof globalThis.fetch;
+  readonly workspaceLabel?: string;
 }
 
 interface RequestContext {
@@ -181,6 +182,7 @@ interface ValidatedOptions {
   readonly retryCount: number;
   readonly maxResponseBytes: number;
   readonly fetch: typeof globalThis.fetch;
+  readonly workspaceLabel?: string;
 }
 
 function validateOptions(options: LmStudioClientOptions): ValidatedOptions {
@@ -227,6 +229,10 @@ function validateOptions(options: LmStudioClientOptions): ValidatedOptions {
     retryCount,
     maxResponseBytes,
     fetch: options.fetch ?? globalThis.fetch,
+    ...(options.workspaceLabel === undefined ||
+    options.workspaceLabel.trim().length === 0
+      ? {}
+      : { workspaceLabel: options.workspaceLabel.trim() }),
   };
 }
 
@@ -549,6 +555,9 @@ async function requestJson(
       headers: {
         ...init.headers,
         ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),
+        ...(options.workspaceLabel === undefined
+          ? {}
+          : { "X-Workspace-Label": options.workspaceLabel }),
       },
       signal: requestSignal.signal,
     });

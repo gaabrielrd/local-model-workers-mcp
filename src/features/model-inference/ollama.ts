@@ -53,6 +53,7 @@ export interface OllamaAdapterOptions {
   readonly retryCount?: number;
   readonly maxResponseBytes?: number;
   readonly fetch?: typeof globalThis.fetch;
+  readonly workspaceLabel?: string;
 }
 
 interface ValidatedOptions {
@@ -62,6 +63,7 @@ interface ValidatedOptions {
   readonly retryCount: number;
   readonly maxResponseBytes: number;
   readonly fetch: typeof globalThis.fetch;
+  readonly workspaceLabel?: string;
 }
 
 interface RequestContext {
@@ -165,6 +167,10 @@ function validateOptions(options: OllamaAdapterOptions): ValidatedOptions {
     retryCount,
     maxResponseBytes,
     fetch: options.fetch ?? globalThis.fetch,
+    ...(options.workspaceLabel === undefined ||
+    options.workspaceLabel.trim().length === 0
+      ? {}
+      : { workspaceLabel: options.workspaceLabel.trim() }),
   };
 }
 
@@ -385,6 +391,9 @@ async function requestJson(
         ...(bearerToken === undefined
           ? {}
           : { authorization: `Bearer ${bearerToken}` }),
+        ...(options.workspaceLabel === undefined
+          ? {}
+          : { "X-Workspace-Label": options.workspaceLabel }),
       },
       signal,
     });

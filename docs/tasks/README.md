@@ -1,8 +1,26 @@
 # Implementation plan
 
-**Status:** Tasks 001-048 implemented (released as v1.0-v2.4); Tasks 049-056 implemented (v2.5-v2.12); Task 057 planned for v2.13.0  
-**Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md)  
-**Last reviewed:** 2026-08-05
+**Status:** Tasks 001-048 implemented (v1.0-v2.4); Tasks 049-057 implemented (v2.5-v2.13); Tasks 058-066 implemented (v3.0-v3.3 / Release 3.2.0)  
+**Source:** [PRD](../../prd.md) · [Roadmap](../roadmap.md) · [v3 Plan](../plan-v3.md)  
+**Last reviewed:** 2026-08-06
+
+---
+
+### Phase 12 — Version 3.0 Line (v3.0 - v3.3)
+
+Tasks 058-066 shipped in the v3 line (see [plan-v3.md](../plan-v3.md) and [roadmap.md](../roadmap.md)).
+
+| Order | Task | Primary outcome | Depends on | Release |
+| --- | --- | --- | --- | --- |
+| 058 | Sandbox verification extraction | Reusable verification runner from `auto_validate_tests` | — | v3.0 |
+| 059 | Verified fixes | Sandbox-verified `fix_lint_violations` and `fix_type_errors` proposals | 058 | v3.0 |
+| 060 | Breaking cleanups | Retired legacy environment vars, enforced `tls_verify` off loopback | — | v3.0 |
+| 061 | Call edge extraction | Extracted call graph edges with confidence scores for TS/JS, Python, Go | — | v3.1 |
+| 062 | `impact_of` graph query | Transitive architectural impact queries via code graph | 061 | v3.1 |
+| 063 | Adaptive model routing | History-aware slot performance scoring (`static` default) | — | v3.2 |
+| 064 | Incremental results | Deterministic `revision` tokens and `since_revision` delta caching | — | v3.3 |
+| 065 | Workspace-label attribution | `workspace_label` configuration and `X-Workspace-Label` HTTP request header tagging | — | v3.3 |
+| 066 | Documentation & roadmap refresh | Complete refresh of project docs, `AGENTS.md`, `README.md`, and task index for v3 | all | v3.3 |
 
 ## Objective
 

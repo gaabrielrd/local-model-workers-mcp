@@ -539,6 +539,7 @@ function configuration(
       post_processing_hooks: "built_in",
       result_verbosity: "built_in",
       routing_strategy: "built_in",
+      workspace_label: "built_in",
     },
   } satisfies EffectiveConfiguration;
 }

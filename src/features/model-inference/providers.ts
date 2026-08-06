@@ -14,7 +14,7 @@ export function createProviderAdapter(
   configuration: ProviderConfig,
   options: Pick<
     LmStudioClientOptions,
-    "fetch" | "retryCount" | "maxResponseBytes"
+    "fetch" | "retryCount" | "maxResponseBytes" | "workspaceLabel"
   > = {},
 ): ProviderAdapter {
   // Refuse at construction when a provider demands verification it cannot get,

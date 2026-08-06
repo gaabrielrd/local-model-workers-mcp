@@ -116,6 +116,7 @@ const RepositoryTaskInputSchema = z
       .max(50)
       .optional(),
     language: LanguageSchema,
+    since_revision: z.string().trim().optional(),
   })
   .strict();
 const ProjectRootInputSchema = z
@@ -188,6 +189,9 @@ export async function createMcpApplicationRuntime(
     adapters: providers.map((provider) =>
       createProviderAdapter(provider, {
         retryCount: startupConfiguration.fixed_limits.inference_retry_count,
+        ...(startupConfiguration.workspace_label === undefined
+          ? {}
+          : { workspaceLabel: startupConfiguration.workspace_label }),
       }),
     ),
     ...(startupConfiguration.provider_routing?.recheck_interval_ms === undefined

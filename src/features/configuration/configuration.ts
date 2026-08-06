@@ -167,6 +167,7 @@ export const PreferencesSchema = z
     post_processing_hooks: PostProcessingHooksSchema.optional(),
     result_verbosity: z.enum(RESULT_VERBOSITY_LEVELS).optional(),
     routing_strategy: z.enum(ROUTING_STRATEGIES).optional(),
+    workspace_label: z.string().trim().min(1).max(256).optional(),
   })
   .strict();
 
@@ -309,6 +310,7 @@ export interface EffectiveConfiguration {
   readonly post_processing_hooks: readonly PostProcessingHook[];
   readonly result_verbosity: ResultVerbosity;
   readonly routing_strategy: RoutingStrategy;
+  readonly workspace_label?: string | undefined;
   readonly providers?: readonly EffectiveProviderConfiguration[];
   readonly provider_routing?: {
     readonly strategy: "priority";
@@ -344,6 +346,7 @@ export type ConfigurationField =
   | "post_processing_hooks"
   | "result_verbosity"
   | "routing_strategy"
+  | "workspace_label"
   | "limits.max_concurrency"
   | "limits.queue_timeout_ms"
   | "limits.processing_timeout_ms"
@@ -466,6 +469,12 @@ export async function getEffectiveConfiguration(
     DEFAULT_ROUTING_STRATEGY,
   );
 
+  const workspaceLabel = selectOptionalValue(
+    projectPreferences?.workspace_label,
+    globalPreferences?.workspace_label,
+    undefined,
+  );
+
   const embeddingModel = selectOptionalValue(
     projectPreferences?.embedding_model,
     globalPreferences?.embedding_model,
@@ -531,6 +540,7 @@ export async function getEffectiveConfiguration(
     post_processing_hooks: postProcessingHooks.origin,
     result_verbosity: resultVerbosity.origin,
     routing_strategy: routingStrategy.origin,
+    workspace_label: workspaceLabel.origin,
     "limits.max_concurrency": concurrency.origin,
     "limits.queue_timeout_ms": queueTimeout.origin,
     "limits.processing_timeout_ms": processingTimeout.origin,
@@ -572,6 +582,9 @@ export async function getEffectiveConfiguration(
     profile: activeProfile,
     result_verbosity: activeResultVerbosity,
     routing_strategy: routingStrategy.value,
+    ...(workspaceLabel.value === undefined
+      ? {}
+      : { workspace_label: workspaceLabel.value }),
     post_processing_hooks: postProcessingHooks.value.map((hook) => ({
       command: hook.command,
       ...(hook.args === undefined ? {} : { args: [...hook.args] }),

@@ -141,6 +141,8 @@ export interface CompletedTaskResponse<Result> {
   result: Result;
   evidence: Evidence[];
   limitations: Limitation[];
+  revision?: string | undefined;
+  unchanged?: boolean | undefined;
 }
 
 export interface DiagnosticTaskResponse {
@@ -166,6 +168,8 @@ export function completedTaskResponseSchema<Result>(
       result: resultSchema,
       evidence: z.array(EvidenceSchema),
       limitations: z.array(LimitationSchema),
+      revision: z.string().optional(),
+      unchanged: z.boolean().optional(),
     })
     .strict();
 }

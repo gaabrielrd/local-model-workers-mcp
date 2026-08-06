@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { CallEdge } from "./call-edges.js";
 import type {
   CodeEdge,
@@ -57,6 +59,39 @@ export class InMemoryCodeGraph {
   }
 
   public query(input: CodeGraphQueryInput): CodeGraphQueryResult {
+    const rawResult = this.executeQuery(input);
+    const revision =
+      "rev:" +
+      createHash("sha256")
+        .update(
+          JSON.stringify({
+            query: input.query,
+            query_type: input.query_type,
+            file_filter: input.file_filter,
+            rawResult,
+          }),
+        )
+        .digest("hex");
+
+    if (
+      input.since_revision !== undefined &&
+      input.since_revision === revision
+    ) {
+      return {
+        symbols: [],
+        ...(rawResult.edges !== undefined ? { edges: [] } : {}),
+        ...(rawResult.impact !== undefined
+          ? { impact: { ...rawResult.impact, affected: [] } }
+          : {}),
+        revision,
+        unchanged: true,
+      };
+    }
+
+    return { ...rawResult, revision };
+  }
+
+  private executeQuery(input: CodeGraphQueryInput): CodeGraphQueryResult {
     const { query, query_type, file_filter } = input;
     const filterLower = file_filter?.toLowerCase();
 

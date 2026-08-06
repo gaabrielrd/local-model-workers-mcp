@@ -10,7 +10,7 @@ import {
 
 export interface OpenAiCompatibleAdapterOptions extends Pick<
   LmStudioClientOptions,
-  "fetch" | "retryCount" | "maxResponseBytes"
+  "fetch" | "retryCount" | "maxResponseBytes" | "workspaceLabel"
 > {
   readonly configuration: ProviderConfig;
 }
@@ -38,6 +38,9 @@ export function createOpenAiCompatibleAdapter(
     ...(options.maxResponseBytes === undefined
       ? {}
       : { maxResponseBytes: options.maxResponseBytes }),
+    ...(options.workspaceLabel === undefined
+      ? {}
+      : { workspaceLabel: options.workspaceLabel }),
   });
   return {
     provider: Object.freeze({

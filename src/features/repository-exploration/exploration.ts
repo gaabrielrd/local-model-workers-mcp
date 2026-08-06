@@ -194,13 +194,47 @@ export async function exploreRepository(
     ...(input.onTerminal === undefined ? {} : { onTerminal: input.onTerminal }),
   });
 
-  return await runTaskWithCapacity(
+  const taskResponse = await runTaskWithCapacity(
     input.coordinator,
     runtime,
     (context) =>
       runExploration(request, capability, collector, context, input.language),
     input.signal === undefined ? {} : { signal: input.signal },
   );
+
+  if (taskResponse.status !== "completed") {
+    return taskResponse;
+  }
+
+  const revision =
+    "rev:" +
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          goal: request.goal,
+          priority_paths: request.priority_paths,
+          result: taskResponse.result,
+          evidence: taskResponse.evidence,
+        }),
+      )
+      .digest("hex");
+
+  if (
+    parsedRequest.since_revision !== undefined &&
+    parsedRequest.since_revision === revision
+  ) {
+    return {
+      ...taskResponse,
+      revision,
+      unchanged: true,
+      evidence: [],
+    };
+  }
+
+  return {
+    ...taskResponse,
+    revision,
+  };
 }
 
 async function runExploration(
