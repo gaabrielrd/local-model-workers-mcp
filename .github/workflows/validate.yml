@@ -3,6 +3,9 @@ name: validate
 on:
   push:
   pull_request:
+  # Lets a release be re-run without pushing an empty commit, for when a push
+  # event is missed and main is already at the version that should ship.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -62,7 +65,11 @@ jobs:
 
   release:
     needs: [validate, gates]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A manual dispatch is as deliberate as a push, and the branch guard is what
+    # actually protects the release — it stays.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
