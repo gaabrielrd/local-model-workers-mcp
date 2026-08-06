@@ -1,26 +1,41 @@
+import type { CallEdge } from "./call-edges.js";
 import type {
   CodeEdge,
   CodeGraphQueryInput,
   CodeGraphQueryResult,
   CodeSymbol,
 } from "./contracts.js";
+import { analyzeImpact } from "./impact.js";
 
 export class InMemoryCodeGraph {
   private fileHashes = new Map<string, string>();
   private fileSymbols = new Map<string, CodeSymbol[]>();
+  /**
+   * Call edges per file. A file is present here only when call extraction
+   * actually ran for it, so an empty array ("no calls") stays distinguishable
+   * from an absent entry ("not analyzed").
+   */
+  private fileCallEdges = new Map<string, CallEdge[]>();
 
   public updateFile(
     filePath: string,
     contentHash: string,
     symbols: readonly CodeSymbol[],
+    callEdges?: readonly CallEdge[],
   ): void {
     this.fileHashes.set(filePath, contentHash);
     this.fileSymbols.set(filePath, [...symbols]);
+    if (callEdges === undefined) {
+      this.fileCallEdges.delete(filePath);
+    } else {
+      this.fileCallEdges.set(filePath, [...callEdges]);
+    }
   }
 
   public removeFile(filePath: string): void {
     this.fileHashes.delete(filePath);
     this.fileSymbols.delete(filePath);
+    this.fileCallEdges.delete(filePath);
   }
 
   public isStale(filePath: string, currentContentHash: string): boolean {
@@ -34,6 +49,7 @@ export class InMemoryCodeGraph {
   public clear(): void {
     this.fileHashes.clear();
     this.fileSymbols.clear();
+    this.fileCallEdges.clear();
   }
 
   public size(): number {
@@ -125,6 +141,66 @@ export class InMemoryCodeGraph {
       return { symbols: referencing, edges };
     }
 
+    if (query_type === "impact_of") {
+      return this.queryImpact(query, filterLower);
+    }
+
     return { symbols: [] };
+  }
+
+  /**
+   * Transitive blast radius of a symbol, walked over call edges.
+   *
+   * Returns the affected symbols' own declarations in `symbols` so existing
+   * consumers get something useful, plus the `calls` edges that justify each
+   * one, plus an `impact` block that states what the answer does not cover.
+   */
+  private queryImpact(
+    query: string,
+    filterLower: string | undefined,
+  ): CodeGraphQueryResult {
+    const callEdges: CallEdge[] = [];
+    let analyzedFiles = 0;
+    let totalFiles = 0;
+
+    for (const filePath of this.fileSymbols.keys()) {
+      if (
+        filterLower !== undefined &&
+        !filePath.toLowerCase().includes(filterLower)
+      ) {
+        continue;
+      }
+      totalFiles += 1;
+      const edges = this.fileCallEdges.get(filePath);
+      if (edges === undefined) {
+        continue;
+      }
+      analyzedFiles += 1;
+      callEdges.push(...edges);
+    }
+
+    const impact = analyzeImpact({
+      target: query,
+      callEdges,
+      unanalyzedFiles: totalFiles - analyzedFiles,
+    });
+
+    const symbols: CodeSymbol[] = [];
+    const edges: CodeEdge[] = [];
+    for (const affected of impact.affected) {
+      const declaration = this.fileSymbols
+        .get(affected.filePath)
+        ?.find((s) => s.name === affected.name && s.kind !== "import");
+      if (declaration !== undefined) {
+        symbols.push(declaration);
+      }
+      edges.push({
+        from: affected.symbol,
+        to: affected.via,
+        relation: "calls",
+      });
+    }
+
+    return { symbols, edges, impact };
   }
 }

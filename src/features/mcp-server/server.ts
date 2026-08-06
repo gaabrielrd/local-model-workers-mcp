@@ -66,8 +66,10 @@ import {
 } from "../semantic-search/index.js";
 import {
   CodeGraphQueryInputSchema,
+  extractCallEdges,
   InMemoryCodeGraph,
   parseSourceSymbols,
+  supportsCallExtraction,
 } from "../code-graph/index.js";
 import {
   InMemorySummarizationCache,
@@ -405,7 +407,7 @@ export function createMcpServer(
       {
         title: "Query code graph",
         description:
-          "Query lightweight symbol graph (functions, classes, interfaces, type aliases, callers, dependencies, exports).",
+          "Query lightweight symbol graph (functions, classes, interfaces, type aliases, callers, dependencies, exports). Use impact_of for the transitive set of symbols affected by changing one symbol.",
         inputSchema: CodeGraphQueryInputSchema,
         annotations: { readOnlyHint: true, destructiveHint: false },
       },
@@ -428,7 +430,21 @@ export function createMcpServer(
                   line_count: 500,
                 });
                 const symbols = parseSourceSymbols(entry.path, snippet.content);
-                sharedCodeGraph.updateFile(entry.path, "hash", symbols);
+                // Call edges are recorded only for languages where extraction
+                // is reliable, so `impact_of` can report what it could not see.
+                const callEdges = supportsCallExtraction(entry.path)
+                  ? extractCallEdges({
+                      filePath: entry.path,
+                      content: snippet.content,
+                      symbols,
+                    })
+                  : undefined;
+                sharedCodeGraph.updateFile(
+                  entry.path,
+                  "hash",
+                  symbols,
+                  callEdges,
+                );
               } catch {
                 // Ignore unreadable files
               }
